@@ -315,6 +315,7 @@ html, body {
 }
 .slip-stamp.failed { border-color: var(--stamp-red); color: var(--stamp-red); }
 .slip-buttons { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+.slip-choice { display: block; width: 100%; margin: 6px 0; text-align: left; text-transform: none; letter-spacing: 0; font: 0.95rem var(--font-type); }
 .order-slip .btn:not(.btn-primary) { color: var(--ink); border-color: var(--ink); }
 
 .situation { border-top: 1px solid var(--brass); padding-top: 8px; }

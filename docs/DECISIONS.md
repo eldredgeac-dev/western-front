@@ -171,6 +171,38 @@ I'll change it.
     refused, with a message to reload the page.
 43. **The `?demo` sample war is never saved**, so it can't overwrite your real campaign.
 
+### Milestone 9 (first half): events and reinforcements
+44. **Events happen at the start of the month**, in the "Events and reinforcements"
+    phase, before the German move.
+    - The blockade (−1 in Feb, Apr, Jun, Aug, Oct and Dec 1916), the Turnip Winter (−1
+      every month of 1917) and Hunger (−2 every month of 1918) total the same as
+      `tools/wfsim.py`, which applies them at the end of the month.
+    - These monthly drains don't write a log line every month, to keep Dispatches
+      readable.
+45. **Questions (U-boats, the Hindenburg Line)** appear at the top of the panel as
+    "DECISION REQUIRED". End Phase is greyed out until you answer. The computer side (once
+    the AI is on) answers the way RULES.md §14 says: Unrestricted, and fall back.
+46. **U-boat pressure:** Unrestricted costs Britain 2 Will in February 1917 and in each of
+    the next 5 months (6 turns).
+47. **Reinforcements** arrive in a random rear box (E3/G3) with room, picked through the
+    seeded dice (pending fix 14). British units arrive in lanes 1–6 and US units in
+    lanes 9–12. With no room, a unit waits for next month.
+    - Choosing the box yourself can come later; it's in Later ideas.
+48. **Green units.** Kitchener's men (1915–16) are Green until January 1917. US units are
+    Green for their first 3 months (a unit arriving in November 1917 becomes Regular in
+    February 1918).
+49. **Tanks.** British tanks arrive September 1916, November 1917 and 2 in August 1918.
+    French Renault tanks arrive April 1917, June 1918 and August 1918 (RULES.md §4). They
+    can't be rebuilt.
+50. **Who gets the upgrades.** Vimy makes the two strongest British infantry units Elite,
+    for good (pending fix 12). In January 1918 Germany's four strongest infantry units
+    become stormtroopers automatically ("up to 4"; choosing which can come later).
+51. **The Kaiserschlacht gamble** is checked at the start of November 1918: if Germany
+    made no attack in April–October 1918, it loses 15 Will.
+52. **Not done yet:** event pop-ups as telegrams (Milestone 6 polish) and Real Voices
+    quotes (Milestone 12). The French mutinies are handled with Will (Milestone 7); the
+    armistice ends the game after November 1918.
+
 ## Questions for you (answered)
 1. **Combat table — answered: RULES.md is right.**
    - The balance tests used `tools/t2.py`, which patched the simulator's 1:2 and 1:1
@@ -221,6 +253,9 @@ I'll change it.
       should open; save the file to Files. Then tap **Import save** and pick that file:
       the game should open at the same point. Picking a photo or any other file should
       show a polite message instead.
+- [ ] **Event questions.** Tap END PHASE until February 1917 (about 100 taps; or wait
+      until the computer opponent plays one side). A cream "DECISION REQUIRED" card about
+      the U-boats appears and END PHASE greys out until you tap an answer. Is it clear?
 - [ ] **Counter details.** At full zoom: is the German cross pattée (top-left mark) clear
       enough? It's small and dark on field grey. Counters also sit over their own town's
       name. Tell me if you'd rather they sat beside it.

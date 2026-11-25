@@ -13,6 +13,7 @@ import { inSupply, rearColumn, supplySources } from '../js/engine/supply.js';
 import { supplyPhase } from '../js/engine/systems/supply.js';
 import { spendReplacements, threat } from '../js/engine/systems/replacements.js';
 import { willPhase, armisticeScore, suddenVictory } from '../js/engine/systems/will.js';
+import { runEvents, chooseOption, pendingChoice, eventDue } from '../js/engine/events.js';
 import { columnAverages, ratioColumn, planAttack, oddsPreview, resolveAttack, applyCombatResult,
   barrageMax, eligibleAttackers } from '../js/engine/combat.js';
 
@@ -335,7 +336,7 @@ test('battles: pencil notes only for 6+ steps lost, grouped by territory, oldest
 const copyOf = (x) => JSON.parse(JSON.stringify(x));
 // The data bundle the engine expects.
 const bundle = () => ({ map: data.map, terrain: data.terrain, nations: data.nations,
-  unitTypes: data.unitTypes, phases: data.phases, combat: data.combat, victory: data.victory });
+  unitTypes: data.unitTypes, phases: data.phases, combat: data.combat, victory: data.victory, events: data.events });
 const game = (seed = 7) => newGame(data.scenario, seed, bundle());
 const phaseIndex = (id) => data.phases.phases.findIndex((p) => p.id === id);
 
@@ -459,11 +460,16 @@ test('turn: a new game waits at the German move; End Phase steps through the tur
 });
 
 test('turn: the war ends after November 1918 (48 turns)', () => {
+  // Press End Phase all the way through, answering the 1917 questions on the way.
   let s = started();
-  for (let i = 0; i < 47 * 4; i++) s = endPhase(s, bundle());
+  let presses = 0;
+  while (currentMonth(s) < '1918-11' && presses < 400) {
+    s = s.pendingChoice ? chooseOption(s, bundle(), pendingChoice(s, bundle()).aiChoice) : endPhase(s, bundle());
+    presses++;
+  }
   check(s.turn === 48 && currentMonth(s) === '1918-11' && !s.over, 'turn 48 is November 1918');
   for (let i = 0; i < 4; i++) s = endPhase(s, bundle());
-  check(s.over, 'the game is over');
+  check(s.over && s.result, 'the game is over, with a result');
   check(endPhase(s, bundle()) === s, 'nothing happens after the end');
 });
 
@@ -995,6 +1001,109 @@ test('saves: an old version 1 save (owners and trenches only) is upgraded', () =
     checkState(up, bundle()).length === 0, 'filled in the rest (and no German unit left in the lost box)');
 });
 
+// ---------------------------------------------------------------- Milestone 9: events
+// A game sitting at the start of a month, events not yet run, both sides human
+// unless `ai` is given.
+function monthStart(month, controllers = { germany: 'human', entente: 'human' }) {
+  const s = atWar(month, 'germany');
+  s.phase = 0; s.controllers = controllers; s.eventsDone = [];
+  return s;
+}
+// Play End Phase straight through to `month`, answering choices the computer's way.
+function playTo(state, month) {
+  let s = state;
+  for (let i = 0; i < 400 && currentMonth(s) < month && !s.over; i++) {
+    if (s.pendingChoice) s = chooseOption(s, bundle(), pendingChoice(s, bundle()).aiChoice);
+    else s = endPhase(s, bundle());
+  }
+  return s;
+}
+
+test('events: every event in RULES.md §10 is in data/events.json', () => {
+  const ids = data.events.events.map((e) => e.id);
+  for (const id of ['gas', 'blockade', 'turnip-winter', 'hunger', 'creeping-barrage', 'u-boats', 'hindenburg-line', 'vimy', 'russia', 'stormtroopers', 'kaiserschlacht']) {
+    check(ids.includes(id), 'missing ' + id);
+  }
+  check(eventDue(data.events.events.find((e) => e.id === 'blockade'), '1916-02') &&
+    !eventDue(data.events.events.find((e) => e.id === 'blockade'), '1916-03'), 'blockade every other month');
+});
+
+test('events: German Will drains — blockade 6 in 1916, Turnip Winter 12 in 1917, Hunger 2 a month in 1918', () => {
+  const run = (from, to) => {
+    let total = 0;
+    for (let m = from; m <= to; m = addMonthsT(m, 1)) {
+      const s = monthStart(m); const before = s.will.ger; runEvents(s, bundle()); total += before - s.will.ger;
+    }
+    return total;
+  };
+  check(run('1916-01', '1916-12') === 6, '1916: ' + run('1916-01', '1916-12'));
+  check(run('1917-01', '1917-11') === 11 && run('1917-12', '1917-12') === 1 - 10, '1917 (Russia +10 in December)');
+  check(run('1918-01', '1918-03') === 6, '1918: −2 a month');
+});
+const addMonthsT = (m, n) => { const [y, mo] = m.split('-').map(Number); const t = y * 12 + mo - 1 + n; return `${Math.floor(t / 12)}-${String(t % 12 + 1).padStart(2, '0')}`; };
+
+test('events: the first gas attack gives +2 to Germany\'s first attack in lane 2 in April 1915', () => {
+  let s = monthStart('1915-04'); runEvents(s, bundle()); s.phase = phaseIndex('germany-attack');
+  const plan = planAttack(s, bundle(), { target: 'l02-e1', units: ['ger-02'] });
+  check(shiftOf(plan, 'Gas') === 2, 'gas +2');
+  check(shiftOf(planAttack(s, bundle(), { target: 'l01-e1', units: ['ger-01'] }), 'Gas') === undefined, 'only lane 2');
+  s = resolveAttack(s, bundle(), { target: 'l02-e1', units: ['ger-02'] }).state;
+  check(shiftOf(planAttack(s, bundle(), { target: 'l02-e1', units: ['ger-13'] }), 'Gas') === undefined, 'only the first attack');
+});
+
+test('events: reinforcements arrive in the rear on time; Kitchener\'s men are Green until 1917', () => {
+  let s = monthStart('1915-03'); runEvents(s, bundle());
+  const ger = s.units.filter((u) => u.id.startsWith('ger-n'));
+  const gbr = s.units.filter((u) => u.id.startsWith('gbr-n'));
+  check(ger.length === 1 && ger[0].box.endsWith('-g3'), 'GER +1 in G3');
+  check(gbr.length === 2 && gbr.every((u) => u.quality === 'green' && u.greenUntil === '1917-01'), 'GBR +2 Green');
+  const lane = (u) => Number(u.box.slice(1, 3));
+  check(gbr.every((u) => u.box.endsWith('-e3') && lane(u) <= 6), 'GBR in lanes 1–6 E3');
+  s = monthStart('1917-01'); s.units.push({ ...gbr[0], id: 'gbr-x' }); runEvents(s, bundle());
+  check(unit(s, 'gbr-x').quality === 'regular', 'Regular from January 1917');
+  s = monthStart('1916-09'); runEvents(s, bundle());
+  check(s.units.some((u) => u.type === 'tanks' && u.nation === 'gbr'), 'British tanks, September 1916');
+});
+
+test('events: the U-boat decision — Unrestricted brings the USA in April 1917; Restricted in January 1918', () => {
+  let s = monthStart('1917-02'); runEvents(s, bundle());
+  check(s.pendingChoice && pendingChoice(s, bundle()).event.id === 'u-boats', 'a human gets the question');
+  check(endPhase(s, bundle()) === s, 'the turn waits for the answer');
+  s = chooseOption(s, bundle(), 'unrestricted');
+  check(s.will.gbr === 85 - 2 && s.usaEntry === '1917-04', 'GBR −2 now, USA in April');
+  s = playTo(s, '1917-08');
+  check(s.will.usa === 90, 'US Will starts on entry');
+  check(s.will.gbr <= 85 - 12, 'six months of U-boat pressure: ' + s.will.gbr);
+  s = playTo(s, '1917-11');
+  const us = s.units.filter((u) => u.nation === 'usa');
+  check(us.length === 1 && us[0].quality === 'green' && us[0].greenUntil === '1918-02' && Number(us[0].box.slice(1, 3)) >= 9,
+    'first US unit in November 1917, Green 3 turns, lanes 9–12: ' + JSON.stringify(us));
+  let r = monthStart('1917-02'); runEvents(r, bundle()); r = chooseOption(r, bundle(), 'restricted');
+  check(r.usaEntry === '1918-01' && r.will.gbr === 85, 'restricted: USA in January 1918');
+});
+
+test('events: the computer answers its own questions; the Hindenburg Line withdraws lanes 5–8', () => {
+  const s = monthStart('1917-03', { germany: 'ai', entente: 'human' });
+  runEvents(s, bundle());
+  check(!s.pendingChoice, 'no question for the computer');
+  for (const l of ['05', '06', '07', '08']) {
+    check(s.boxes[`l${l}-g1`].owner === 'entente' && s.boxes[`l${l}-g1`].trench === 0, `lane ${l} G1 given up`);
+    check(s.boxes[`l${l}-g2`].trench === 3 && unitsIn(s, `l${l}-g1`).length === 0, `lane ${l} G2 trench 3`);
+  }
+  check(unit(s, 'ger-06').box === 'l06-g2' && s.resources.ger.rail === 5, 'units fell back; +2 rail');
+});
+
+test('events: Vimy makes 2 British units Elite; stormtroopers; the Kaiserschlacht gamble', () => {
+  let s = monthStart('1917-04'); runEvents(s, bundle());
+  check(s.units.filter((u) => u.nation === 'gbr' && u.quality === 'elite').length === 2, 'two Elite');
+  s = monthStart('1918-01'); runEvents(s, bundle());
+  check(s.units.filter((u) => u.type === 'stormtroopers').length === 4, 'four stormtrooper units');
+  s = monthStart('1918-11'); s.attacks = []; let before = s.will.ger; runEvents(s, bundle());
+  check(s.will.ger === before - 2 - 15, 'no attack Apr–Oct 1918: −15 (and Hunger −2)');
+  s = monthStart('1918-11'); s.attacks = [{ side: 'germany', month: '1918-05' }]; before = s.will.ger; runEvents(s, bundle());
+  check(s.will.ger === before - 2, 'an attack in May 1918 avoids it');
+});
+
 // ---------------------------------------------------------------- commanders and headlines
 test('commanders: all nine cards from RULES.md §15, with Strength, Flaw and history', () => {
   const ids = data.commanders.cards.map((c) => c.id).sort();
@@ -1047,6 +1156,7 @@ export async function runAll(loadJson, loadText) {
     data.combat = await loadJson('data/combat-table.json');
     data.commanders = await loadJson('data/commanders.json');
     data.victory = await loadJson('data/victory.json');
+    data.events = await loadJson('data/events.json');
     data.headlines = await loadJson('data/headlines.json');
   } catch (err) {
     results.push({ name: 'load data files', ok: false, error: err.message });

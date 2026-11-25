@@ -7,7 +7,7 @@ mean editing data. Every file starts with an `"_about"` line saying what it is f
 `tests/run.mjs` checks that every data file is valid JSON. The tests in
 `tests/tests.js` check that the map and scenario match `docs/RULES.md`.
 
-Planned files that don't exist yet: `events.json` (Milestone 9).
+All the planned files now exist.
 (5), Describe each one here when it is added.
 
 ---
@@ -123,6 +123,30 @@ doing something.
 `nations.json` also has `mutiny` for France: `name`, `belowWill` (35), `turns` (3) and
 `willAfter` (10), and `rebuildType` for nations that don't rebuild as plain infantry (the
 USA).
+
+## `events.json`: events and reinforcements (RULES.md §4, §10) [balanced]
+**`events`**: each has an `id`, `name`, `text` (for the log) and either `month` or
+`from`/`to` (with optional `months` of the year: the blockade is `[2, 4, …, 12]`).
+`quiet: true` events don't write to the log every month. `effects` is a list of:
+
+| `kind` | What it does |
+|---|---|
+| `will` | `nation`'s Will changes by `value` |
+| `attack-shift` | `side`'s next `uses` attacks into `lanes` this month get `shift`, shown as `label` (gas) |
+| `will-for-turns` | `nation`'s Will changes by `value` for `turns` turns (U-boats) |
+| `usa-entry` | The USA declares war in `month` (its Will starts, and its reinforcements count from then) |
+| `withdraw` | The Hindenburg Line: units in `from` of `lanes` fall back to `to` (or `fallback`); those boxes go to the enemy at trench 0; `to` becomes `trench`; extra `rail` moves this turn |
+| `make-elite` | `count` of `nation`'s strongest `type` units become Elite |
+| `convert` | `count` of `nation`'s strongest `from` units become `to` (stormtroopers) |
+| `will-if-no-attack` | If `side` made no attack between `from` and `to`, `nation`'s Will changes by `value` |
+
+A **`choice`** event asks `side` a `question` with `options` (each with `label`, `text`
+and `effects`). The computer picks `aiChoice`; a human player is asked, and the turn waits.
+
+**`reinforcements`**: `dated` lists `{month, nation, type, count}` (optional `quality`,
+`greenUntil`). `afterEntry` lists US arrivals `after` months from the declaration.
+`placeLanes` limits where a nation's units arrive (GBR lanes 1–6, USA 9–12). Units with
+`greenTurns` in `unit-types.json` arrive Green for that many months.
 
 ## `commanders.json`: commander cards (RULES.md §15) [balanced]
 | Field | Meaning |

@@ -208,6 +208,23 @@ function orderSlip(slip, actions) {
   return card;
 }
 
+// A decision an event asks for (RULES.md §10). The turn waits until it's answered.
+function choiceCard(choice, onChoose) {
+  const card = el('section', 'order-slip choice-card');
+  card.appendChild(el('p', 'slip-kicker', 'DECISION REQUIRED'));
+  card.appendChild(el('h3', 'slip-title', choice.event.name));
+  card.appendChild(el('p', 'slip-defenders', choice.question));
+  for (const o of choice.options) {
+    const b = el('button', 'btn slip-choice');
+    b.type = 'button';
+    b.appendChild(el('strong', '', o.label));
+    b.appendChild(el('span', '', ' \u2014 ' + o.text));
+    b.addEventListener('click', () => onChoose(o.id));
+    card.appendChild(b);
+  }
+  return card;
+}
+
 // Show the panel. `info` is null when nothing is selected, or an object with
 // everything about the tapped territory, already worked out by main.js.
 //   actions.onUnit(id) — a unit in the list was tapped
@@ -217,6 +234,7 @@ export function showPanel(container, info, terrainData, actions = {}) {
   const parts = [];
   if (actions.error) parts.push(el('p', 'panel-error', actions.error));
   if (actions.slip) parts.push(orderSlip(actions.slip, actions));
+  if (actions.choice) parts.push(choiceCard(actions.choice, actions.onChoose));
   if (!info) {
     parts.push(el('p', 'panel-hint', 'Tap a territory on the map to see its details. Pinch to zoom.'));
   } else {

@@ -26,7 +26,7 @@ export function currentPhase(state, data) {
 export function phaseAllows(state, data, unit, kind) {
   const phase = currentPhase(state, data);
   if (!phase) return true;                      // no phase data: allow (used by tests)
-  return !state.over && phase.kind === kind && phase.side === sideOfUnit(data, unit);
+  return !state.over && !state.pendingChoice && phase.kind === kind && phase.side === sideOfUnit(data, unit);
 }
 
 // Why this unit can't move at all right now, or null if it can.

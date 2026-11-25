@@ -181,6 +181,12 @@ export function planAttack(state, data, order) {
     if (q.attackShiftIfAny && qSteps > 0) add(`${q.name} troops`, q.attackShiftIfAny);
   }
   for (const e of order.extraShifts || []) add(e.label, e.value);
+  // Event shifts this month (data/events.json, e.g. the first gas attack).
+  const lane = data.map.lanes.find((l) => l.id === target.lane).number;
+  plan.eventShiftsUsed = [];
+  (state.eventShifts || []).forEach((e, i) => {
+    if (e.side === side && e.uses > 0 && (!e.lanes || e.lanes.includes(lane))) { add(e.label, e.shift); plan.eventShiftsUsed.push(i); }
+  });
 
   // 3. Clamp to the table (1:2 … 4:1).
   const total = shifts.reduce((s, x) => s + x.value, 0);
@@ -364,6 +370,8 @@ export function resolveAttack(state, data, order) {
   next.resources[plan.payer].munitions -= plan.munitions;
   for (const id of plan.attackers) findUnit(next, id).attacked = true;
   if (!next.attackedBoxes.includes(order.target)) next.attackedBoxes.push(order.target);
+  for (const i of plan.eventShiftsUsed || []) next.eventShifts[i].uses -= 1;
+  next.attacks = [...(next.attacks || []), { side: plan.side, nations: plan.nations, month: currentMonth(next), box: order.target }];
   const name = boxName(data.map, boxesOf(data)[order.target]);
 
   if (plan.empty) {

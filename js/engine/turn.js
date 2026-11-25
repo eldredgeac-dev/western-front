@@ -10,6 +10,7 @@ import { addLog } from './moves.js';
 import { supplyPhase } from './systems/supply.js';
 import { replacementsPhase } from './systems/replacements.js';
 import { willPhase } from './systems/will.js';
+import { runEvents } from './events.js';
 
 // Clear what units did last turn and hand out this month's resources.
 function startOfTurn(state, data) {
@@ -36,6 +37,7 @@ export function digIn(state, data) {
 // What each automatic phase does. Phases not listed here only exist as a step in
 // the turn until their milestone arrives (see "until" in data/phases.json).
 const AUTO = {
+  events: runEvents,
   supply: supplyPhase,
   'dig-in': digIn,
   replacements: replacementsPhase,
@@ -65,6 +67,7 @@ function settle(state, data) {
     if (AUTO[phase.id]) AUTO[phase.id](state, data);
     if (state.over) return state;          // someone won
     state.phase += 1;
+    if (state.pendingChoice) return state; // a question for the player waits (events.js)
   }
   return state;
 }
@@ -80,7 +83,7 @@ export function beginGame(state, data) {
 // The player presses End Phase: move on to the next phase that needs orders,
 // running any automatic phases (and the end of the month) on the way.
 export function endPhase(state, data) {
-  if (state.over) return state;
+  if (state.over || state.pendingChoice) return state;
   const next = copyState(state);
   next.phase += 1;
   return settle(next, data);

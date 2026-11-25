@@ -9,6 +9,7 @@ import { showPanel } from './ui/panel.js';
 import { battleCounts, bigBattles, scarLevel, shortMonth } from './engine/battles.js';
 import { applyDemo } from './ui/demo.js';
 import { armisticeScore } from './engine/systems/will.js';
+import { pendingChoice, chooseOption } from './engine/events.js';
 import { unitsIn, unitType, nationOf } from './engine/units.js';
 import { moveTargets, railTargets, moveUnit, railMove, phaseAllows } from './engine/moves.js';
 import { beginGame, endPhase, phaseOf } from './engine/turn.js';
@@ -73,7 +74,7 @@ async function loadJson(path) {
 
 // Load all the data files the game needs, and check the map makes sense.
 async function loadData() {
-  const [map, terrainData, nations, scenario, quotes, unitTypes, phases, combat, victory] = await Promise.all([
+  const [map, terrainData, nations, scenario, quotes, unitTypes, phases, combat, victory, events] = await Promise.all([
     loadJson('./data/boxes-west.json'),
     loadJson('./data/terrain.json'),
     loadJson('./data/nations.json'),
@@ -83,12 +84,13 @@ async function loadData() {
     loadJson('./data/phases.json'),
     loadJson('./data/combat-table.json'),
     loadJson('./data/victory.json'),
+    loadJson('./data/events.json'),
   ]);
   const problems = checkMap(map, terrainData);
   if (problems.length > 0) throw new Error('The map data has problems: ' + problems.join('; '));
   const mapSvg = await loadMapSvg(map.mapSvg);
   // `engine` is the bundle of data files the game engine (js/engine/) works with.
-  const engine = { map, terrain: terrainData, nations, unitTypes, phases, combat, victory };
+  const engine = { map, terrain: terrainData, nations, unitTypes, phases, combat, victory, events };
   return { map, terrainData, nations, scenario, quotes, unitTypes, phases, engine, mapSvg, boxesById: indexBoxes(map) };
 }
 
@@ -253,6 +255,14 @@ function situation() {
   };
 }
 
+// Answer an event's question (the U-boat decision, the Hindenburg Line).
+function answerChoice(optionId) {
+  state = chooseOption(state, orderData(), optionId);
+  persist();
+  redraw();
+  refreshPanel();
+}
+
 // The data the engine needs to check orders.
 function orderData() {
   return data.engine;
@@ -262,6 +272,7 @@ function orderData() {
 function refreshPanel() {
   showPanel(panelArea, selectedBox ? boxInfo(selectedBox) : null, data.terrainData, {
     onUnit: selectUnit, log: state.log, error: orderError, situation: situation(),
+    choice: pendingChoice(state, data.engine), onChoose: answerChoice,
     slip: attack ? attackSlip() : null,
     onToggleUnit: toggleAttacker, onMunitions: changeMunitions, onConfirm: confirmAttack, onCancel: closeAttack,
   });
@@ -477,7 +488,8 @@ function redraw() {
   gameTitle.textContent = monthLabel(month);
   const phase = phaseOf(state, orderData());
   $('phase-label').textContent = state.over ? 'The war is over' : (phase ? phase.name : '');
-  $('btn-end-phase').disabled = state.over;
+  $('btn-end-phase').disabled = state.over || Boolean(state.pendingChoice);
+  if (state.pendingChoice) openSheet(true);
 }
 
 // End Phase: on to the next phase that needs orders.

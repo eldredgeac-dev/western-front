@@ -1,0 +1,493 @@
+{
+ "_about": "Dated events and reinforcements (RULES.md §4, §10) [balanced]. Each event has a 'month' (or 'from'/'to' with optional 'months' of the year), a 'name', a 'text' for the log and 'effects' the engine applies (see docs/DATA.md for the kinds). A 'choice' event asks one side to pick an option; the computer picks 'aiChoice'. Reinforcements arrive in the nation's rear column (placeLanes limits where); 'afterEntry' months count from the USA's declaration of war.",
+ "events": [
+  {
+   "id": "gas",
+   "month": "1915-04",
+   "name": "First gas attack",
+   "text": "Chlorine at Ypres: Germany's first attack in lane 2 this month gets +2 columns.",
+   "effects": [
+    {
+     "kind": "attack-shift",
+     "side": "germany",
+     "lanes": [
+      2
+     ],
+     "shift": 2,
+     "uses": 1,
+     "label": "Gas"
+    }
+   ]
+  },
+  {
+   "id": "blockade",
+   "from": "1916-01",
+   "to": "1916-12",
+   "months": [
+    2,
+    4,
+    6,
+    8,
+    10,
+    12
+   ],
+   "name": "Blockade",
+   "text": "The British blockade bites: Germany −1 Will.",
+   "quiet": true,
+   "effects": [
+    {
+     "kind": "will",
+     "nation": "ger",
+     "value": -1
+    }
+   ]
+  },
+  {
+   "id": "turnip-winter",
+   "from": "1917-01",
+   "to": "1917-12",
+   "name": "Turnip Winter",
+   "text": "Hunger at home: Germany −1 Will.",
+   "quiet": true,
+   "effects": [
+    {
+     "kind": "will",
+     "nation": "ger",
+     "value": -1
+    }
+   ]
+  },
+  {
+   "id": "hunger",
+   "from": "1918-01",
+   "to": "1918-11",
+   "name": "Hunger",
+   "text": "Starvation at home: Germany −2 Will.",
+   "quiet": true,
+   "effects": [
+    {
+     "kind": "will",
+     "nation": "ger",
+     "value": -2
+    }
+   ]
+  },
+  {
+   "id": "creeping-barrage",
+   "month": "1916-06",
+   "name": "Creeping barrage",
+   "text": "The creeping barrage: up to 3 munitions per attack from now on.",
+   "effects": []
+  },
+  {
+   "id": "u-boats",
+   "month": "1917-02",
+   "name": "The U-boat decision",
+   "text": "Germany must decide how to wage the U-boat war.",
+   "choice": {
+    "side": "germany",
+    "question": "Unrestricted submarine warfare?",
+    "aiChoice": "unrestricted",
+    "options": [
+     {
+      "id": "unrestricted",
+      "label": "Unrestricted",
+      "text": "Britain −2 Will a turn for 6 turns, but the USA declares war in April 1917.",
+      "effects": [
+       {
+        "kind": "will-for-turns",
+        "nation": "gbr",
+        "value": -2,
+        "turns": 6
+       },
+       {
+        "kind": "usa-entry",
+        "month": "1917-04"
+       }
+      ]
+     },
+     {
+      "id": "restricted",
+      "label": "Restricted",
+      "text": "No extra pressure on Britain; the USA declares war in January 1918.",
+      "effects": [
+       {
+        "kind": "usa-entry",
+        "month": "1918-01"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "hindenburg-line",
+   "month": "1917-03",
+   "name": "The Hindenburg Line",
+   "text": "Germany may fall back to the new Hindenburg Line.",
+   "choice": {
+    "side": "germany",
+    "question": "Fall back to the Hindenburg Line?",
+    "aiChoice": "withdraw",
+    "options": [
+     {
+      "id": "withdraw",
+      "label": "Fall back",
+      "text": "Give up G1 in lanes 5–8; G2 there becomes trench 3; +2 German rail moves this turn.",
+      "effects": [
+       {
+        "kind": "withdraw",
+        "side": "germany",
+        "lanes": [
+         5,
+         6,
+         7,
+         8
+        ],
+        "from": "g1",
+        "to": "g2",
+        "fallback": "g3",
+        "trench": 3,
+        "rail": {
+         "ger": 2
+        }
+       }
+      ]
+     },
+     {
+      "id": "hold",
+      "label": "Hold the line",
+      "text": "Stay where you are.",
+      "effects": []
+     }
+    ]
+   }
+  },
+  {
+   "id": "vimy",
+   "month": "1917-04",
+   "name": "Vimy and the Dominion corps",
+   "text": "The Canadian and Australian corps: two British units become Elite.",
+   "effects": [
+    {
+     "kind": "make-elite",
+     "nation": "gbr",
+     "type": "infantry",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "id": "russia",
+   "month": "1917-12",
+   "name": "Russia leaves the war",
+   "text": "Revolution in Russia: Germany +10 Will. Divisions start to come west.",
+   "effects": [
+    {
+     "kind": "will",
+     "nation": "ger",
+     "value": 10
+    }
+   ]
+  },
+  {
+   "id": "stormtroopers",
+   "month": "1918-01",
+   "name": "Stormtroopers",
+   "text": "Germany retrains up to 4 infantry units as Stormtroopers.",
+   "effects": [
+    {
+     "kind": "convert",
+     "nation": "ger",
+     "from": "infantry",
+     "to": "stormtroopers",
+     "count": 4
+    }
+   ]
+  },
+  {
+   "id": "kaiserschlacht",
+   "month": "1918-11",
+   "name": "The Kaiserschlacht gamble",
+   "text": "Germany made no attack between April and October 1918: −15 Will.",
+   "effects": [
+    {
+     "kind": "will-if-no-attack",
+     "side": "germany",
+     "nation": "ger",
+     "from": "1918-04",
+     "to": "1918-10",
+     "value": -15
+    }
+   ]
+  }
+ ],
+ "reinforcements": {
+  "placeLanes": {
+   "gbr": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+   ],
+   "usa": [
+    9,
+    10,
+    11,
+    12
+   ]
+  },
+  "dated": [
+   {
+    "month": "1915-03",
+    "nation": "ger",
+    "type": "infantry",
+    "count": 1
+   },
+   {
+    "month": "1915-06",
+    "nation": "ger",
+    "type": "infantry",
+    "count": 1
+   },
+   {
+    "month": "1915-09",
+    "nation": "ger",
+    "type": "infantry",
+    "count": 1
+   },
+   {
+    "month": "1916-01",
+    "nation": "ger",
+    "type": "infantry",
+    "count": 1
+   },
+   {
+    "month": "1916-04",
+    "nation": "ger",
+    "type": "infantry",
+    "count": 1
+   },
+   {
+    "month": "1916-07",
+    "nation": "ger",
+    "type": "infantry",
+    "count": 1
+   },
+   {
+    "month": "1916-10",
+    "nation": "ger",
+    "type": "infantry",
+    "count": 1
+   },
+   {
+    "month": "1917-03",
+    "nation": "ger",
+    "type": "infantry",
+    "count": 2
+   },
+   {
+    "month": "1917-06",
+    "nation": "ger",
+    "type": "infantry",
+    "count": 2
+   },
+   {
+    "month": "1918-01",
+    "nation": "ger",
+    "type": "infantry",
+    "count": 3,
+    "note": "Eastern transfers"
+   },
+   {
+    "month": "1918-02",
+    "nation": "ger",
+    "type": "infantry",
+    "count": 3,
+    "note": "Eastern transfers"
+   },
+   {
+    "month": "1918-03",
+    "nation": "ger",
+    "type": "infantry",
+    "count": 2,
+    "note": "Eastern transfers"
+   },
+   {
+    "month": "1915-02",
+    "nation": "fra",
+    "type": "infantry",
+    "count": 1
+   },
+   {
+    "month": "1915-04",
+    "nation": "fra",
+    "type": "infantry",
+    "count": 1
+   },
+   {
+    "month": "1915-06",
+    "nation": "fra",
+    "type": "infantry",
+    "count": 1
+   },
+   {
+    "month": "1915-09",
+    "nation": "fra",
+    "type": "infantry",
+    "count": 1
+   },
+   {
+    "month": "1915-03",
+    "nation": "gbr",
+    "type": "infantry",
+    "count": 2,
+    "quality": "green",
+    "greenUntil": "1917-01",
+    "note": "Kitchener's New Armies"
+   },
+   {
+    "month": "1915-05",
+    "nation": "gbr",
+    "type": "infantry",
+    "count": 2,
+    "quality": "green",
+    "greenUntil": "1917-01",
+    "note": "Kitchener's New Armies"
+   },
+   {
+    "month": "1915-07",
+    "nation": "gbr",
+    "type": "infantry",
+    "count": 2,
+    "quality": "green",
+    "greenUntil": "1917-01",
+    "note": "Kitchener's New Armies"
+   },
+   {
+    "month": "1915-09",
+    "nation": "gbr",
+    "type": "infantry",
+    "count": 1,
+    "quality": "green",
+    "greenUntil": "1917-01",
+    "note": "Kitchener's New Armies"
+   },
+   {
+    "month": "1916-01",
+    "nation": "gbr",
+    "type": "infantry",
+    "count": 2,
+    "quality": "green",
+    "greenUntil": "1917-01",
+    "note": "Kitchener's New Armies"
+   },
+   {
+    "month": "1916-03",
+    "nation": "gbr",
+    "type": "infantry",
+    "count": 1,
+    "quality": "green",
+    "greenUntil": "1917-01",
+    "note": "Kitchener's New Armies"
+   },
+   {
+    "month": "1916-09",
+    "nation": "gbr",
+    "type": "tanks",
+    "count": 1
+   },
+   {
+    "month": "1917-11",
+    "nation": "gbr",
+    "type": "tanks",
+    "count": 1
+   },
+   {
+    "month": "1918-08",
+    "nation": "gbr",
+    "type": "tanks",
+    "count": 2
+   },
+   {
+    "month": "1917-04",
+    "nation": "fra",
+    "type": "tanks",
+    "count": 1,
+    "note": "Renault light tanks"
+   },
+   {
+    "month": "1918-06",
+    "nation": "fra",
+    "type": "tanks",
+    "count": 1,
+    "note": "Renault light tanks"
+   },
+   {
+    "month": "1918-08",
+    "nation": "fra",
+    "type": "tanks",
+    "count": 1,
+    "note": "Renault light tanks"
+   }
+  ],
+  "afterEntry": [
+   {
+    "after": 7,
+    "nation": "usa",
+    "type": "us-infantry",
+    "count": 1
+   },
+   {
+    "after": 11,
+    "nation": "usa",
+    "type": "us-infantry",
+    "count": 1
+   },
+   {
+    "after": 12,
+    "nation": "usa",
+    "type": "us-infantry",
+    "count": 1
+   },
+   {
+    "after": 13,
+    "nation": "usa",
+    "type": "us-infantry",
+    "count": 2
+   },
+   {
+    "after": 14,
+    "nation": "usa",
+    "type": "us-infantry",
+    "count": 2
+   },
+   {
+    "after": 15,
+    "nation": "usa",
+    "type": "us-infantry",
+    "count": 3
+   },
+   {
+    "after": 16,
+    "nation": "usa",
+    "type": "us-infantry",
+    "count": 3
+   },
+   {
+    "after": 17,
+    "nation": "usa",
+    "type": "us-infantry",
+    "count": 2
+   },
+   {
+    "after": 18,
+    "nation": "usa",
+    "type": "us-infantry",
+    "count": 1
+   }
+  ]
+ }
+}

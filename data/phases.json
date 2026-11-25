@@ -1,7 +1,7 @@
 {
   "_about": "The phases of each turn, in order (RULES.md §7). 'side' + 'kind' phases wait for orders (move or attack); 'auto' phases run by themselves when End Phase reaches them. Some auto phases only log a note until their milestone arrives (see 'until'). See docs/DATA.md.",
   "phases": [
-    {"id": "events", "name": "Events and reinforcements", "auto": true, "until": "Milestone 9"},
+    {"id": "events", "name": "Events and reinforcements", "auto": true},
     {"id": "germany-move", "name": "German move", "side": "germany", "kind": "move"},
     {"id": "germany-attack", "name": "German attack", "side": "germany", "kind": "attack"},
     {"id": "entente-move", "name": "Entente move", "side": "entente", "kind": "move"},
