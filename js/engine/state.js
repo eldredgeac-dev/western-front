@@ -8,7 +8,7 @@ import { resourcesFor, applyDifficulty } from './resources.js';
 // recognised and upgraded (Milestone 8).
 //   1: owners and trenches only (Milestone 2)
 //   2: units, Will, resources, the dice, the phase and the log (Milestones 3–5)
-export const STATE_VERSION = 3;
+export const STATE_VERSION = 4;
 
 // Build a brand-new game from a scenario (data/scenarios/*.json).
 //   seed — any whole number; it drives every dice roll (js/engine/rng.js)
@@ -51,6 +51,8 @@ export function newGame(scenario, seed, data = {}, options = {}) {
     lostThisTurn: {},         // steps lost this turn per nation
     battles: [],              // the battle record (js/engine/battles.js)
     orders: [],               // orders queued this phase, not yet committed (js/engine/orders.js)
+    history: [],              // one row per month: Will, strength, losses (js/engine/history.js)
+    lossesTotal: {},          // steps lost per nation in earlier months (the Butcher's Bill)
     log: [],
   };
   if (data.nations) {
@@ -140,6 +142,12 @@ export function migrateState(saved, scenario, data) {
   if (version < 3) {
     // Version 3 added queued orders (orders, then commit).
     state.orders = [];
+  }
+  if (version < 4) {
+    // Version 4 added the War Office's records. Older saves didn't keep losses by
+    // nation, so the records start from the month the save is loaded.
+    state.history = [];
+    state.lossesTotal = {};
   }
   state.version = STATE_VERSION;
   return state;

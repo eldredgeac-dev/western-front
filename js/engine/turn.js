@@ -12,6 +12,7 @@ import { supplyPhase } from './systems/supply.js';
 import { replacementsPhase } from './systems/replacements.js';
 import { willPhase } from './systems/will.js';
 import { runEvents } from './events.js';
+import { recordMonth } from './history.js';
 
 // Clear what units did last turn and hand out this month's resources.
 function startOfTurn(state, data) {
@@ -55,6 +56,7 @@ function settle(state, data, record = null) {
   let guard = 0;
   while (!state.over && guard++ < 1000) {
     if (state.phase >= phases.length) {
+      recordMonth(state, data);            // the War Office's records (history.js)
       if (state.turn >= state.turns) {
         if (!state.over) { state.over = true; addLog(state, 'The armistice: the war is over.'); }
         return state;

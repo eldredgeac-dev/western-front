@@ -119,6 +119,7 @@ doing something.
 |---|---|
 | `sudden` | Checked at the end of every turn, in order: `will-zero` (that `nation`'s Will is 0 or less) or `owns` (that `side` owns that `box`), with the `winner` and a `reason` for the log |
 | `armistice` | After the last turn: score = Will of `plus` − the average Will of `minusAverage` + captured VP. Above `margin`: `aboveMargin` wins; below −`margin`: `belowMargin` wins; otherwise a stalemate peace |
+| `butchersBill` | RULES.md §16: `casualtiesPerStep` (85,000), `killedShare` (0.2: about 1 in 5) and `roundTo` (1,000). Used by the War Office ledger (`js/engine/history.js`) |
 
 `nations.json` also has `mutiny` for France: `name`, `belowWill` (35), `turns` (3) and
 `willAfter` (10), and `rebuildType` for nations that don't rebuild as plain infantry (the

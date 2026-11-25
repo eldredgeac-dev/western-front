@@ -353,6 +353,36 @@ I'll change it.
 77. **Saves are now version 3** (they hold the queued orders). Version 2 saves load with
     an empty queue.
 
+78. **The War Office (part 4)** opens from the **War Office** button at the bottom left
+    of the map. It's a paper ledger with Courier figures:
+    - one column per nation in the war, swiping sideways on the folded phone, with the
+      row names staying put;
+    - each nation's Will as a number and an ink gauge that drains, with the change since
+      last month;
+    - OP, munitions, replacements and rail moves as "left / this month's allowance";
+    - units, strength, the Butcher's Bill (this month, whole war, killed), the commander
+      and whether it can attack.
+    Below the table: the Armistice Score and what it means, the strength chart, the
+    cities each side holds, this month's events and lasting effects, and countdowns (US
+    troops, the next reinforcements, the end of the war).
+79. **New records, no rule changes.** At the end of every month the game keeps a row
+    (Will, strength and steps lost per nation) and a running loss total. Saves are now
+    version 4; older saves start these records from the month they're loaded. The
+    85,000 casualties a step and "1 in 5 killed" (RULES.md §16) are in
+    `data/victory.json` (`butchersBill`).
+80. **The commander shown is the historical one for the date** (from
+    `data/commanders.json`). Their effects, and replacing them, come with the Commander
+    cards milestone (12).
+81. **The strength chart** draws the Entente as a solid horizon-blue line and Germany as
+    a dashed ink line, each labelled at its end, with a legend. Tap or hover to read a
+    month.
+    - I checked the colours with a colour-blindness tool: the two lines are easy to tell
+      apart.
+    - The field-grey of Germany's own colour was too close to horizon blue, which is why
+      Germany is drawn in ink.
+    - The tool calls both colours "too grey"; that's STYLE.md's deliberate muted palette,
+      so I kept them.
+
 ## Questions for you (answered)
 1. **Combat table — answered: RULES.md is right.**
    - The balance tests used `tools/t2.py`, which patched the simulator's 1:2 and 1:1
@@ -457,3 +487,10 @@ I'll change it.
         should animate.
       - With Reduce Motion on (Settings → Accessibility → Motion), nothing should
         animate.
+- [ ] **The War Office.** Tap **War Office** (bottom left of the map).
+      - Folded, you should see Germany and France; swipe the table sideways for Britain
+        (and later the USA), and the row names should stay put.
+      - Do the Will gauges, the casualties and the commanders read clearly?
+      - Scroll down for the Armistice Score, the strength chart (tap it to read a month),
+        the cities held, this month's events and the countdowns.
+      - Tap **‹ The map** to go back.

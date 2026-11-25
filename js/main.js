@@ -18,6 +18,8 @@ import { oddsPreview, eligibleAttackers, barrageMax } from './engine/combat.js';
 import { frontBoxes } from './engine/ai.js';
 import { queueCheck, addOrder, cancelOrder, commitOrders, snapshot } from './engine/orders.js';
 import { createPlayback } from './ui/animate.js';
+import { ledger } from './engine/history.js';
+import { showLedger } from './ui/ledger.js';
 import { threat } from './engine/systems/replacements.js';
 
 // Find the page elements we need once, at start-up.
@@ -95,7 +97,7 @@ async function loadJson(path) {
 
 // Load all the data files the game needs, and check the map makes sense.
 async function loadData() {
-  const [map, terrainData, nations, scenario, quotes, unitTypes, phases, combat, victory, events, ai] = await Promise.all([
+  const [map, terrainData, nations, scenario, quotes, unitTypes, phases, combat, victory, events, ai, commanders] = await Promise.all([
     loadJson('./data/boxes-west.json'),
     loadJson('./data/terrain.json'),
     loadJson('./data/nations.json'),
@@ -107,12 +109,13 @@ async function loadData() {
     loadJson('./data/victory.json'),
     loadJson('./data/events.json'),
     loadJson('./data/ai.json'),
+    loadJson('./data/commanders.json'),
   ]);
   const problems = checkMap(map, terrainData);
   if (problems.length > 0) throw new Error('The map data has problems: ' + problems.join('; '));
   const mapSvg = await loadMapSvg(map.mapSvg);
   // `engine` is the bundle of data files the game engine (js/engine/) works with.
-  const engine = { map, terrain: terrainData, nations, unitTypes, phases, combat, victory, events, ai };
+  const engine = { map, terrain: terrainData, nations, unitTypes, phases, combat, victory, events, ai, commanders };
   return { map, terrainData, nations, scenario, quotes, unitTypes, phases, engine, mapSvg, boxesById: indexBoxes(map) };
 }
 
@@ -685,6 +688,20 @@ function describeAction(a) {
   return { sideName, title: `Attack on ${placeName(a.target)}`, label: a.result && !a.result.empty ? a.result.plan.columnLabel : '' };
 }
 
+// The War Office ledger (STYLE.md §6): every figure from ledger() in history.js.
+function openWarOffice() {
+  if (!state || (playback && playback.isPlaying())) return;
+  const box = $('war-office');
+  showLedger(box, ledger(state, data.engine), {
+    monthName: monthLabel,
+    nameOf: (id) => nationOf(data.engine, id).name,
+    adjectiveOf: (id) => nationOf(data.engine, id).adjective || nationOf(data.engine, id).name,
+    onClose: () => { box.hidden = true; },
+  });
+  box.hidden = false;
+  box.scrollTop = 0;
+}
+
 // New Campaign: show the side and difficulty choices (RULES.md §13).
 const setup = { player: 'entente', level: 'regular' };
 const LEVEL_NOTES = {
@@ -777,8 +794,9 @@ async function boot() {
   $('btn-export').addEventListener('click', exportSave);
   $('btn-import').addEventListener('click', () => $('import-file').click());
   $('import-file').addEventListener('change', (e) => importSave(e.target));
-  $('btn-back').addEventListener('click', () => { showScreen(titleScreen); updateContinueButton(); });
+  $('btn-back').addEventListener('click', () => { $('war-office').hidden = true; showScreen(titleScreen); updateContinueButton(); });
   $('btn-end-phase').addEventListener('click', () => { if (state) commit(); });
+  $('btn-war-office').addEventListener('click', openWarOffice);
   wireSheet();
 
   newGameButton.disabled = true;   // until the data has loaded

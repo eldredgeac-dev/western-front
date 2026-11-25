@@ -80,12 +80,15 @@
         <p class="pb-result"></p>
         <p class="pb-stamp"></p>
       </div>
+      <button id="btn-war-office" class="btn btn-small btn-war-office" type="button">War Office</button>
       <div class="zoom-buttons" role="group" aria-label="Zoom">
         <button id="btn-zoom-in" class="btn btn-zoom" type="button" aria-label="Zoom in">+</button>
         <button id="btn-zoom-out" class="btn btn-zoom" type="button" aria-label="Zoom out">−</button>
         <button id="btn-zoom-fit" class="btn btn-zoom btn-zoom-fit" type="button" aria-label="Show the whole front line">Front</button>
       </div>
     </section>
+    <!-- The War Office ledger (js/ui/ledger.js): opens over the game screen. -->
+    <section id="war-office" class="war-office" hidden aria-label="War Office"></section>
     <section id="panel-sheet" class="panel-sheet" aria-label="Territory details">
       <button id="sheet-handle" class="sheet-handle" type="button" aria-label="Show or hide the details" aria-expanded="false">
         <span class="sheet-grip" aria-hidden="true"></span>

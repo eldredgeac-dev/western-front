@@ -578,3 +578,57 @@ html, body {
   .commit-short { display: inline; }
 }
 .game-screen.playing-back .locator { display: none; }
+
+/* ---------- The War Office ledger (STYLE.md §6: ruled lines, Courier figures, an
+   ink Will gauge that drains), on paper inside the leather desk. ---------- */
+.btn-war-office {
+  position: absolute;
+  left: max(10px, env(safe-area-inset-left));
+  bottom: calc(64px + env(safe-area-inset-bottom));
+  background: var(--leather-light);
+}
+@media (min-width: 700px) { .btn-war-office { bottom: calc(16px + env(safe-area-inset-bottom)); } }
+.game-screen.playing-back .btn-war-office { display: none; }
+.war-office {
+  position: fixed; inset: 0; z-index: 20; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  background: var(--leather);
+  padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+}
+.war-office[hidden] { display: none; }
+.ledger-page {
+  max-width: 980px; margin: 0 auto; padding: 14px 16px 20px;
+  background: var(--paper); color: var(--ink); border-radius: 2px; box-shadow: 0 2px 10px var(--leather);
+}
+.ledger-top { display: flex; align-items: center; gap: 12px; }
+.ledger-top .btn { color: var(--ink); border-color: var(--ink); }
+.ledger-kicker { margin: 0; font: 700 0.85rem var(--font-type); letter-spacing: 0.3em; }
+.ledger-title { margin: 10px 0 8px; font: 400 1.5rem var(--font-place); }
+.ledger-heading { margin: 0 0 4px; font: 400 1.2rem var(--font-place); border-bottom: 1px solid var(--ink); }
+.ledger-section { margin: 16px 0 0; }
+.ledger-line { margin: 4px 0; font-size: 0.95rem; line-height: 1.45; }
+.ledger-big { margin: 2px 0; font: 700 1.8rem var(--font-type); }
+.ledger-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -4px; }
+.ledger-table { border-collapse: collapse; min-width: 100%; font-size: 0.92rem; }
+.ledger-table th, .ledger-table td { padding: 6px 8px; border-bottom: 1px solid rgba(110, 98, 83, 0.45); vertical-align: top; text-align: left; }
+.ledger-table td { border-left: 1px solid rgba(110, 98, 83, 0.45); min-width: 6.5em; }
+.ledger-rowhead { font: 400 0.92rem var(--font-ui); position: sticky; left: 0; background: var(--paper); min-width: 7em; max-width: 10em; }
+.ledger-nation { font: 400 1.1rem var(--font-place); border-left: 1px solid rgba(110, 98, 83, 0.45); }
+.ledger-num { font-family: var(--font-type); }
+.ledger-text { font-family: var(--font-ui); }
+.ledger-sub { display: block; font-style: italic; color: var(--ink-faded); }
+.ledger-warn { color: var(--stamp-red); }
+.ledger-will .ledger-num { font: 700 1.1rem var(--font-type); }
+.will-gauge { display: block; height: 8px; margin: 4px 0; border: 1px solid var(--ink); background: var(--paper-dark); }
+.will-fill { display: block; height: 100%; background: var(--ink); transition: width 0.4s ease; }
+.will-trend { display: block; font: 0.8rem var(--font-type); color: var(--ink-faded); }
+/* the strength chart: thin lines, recessive grid, direct labels */
+.ledger-chart { display: block; width: 100%; max-width: 560px; height: auto; touch-action: manipulation; }
+.chart-grid { stroke: var(--ink-faded); stroke-opacity: 0.3; stroke-width: 0.5; }
+.chart-tick { font: 8px var(--font-type); fill: var(--ink-faded); }
+.chart-line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.chart-label { font: 700 8.5px var(--font-type); fill: var(--ink); }
+.chart-rule { stroke: var(--ink); stroke-width: 0.6; stroke-dasharray: 2 2; }
+.chart-legend { display: flex; gap: 16px; margin: 4px 0; font-size: 0.9rem; }
+.chart-key { display: inline-flex; align-items: center; gap: 6px; }
+.chart-readout { color: var(--ink-faded); }
+@media (prefers-reduced-motion: reduce) { .will-fill { transition: none; } }

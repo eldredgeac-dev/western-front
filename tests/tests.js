@@ -17,6 +17,7 @@ import { runEvents, chooseOption, pendingChoice, eventDue } from '../js/engine/e
 import { aiMove, aiAttack, frontBoxes } from '../js/engine/ai.js';
 import { SILHOUETTES, mix, isDark } from '../js/ui/counters.js';
 import { queueCheck, addOrder, cancelOrder, commitOrders } from '../js/engine/orders.js';
+import { recordMonth, casualties, ledger } from '../js/engine/history.js';
 import { columnAverages, ratioColumn, planAttack, oddsPreview, resolveAttack, applyCombatResult,
   barrageMax, eligibleAttackers } from '../js/engine/combat.js';
 
@@ -1299,6 +1300,62 @@ test('saves: a version 2 save gets an empty order queue', () => {
   const v2 = copyOf(started()); v2.version = 2; delete v2.orders;
   const up = migrateState(v2, data.scenario, bundle());
   check(up.version === STATE_VERSION && Array.isArray(up.orders) && up.orders.length === 0, JSON.stringify(up.orders));
+});
+
+// ---------------------------------------------------------------- the War Office
+const withCommanders = () => ({ ...bundle(), commanders: data.commanders });
+
+test('war office: each month adds a history row and its losses to the totals', () => {
+  const s = copyOf(started());
+  s.lostThisTurn.fra = 3; s.lostThisTurn.ger = 2;
+  recordMonth(s, bundle());
+  check(s.history.length === 1 && s.history[0].month === '1914-12', 'one row for December 1914');
+  check(s.history[0].steps.ger > 0 && s.history[0].will.fra === s.will.fra, 'strength and Will recorded');
+  check(s.lossesTotal.fra === 3 && s.lossesTotal.ger === 2, JSON.stringify(s.lossesTotal));
+});
+
+test('war office: playing on records every month that ends', () => {
+  const s = playTo(monthStart('1915-01'), '1915-04');
+  check(s.history.map((h) => h.month).join(',') === '1915-01,1915-02,1915-03', s.history.map((h) => h.month).join(','));
+});
+
+test('rule: the Butcher\'s Bill is 85,000 casualties a step, 1 in 5 killed, to the nearest 1,000 (RULES.md §16)', () => {
+  check(casualties(bundle(), 4).casualties === 340000 && casualties(bundle(), 4).killed === 68000, JSON.stringify(casualties(bundle(), 4)));
+  check(casualties(bundle(), 1).killed === 17000, 'one step: 17,000 killed');
+});
+
+test('war office: the ledger figures come from the state', () => {
+  const s = copyOf(atWar('1916-03'));
+  s.lostThisTurn.fra = 2; s.lossesTotal = { fra: 10 };
+  s.resources.fra.op = 1;
+  const l = ledger(s, withCommanders());
+  const fra = l.nations.find((n) => n.id === 'fra');
+  check(fra.will === s.will.fra && fra.steps === s.units.filter((u) => u.nation === 'fra').reduce((a, u) => a + u.steps, 0), 'Will and strength');
+  check(fra.bill.month.casualties === 170000 && fra.bill.total.casualties === 1020000, JSON.stringify(fra.bill));
+  check(fra.resources.find((r) => r.key === 'op').left === 1 && fra.resources.find((r) => r.key === 'op').of >= 1, 'OP left of');
+  check(fra.commander && fra.commander.name === 'Joffre', 'Joffre commands France in March 1916');
+  const entente = l.sides.find((x) => x.id === 'entente');
+  check(entente.cities.some((c) => c.vp === 15), 'the Entente holds Paris');
+  check(l.series.length === 1 && l.series[0].germany > 0, 'one chart point (this month)');
+});
+
+test('war office: countdowns for a known month', () => {
+  const s = copyOf(atWar('1916-03'));
+  const l = ledger(s, withCommanders());
+  const ends = l.countdowns.find((c) => c.key === 'war-ends');
+  check(ends.months === s.turns - s.turn, 'months left in the war');
+  check(l.countdowns.find((c) => c.key === 'us-troops').months === null, 'US troops: after the US declares war');
+  s.usaEntry = '1917-04';
+  const later = copyOf(atWar('1917-05')); later.usaEntry = '1917-04';
+  const us = ledger(later, withCommanders()).countdowns.find((c) => c.key === 'us-troops');
+  const first = Math.min(...data.events.reinforcements.afterEntry.map((d) => d.after));
+  check(us.months === first - 1, `US troops in ${us.months} months, expected ${first - 1}`);
+});
+
+test('saves: a version 3 save gets empty War Office records', () => {
+  const v3 = copyOf(started()); v3.version = 3; delete v3.history; delete v3.lossesTotal;
+  const up = migrateState(v3, data.scenario, bundle());
+  check(up.version === STATE_VERSION && Array.isArray(up.history) && up.lossesTotal && typeof up.lossesTotal === 'object', 'records added');
 });
 
 // ---------------------------------------------------------------- pieces (STYLE.md §5)
