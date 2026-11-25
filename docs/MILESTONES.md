@@ -165,4 +165,5 @@ milestone in brackets, confirm the fix, then update RULES.md and the code togeth
   screen. For now they're spent automatically, as the computer does (DECISIONS.md 30).
 - Let the player choose where reinforcements arrive, and which units become
   stormtroopers (DECISIONS.md 47, 50).
+- The Recruit advisor also highlights weak friendly front boxes (RULES.md §13).
 (Claude Code: add ideas here instead of building them.)

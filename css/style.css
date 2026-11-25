@@ -112,7 +112,13 @@ html, body {
   box-shadow: 0 20px 60px var(--leather);
   pointer-events: none;
 }
-.title-block, .title-quote, .title-files { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap); }
+.title-block, .title-quote, .title-setup { position: relative; display: grid; gap: 8px; width: min(420px, 100%); }
+.setup-label { margin: 6px 0 0; color: var(--brass); font-family: var(--font-place); font-size: 1.1rem; }
+.setup-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.setup-levels { grid-template-columns: 1fr 1fr; }
+.setup-pick { padding: 8px 6px; font-size: 0.95rem; letter-spacing: 0.04em; }
+.setup-pick[aria-pressed="true"] { background: var(--brass); color: var(--leather); }
+.title-files { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap); }
 .title-buttons { position: relative; }
 .title-kicker {
   margin: 0;

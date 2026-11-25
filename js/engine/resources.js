@@ -24,3 +24,15 @@ export function resourcesFor(data, month) {
   }
   return out;
 }
+
+// Difficulty (RULES.md §13): the computer's munitions and RP are multiplied and
+// rounded to the nearest whole number. `mult` is { sideId: multiplier }.
+export function applyDifficulty(resources, data, mult) {
+  for (const n of data.nations.nations) {
+    const m = (mult || {})[n.side];
+    if (!m || m === 1 || !resources[n.id]) continue;
+    resources[n.id].munitions = Math.round(resources[n.id].munitions * m);
+    resources[n.id].rp = Math.round(resources[n.id].rp * m);
+  }
+  return resources;
+}

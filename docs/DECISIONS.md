@@ -203,6 +203,27 @@ I'll change it.
     quotes (Milestone 12). The French mutinies are handled with Will (Milestone 7); the
     armistice ends the game after November 1918.
 
+### Milestone 9 (second half): the computer opponent
+53. **The AI mirrors `tools/wfsim.py`**, the AI the game was balance-tested with, wherever
+    RULES.md §14 leaves room:
+    - It attacks with one nation at a time, using every eligible unit of that nation next
+      to the target.
+    - It tries every munitions spend and picks the best score.
+    - It adds the simulator's small random "noise" to scores (±10% standard, ±5%
+      expert). RULES.md's "pick randomly among scores within 10%" does the same job.
+    - Expert weighs its own losses at 0.6 instead of 0.5, as in the simulator.
+54. **One difference from the simulator: AI units move once per turn**, like the
+    player's. In `wfsim.py` a computer unit could move twice in one move phase (two
+    passes). Keeping the game's own rule seemed right; item 7 shows whether it matters.
+55. **New Campaign** now asks for your side (Entente, Germany, or "Two players": you give
+    orders for both, which is handy for testing) and a difficulty. The Will bonus also
+    goes to the USA when it enters, if you play the Entente.
+56. **The Recruit advisor** warns on the order slip before an attack at 1:1 or worse.
+    Highlighting weak front boxes isn't built yet; it's in Later ideas.
+57. **The computer's turn happens at once** when you tap END PHASE after your last phase.
+    Its moves and attacks appear in Dispatches. Animating them is Milestone 6 (Feel and
+    sound).
+
 ## Questions for you (answered)
 1. **Combat table — answered: RULES.md is right.**
    - The balance tests used `tools/t2.py`, which patched the simulator's 1:2 and 1:1
@@ -256,6 +277,13 @@ I'll change it.
 - [ ] **Event questions.** Tap END PHASE until February 1917 (about 100 taps; or wait
       until the computer opponent plays one side). A cream "DECISION REQUIRED" card about
       the U-boats appears and END PHASE greys out until you tap an answer. Is it clear?
+- [ ] **Playing the computer.** New Campaign → Entente → Regular → Begin. You should
+      start at "Entente move" in December 1914, with Dispatches already listing
+      Germany's moves and attacks. Make a move or an attack, then tap END PHASE twice:
+      the computer plays Germany's January turn and you're back at "Entente move",
+      January 1915.
+- [ ] **Recruit advisor.** On Recruit, open an attack at poor odds: the slip should show
+      "ADVISOR: This attack will probably fail and cost 3 Will".
 - [ ] **Counter details.** At full zoom: is the German cross pattée (top-left mark) clear
       enough? It's small and dark on field grey. Counters also sit over their own town's
       name. Tell me if you'd rather they sat beside it.

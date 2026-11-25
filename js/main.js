@@ -74,7 +74,7 @@ async function loadJson(path) {
 
 // Load all the data files the game needs, and check the map makes sense.
 async function loadData() {
-  const [map, terrainData, nations, scenario, quotes, unitTypes, phases, combat, victory, events] = await Promise.all([
+  const [map, terrainData, nations, scenario, quotes, unitTypes, phases, combat, victory, events, ai] = await Promise.all([
     loadJson('./data/boxes-west.json'),
     loadJson('./data/terrain.json'),
     loadJson('./data/nations.json'),
@@ -85,12 +85,13 @@ async function loadData() {
     loadJson('./data/combat-table.json'),
     loadJson('./data/victory.json'),
     loadJson('./data/events.json'),
+    loadJson('./data/ai.json'),
   ]);
   const problems = checkMap(map, terrainData);
   if (problems.length > 0) throw new Error('The map data has problems: ' + problems.join('; '));
   const mapSvg = await loadMapSvg(map.mapSvg);
   // `engine` is the bundle of data files the game engine (js/engine/) works with.
-  const engine = { map, terrain: terrainData, nations, unitTypes, phases, combat, victory, events };
+  const engine = { map, terrain: terrainData, nations, unitTypes, phases, combat, victory, events, ai };
   return { map, terrainData, nations, scenario, quotes, unitTypes, phases, engine, mapSvg, boxesById: indexBoxes(map) };
 }
 
@@ -383,6 +384,12 @@ function attackSlip() {
     slip.ratioText = `${plan.attackSteps} steps against ${plan.defendSteps} \u2192 ${data.engine.combat.columns[plan.ratioColumn].label}`;
     slip.finalLabel = plan.columnLabel;
     slip.pTake = odds.pTake; slip.attackerLoss = odds.attackerLoss; slip.defenderLoss = odds.defenderLoss;
+    // The Recruit advisor (RULES.md §13): warn before a futile attack.
+    const level = data.engine.ai.levels.find((l) => l.id === state.level);
+    const worst = data.engine.combat.columns.findIndex((c) => c.label === data.engine.combat.futile.worstColumn);
+    if (level && level.advisor && plan.finalColumn <= worst) {
+      slip.warning = `ADVISOR: This attack will probably fail and cost ${data.engine.combat.futile.will} Will. Attack anyway?`;
+    }
   } else if (!plan.empty && plan.ratioColumn !== null) {
     slip.ratioText = `${plan.attackSteps} steps against ${plan.defendSteps} \u2192 below 1:2`;
   }
@@ -504,12 +511,38 @@ function nextPhase() {
   refreshPanel();
 }
 
+// New Campaign: show the side and difficulty choices (RULES.md §13).
+const setup = { player: 'entente', level: 'regular' };
+const LEVEL_NOTES = {
+  recruit: 'Recruit: +15 Will for you, the computer has fewer guns and men, and an advisor warns before hopeless attacks.',
+  regular: 'Regular: an even fight.',
+  veteran: 'Veteran: the computer has +5 Will and 15% more guns and men.',
+  'field-marshal': 'Field Marshal: the computer has +10 Will, 30% more guns and men, and plays like an expert.',
+};
+function showSetup() {
+  $('setup').hidden = false;
+  document.querySelector('.title-buttons').hidden = true;
+  refreshSetup();
+}
+function refreshSetup() {
+  for (const b of document.querySelectorAll('[data-side]')) b.setAttribute('aria-pressed', String(b.dataset.side === setup.player));
+  for (const b of document.querySelectorAll('[data-level]')) {
+    b.setAttribute('aria-pressed', String(b.dataset.level === setup.level));
+    b.disabled = setup.player === 'both';
+  }
+  $('setup-note').textContent = setup.player === 'both'
+    ? 'Two players: you give orders for both sides, passing the phone. Good for learning the rules.'
+    : LEVEL_NOTES[setup.level];
+}
+
 // Start a new game and show the map.
 function startGame() {
   if (!data) return;
+  $('setup').hidden = true;
+  document.querySelector('.title-buttons').hidden = false;
   // The seed only has to be different each game; every roll then goes
   // through the seeded rng.js (from Milestone 5).
-  state = newGame(data.scenario, Date.now() % 2147483647, data.engine);
+  state = newGame(data.scenario, Date.now() % 2147483647, data.engine, { ...setup });
   selectedBox = null;
   selectedUnit = null;
   attack = null;
@@ -560,7 +593,10 @@ function wireSheet() {
 
 async function boot() {
   updateContinueButton();
-  newGameButton.addEventListener('click', startGame);
+  newGameButton.addEventListener('click', showSetup);
+  $('btn-begin').addEventListener('click', startGame);
+  for (const b of document.querySelectorAll('[data-side]')) b.addEventListener('click', () => { setup.player = b.dataset.side; refreshSetup(); });
+  for (const b of document.querySelectorAll('[data-level]')) b.addEventListener('click', () => { setup.level = b.dataset.level; refreshSetup(); });
   continueButton.addEventListener('click', continueGame);
   $('btn-export').addEventListener('click', exportSave);
   $('btn-import').addEventListener('click', () => $('import-file').click());

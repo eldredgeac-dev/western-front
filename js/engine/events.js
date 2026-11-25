@@ -158,7 +158,7 @@ function usaEntry(state, data) {
   if (!state.usaEntry || currentMonth(state) !== state.usaEntry) return;
   const usa = data.nations.nations.find((n) => n.entersLater);
   if (usa && state.will[usa.id] === undefined) {
-    state.will[usa.id] = usa.startWill;
+    state.will[usa.id] = usa.startWill + ((state.willBonus || {})[usa.side] || 0);
     addLog(state, `${usa.name} declares war.`);
   }
 }

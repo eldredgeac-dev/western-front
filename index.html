@@ -22,6 +22,23 @@
       <blockquote id="title-quote-text"></blockquote>
       <figcaption id="title-quote-who"></figcaption>
     </figure>
+    <section id="setup" class="title-setup" hidden aria-label="New campaign">
+      <p class="setup-label">Your side</p>
+      <div class="setup-row" role="group" aria-label="Your side">
+        <button class="btn setup-pick" type="button" data-side="entente" aria-pressed="true">Entente</button>
+        <button class="btn setup-pick" type="button" data-side="germany" aria-pressed="false">Germany</button>
+        <button class="btn setup-pick" type="button" data-side="both" aria-pressed="false">Two players</button>
+      </div>
+      <p class="setup-label">Difficulty</p>
+      <div class="setup-row setup-levels" role="group" aria-label="Difficulty">
+        <button class="btn setup-pick" type="button" data-level="recruit" aria-pressed="false">Recruit</button>
+        <button class="btn setup-pick" type="button" data-level="regular" aria-pressed="true">Regular</button>
+        <button class="btn setup-pick" type="button" data-level="veteran" aria-pressed="false">Veteran</button>
+        <button class="btn setup-pick" type="button" data-level="field-marshal" aria-pressed="false">Field Marshal</button>
+      </div>
+      <p id="setup-note" class="note"></p>
+      <button id="btn-begin" class="btn btn-primary" type="button">Begin the campaign</button>
+    </section>
     <nav class="title-buttons" aria-label="Main menu">
       <button id="btn-new-game" class="btn btn-primary" type="button">New Campaign</button>
       <button id="btn-continue" class="btn" type="button" disabled>Continue</button>

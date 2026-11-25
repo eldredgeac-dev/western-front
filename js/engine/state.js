@@ -2,7 +2,7 @@
 // The state is a plain object that can be saved as JSON. Everything that changes
 // during a game lives here; everything that never changes lives in data/*.json.
 
-import { resourcesFor } from './resources.js';
+import { resourcesFor, applyDifficulty } from './resources.js';
 
 // Bump this whenever the shape of the state changes, so old saves can be
 // recognised and upgraded (Milestone 8).
@@ -12,9 +12,11 @@ export const STATE_VERSION = 2;
 
 // Build a brand-new game from a scenario (data/scenarios/*.json).
 //   seed — any whole number; it drives every dice roll (js/engine/rng.js)
-//   data — the data files: { nations, unitTypes, phases, ... } (optional pieces are
-//          skipped, so older tests that only pass a scenario still work)
-export function newGame(scenario, seed, data = {}) {
+//   data — the data files: { nations, unitTypes, phases, ai, ... } (optional pieces
+//          are skipped, so older tests that only pass a scenario still work)
+//   options — { player: 'entente' | 'germany' | 'both', level: 'regular' … } (RULES.md §13).
+//          Without options both sides are played by people (hot seat).
+export function newGame(scenario, seed, data = {}, options = {}) {
   const boxes = {};
   for (const [id, start] of Object.entries(scenario.boxes)) {
     // Copy each box so changing the game never changes the scenario data.
@@ -58,7 +60,30 @@ export function newGame(scenario, seed, data = {}) {
     }
     state.resources = resourcesFor(data, currentMonth(state));
   }
+  setUpSides(state, data, options);
   return state;
+}
+
+// Who plays each side, and the difficulty level's bonuses (RULES.md §13).
+function setUpSides(state, data, options) {
+  const sides = data.nations ? data.nations.sides.map((s) => s.id) : ['entente', 'germany'];
+  const player = options.player || 'both';
+  state.controllers = Object.fromEntries(sides.map((id) => [id, player === 'both' || player === id ? 'human' : 'ai']));
+  state.level = options.level || 'regular';
+  state.aiSkill = {};
+  state.resourceMult = {};
+  state.willBonus = {};
+  const level = data.ai ? data.ai.levels.find((l) => l.id === state.level) : null;
+  if (!level || player === 'both') return;
+  for (const side of sides) {
+    const ai = state.controllers[side] === 'ai';
+    state.willBonus[side] = ai ? level.aiWill : level.playerWill;
+    if (ai) { state.aiSkill[side] = level.aiSkill; state.resourceMult[side] = level.aiResources; }
+  }
+  for (const n of data.nations.nations) {
+    if (state.will[n.id] !== undefined) state.will[n.id] += state.willBonus[n.side] || 0;
+  }
+  applyDifficulty(state.resources, data, state.resourceMult);
 }
 
 // The month ("YYYY-MM") of the current turn. Turn 1 is the scenario's start month.

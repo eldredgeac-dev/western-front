@@ -1,0 +1,19 @@
+{
+  "_about": "The computer opponent (RULES.md §13–§14) [balanced]. 'skills' are the weights in the attack score (they match tools/wfsim.py, where the balance testing was done); 'levels' are the difficulty levels; 'urges' are the historical attacks the computer likes (+bonus to the score). See docs/DATA.md.",
+  "skills": {
+    "standard": {"attackWill": 0.5, "lossWeight": 0.5, "minColumn": "2:1", "noise": 0.1, "munitionCost": 0.15, "stopLoss": 2},
+    "expert": {"attackWill": 1.0, "lossWeight": 0.6, "minColumn": "2:1", "noise": 0.05, "munitionCost": 0.15, "stopLoss": 2, "nearbyVpShare": 0.25}
+  },
+  "move": {"keepThreatAbove": -4, "fillThreatAbove": -6},
+  "levels": [
+    {"id": "recruit", "name": "Recruit", "playerWill": 15, "aiWill": 0, "aiResources": 0.8, "aiSkill": "standard", "advisor": true},
+    {"id": "regular", "name": "Regular", "playerWill": 0, "aiWill": 0, "aiResources": 1.0, "aiSkill": "standard", "advisor": false},
+    {"id": "veteran", "name": "Veteran", "playerWill": 0, "aiWill": 5, "aiResources": 1.15, "aiSkill": "standard", "advisor": false},
+    {"id": "field-marshal", "name": "Field Marshal", "playerWill": 0, "aiWill": 10, "aiResources": 1.3, "aiSkill": "expert", "advisor": false}
+  ],
+  "urges": [
+    {"side": "germany", "from": "1916-02", "to": "1916-06", "box": "l11-e1", "bonus": 2, "note": "Verdun"},
+    {"side": "germany", "from": "1918-03", "to": "1918-06", "lanes": [1, 2, 3, 4, 5, 6], "bonus": 2, "note": "the 1918 drive"},
+    {"nation": "gbr", "from": "1916-07", "to": "1916-09", "lanes": [6], "bonus": 2, "note": "the Somme"}
+  ]
+}

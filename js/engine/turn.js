@@ -3,7 +3,8 @@
 // themselves when End Phase reaches them. Every function returns a NEW state.
 
 import { copyState, currentMonth, monthLabel } from './state.js';
-import { resourcesFor } from './resources.js';
+import { resourcesFor, applyDifficulty } from './resources.js';
+import { aiMove, aiAttack } from './ai.js';
 import { trenchMax, indexBoxes } from './boxes.js';
 import { unitsIn } from './units.js';
 import { addLog } from './moves.js';
@@ -17,7 +18,7 @@ function startOfTurn(state, data) {
   for (const u of state.units) { u.moved = false; u.railed = false; u.attacked = false; }
   state.attackedBoxes = [];
   for (const id of Object.keys(state.lostThisTurn)) state.lostThisTurn[id] = 0;
-  state.resources = resourcesFor(data, currentMonth(state));
+  state.resources = applyDifficulty(resourcesFor(data, currentMonth(state)), data, state.resourceMult);
 }
 
 // Dig in (RULES.md §7 step 5): every box with units that was not attacked this turn
@@ -63,7 +64,15 @@ function settle(state, data) {
       addLog(state, `${monthLabel(currentMonth(state))} begins.`);
     }
     const phase = phases[state.phase];
-    if (!phase.auto) return state;          // waits for orders
+    if (!phase.auto) {
+      // The computer plays its own side's phases; a person's phase waits for orders.
+      if (!data.ai || (state.controllers || {})[phase.side] !== 'ai') return state;
+      if (phase.kind === 'move') aiMove(state, data, phase.side);
+      if (phase.kind === 'attack') aiAttack(state, data, phase.side);
+      if (state.over) return state;
+      state.phase += 1;
+      continue;
+    }
     if (AUTO[phase.id]) AUTO[phase.id](state, data);
     if (state.over) return state;          // someone won
     state.phase += 1;

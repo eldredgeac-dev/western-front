@@ -14,6 +14,7 @@ import { supplyPhase } from '../js/engine/systems/supply.js';
 import { spendReplacements, threat } from '../js/engine/systems/replacements.js';
 import { willPhase, armisticeScore, suddenVictory } from '../js/engine/systems/will.js';
 import { runEvents, chooseOption, pendingChoice, eventDue } from '../js/engine/events.js';
+import { aiMove, aiAttack, frontBoxes } from '../js/engine/ai.js';
 import { columnAverages, ratioColumn, planAttack, oddsPreview, resolveAttack, applyCombatResult,
   barrageMax, eligibleAttackers } from '../js/engine/combat.js';
 
@@ -336,7 +337,7 @@ test('battles: pencil notes only for 6+ steps lost, grouped by territory, oldest
 const copyOf = (x) => JSON.parse(JSON.stringify(x));
 // The data bundle the engine expects.
 const bundle = () => ({ map: data.map, terrain: data.terrain, nations: data.nations,
-  unitTypes: data.unitTypes, phases: data.phases, combat: data.combat, victory: data.victory, events: data.events });
+  unitTypes: data.unitTypes, phases: data.phases, combat: data.combat, victory: data.victory, events: data.events, ai: data.ai });
 const game = (seed = 7) => newGame(data.scenario, seed, bundle());
 const phaseIndex = (id) => data.phases.phases.findIndex((p) => p.id === id);
 
@@ -1104,6 +1105,65 @@ test('events: Vimy makes 2 British units Elite; stormtroopers; the Kaiserschlach
   check(s.will.ger === before - 2, 'an attack in May 1918 avoids it');
 });
 
+// ---------------------------------------------------------------- Milestone 9: the computer opponent
+test('difficulty: Will bonuses and the computer\'s resources follow RULES.md §13', () => {
+  const g = (player, level) => newGame(data.scenario, 1, bundle(), { player, level });
+  let s = g('entente', 'recruit');
+  check(s.will.fra === 90 && s.will.gbr === 100 && s.will.ger === 105, 'Recruit: +15 to each of your nations');
+  check(s.resources.ger.munitions === Math.round(3 * 0.8) && s.resources.ger.rp === Math.round(3 * 0.8), 'computer ×0.8');
+  check(s.controllers.germany === 'ai' && s.controllers.entente === 'human', 'who plays what');
+  s = g('germany', 'field-marshal');
+  check(s.will.fra === 85 && s.will.ger === 105 && s.aiSkill.entente === 'expert', 'Field Marshal: computer +10, Expert');
+  check(s.resources.fra.munitions === Math.round(2 * 1.3), 'computer ×1.3');
+  s = g('germany', 'veteran');
+  check(s.will.gbr === 90 && s.resources.gbr.rp === Math.round(2 * 1.15), 'Veteran: +5, ×1.15');
+  check(g('both').controllers.germany === 'human', 'hot seat: both human');
+});
+
+test('computer: plays its own phases and stops at the player\'s', () => {
+  const s = beginGame(newGame(data.scenario, 2, bundle(), { player: 'entente', level: 'regular' }), bundle());
+  check(phaseOf(s, bundle()).id === 'entente-move', 'Germany moved and attacked by itself: ' + phaseOf(s, bundle()).id);
+  const t = beginGame(newGame(data.scenario, 2, bundle(), { player: 'germany', level: 'regular' }), bundle());
+  check(phaseOf(t, bundle()).id === 'germany-move', 'a German player starts');
+  const u = endPhase(endPhase(t, bundle()), bundle());
+  check(phaseOf(u, bundle()).id === 'germany-move' && u.turn === 2, 'the Entente turn played itself');
+});
+
+test('computer: moves units up to fill threatened, empty front boxes', () => {
+  const s = atWar('1915-04', 'germany');
+  s.phase = phaseIndex('entente-move'); s.controllers = { germany: 'human', entente: 'ai' };
+  s.units = s.units.filter((u) => u.id !== 'fra-03');                        // the Somme E1 is now empty
+  aiMove(s, bundle(), 'entente');
+  check(unitsIn(s, 'l06-e1').length === 1, 'someone moved into the empty front box');
+  check(frontBoxes(s, bundle(), 'entente').includes('l06-e1'), 'it is a front box');
+});
+
+test('computer: only attacks at 2:1 or better, and never without OP', () => {
+  let s = atWar('1915-04', 'germany');
+  aiAttack(s, bundle(), 'germany');
+  for (const b of s.battles) check(true, b.box);
+  const cols = (s.log || []).filter((l) => l.text.startsWith('Attack on')).map((l) => /at (\d:\d)/.exec(l.text)[1]);
+  check(cols.every((c) => ['2:1', '3:1', '4:1'].includes(c)), 'columns: ' + cols.join());
+  s = atWar('1915-04', 'germany'); s.resources.ger.op = 0;
+  const before = JSON.stringify(s.battles);
+  aiAttack(s, bundle(), 'germany');
+  check(JSON.stringify(s.battles) === before, 'no OP, no attack');
+});
+
+test('computer: a full computer-vs-computer war plays to a result, the same way every time', () => {
+  const war = (seed) => {
+    let s = newGame(data.scenario, seed, bundle());
+    s.controllers = { germany: 'ai', entente: 'ai' };
+    s = beginGame(s, bundle());
+    for (let i = 0; i < 2000 && !s.over; i++) s = endPhase(s, bundle());
+    return s;
+  };
+  const a = war(21); const b = war(21);
+  check(a.over && a.result && ['germany', 'entente', 'draw'].includes(a.result.winner), 'finished: ' + JSON.stringify(a.result));
+  check(JSON.stringify(a) === JSON.stringify(b), 'same seed, same war');
+  check((a.attacks || []).length > 5, 'attacks were made: ' + (a.attacks || []).length);
+});
+
 // ---------------------------------------------------------------- commanders and headlines
 test('commanders: all nine cards from RULES.md §15, with Strength, Flaw and history', () => {
   const ids = data.commanders.cards.map((c) => c.id).sort();
@@ -1157,6 +1217,7 @@ export async function runAll(loadJson, loadText) {
     data.commanders = await loadJson('data/commanders.json');
     data.victory = await loadJson('data/victory.json');
     data.events = await loadJson('data/events.json');
+    data.ai = await loadJson('data/ai.json');
     data.headlines = await loadJson('data/headlines.json');
   } catch (err) {
     results.push({ name: 'load data files', ok: false, error: err.message });

@@ -148,6 +148,14 @@ and `effects`). The computer picks `aiChoice`; a human player is asked, and the 
 `placeLanes` limits where a nation's units arrive (GBR lanes 1–6, USA 9–12). Units with
 `greenTurns` in `unit-types.json` arrive Green for that many months.
 
+## `ai.json`: the computer opponent (RULES.md §13–§14) [balanced]
+| Field | Meaning |
+|---|---|
+| `skills` | Attack-score weights per skill (`standard`, `expert`): `attackWill` (W), `lossWeight`, `minColumn` ("2:1"), `noise` (random jitter, as in `tools/wfsim.py`), `munitionCost`, `stopLoss` (stop when expected losses pass RP + this), `nearbyVpShare` (expert) |
+| `move` | When a unit leaves a front box (`keepThreatAbove`) and which front boxes get filled (`fillThreatAbove`) |
+| `levels` | The 4 difficulty levels: `playerWill`, `aiWill`, `aiResources` (× munitions and RP), `aiSkill`, `advisor` |
+| `urges` | Historical attacks: `side` or `nation`, months `from`–`to`, a `box` or `lanes`, and the `bonus` |
+
 ## `commanders.json`: commander cards (RULES.md §15) [balanced]
 | Field | Meaning |
 |---|---|
