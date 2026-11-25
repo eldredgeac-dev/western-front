@@ -413,6 +413,17 @@ I'll change it.
       front line), compare them, and bring you one fix with the numbers before and
       after. I haven't changed any code or numbers.
 
+### After merging pull request #5: "I don't see the 3D pieces"
+83. **The merge and the site build both worked:** GitHub Pages deployed commit e088bbc
+    successfully. The phone was showing old, cached files. I loaded the merged code as
+    an iPhone, an unfolded phone and a desktop, and it works there.
+84. **The title screen now shows the version** ("Version 10.1 · Milestone 10 …"), so you
+    can see at a glance whether your phone has the latest code.
+85. **Phones now fetch new files after each update.** Every file is asked for with a
+    version stamp (`?v=10.1`): the stylesheet, `main.js`, every other script (through an
+    "import map" in `index.html`), the data files and the map. A test checks that no
+    script is missed, and CLAUDE.md says to raise the number with every release.
+
 ## Questions for you (answered)
 1. **Combat table — answered: RULES.md is right.**
    - The balance tests used `tools/t2.py`, which patched the simulator's 1:2 and 1:1

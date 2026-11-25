@@ -632,3 +632,5 @@ html, body {
 .chart-key { display: inline-flex; align-items: center; gap: 6px; }
 .chart-readout { color: var(--ink-faded); }
 @media (prefers-reduced-motion: reduce) { .will-fill { transition: none; } }
+/* The version line on the title screen: small and quiet. */
+.version-note { margin-top: 4px; font-size: 0.8rem; color: var(--ink-faded); }
