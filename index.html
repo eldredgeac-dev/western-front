@@ -61,12 +61,25 @@
         <span id="game-title" class="game-bar-title">December 1914</span>
         <span id="phase-label" class="game-bar-phase"></span>
       </span>
-      <button id="btn-end-phase" class="btn btn-primary btn-small btn-end-phase" type="button">End Phase</button>
+      <!-- Orders, then commit (STYLE.md §6): carries out the queued orders. -->
+      <button id="btn-end-phase" class="btn btn-primary btn-small btn-end-phase" type="button"><span class="commit-long">Commit orders</span><span class="commit-short">Commit</span><span id="commit-count" class="commit-count"></span></button>
     </header>
     <section id="map-area" class="map-area" aria-label="Map">
       <div class="map-holder" id="map-holder"></div>
       <!-- The locator: the whole map, small, with the part on screen outlined. Tap it to jump there. -->
       <button id="locator" class="locator" type="button" aria-label="Locator map: tap to jump to that part of the map"></button>
+      <!-- Playing a committed turn back (js/ui/animate.js): who's acting, and SKIP. -->
+      <div id="playback" class="playback" hidden>
+        <span id="playback-label" class="playback-label"></span>
+        <button id="btn-skip" class="btn btn-small" type="button">Skip ›</button>
+      </div>
+      <div id="playback-slip" class="playback-slip" hidden aria-live="polite">
+        <p class="pb-title"></p>
+        <p class="pb-column"></p>
+        <div class="pb-dice"><span class="die"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="die"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></div>
+        <p class="pb-result"></p>
+        <p class="pb-stamp"></p>
+      </div>
       <div class="zoom-buttons" role="group" aria-label="Zoom">
         <button id="btn-zoom-in" class="btn btn-zoom" type="button" aria-label="Zoom in">+</button>
         <button id="btn-zoom-out" class="btn btn-zoom" type="button" aria-label="Zoom out">−</button>

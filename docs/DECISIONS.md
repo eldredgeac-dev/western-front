@@ -313,6 +313,46 @@ I'll change it.
     colours and the front line, with a red box for the part on screen. Tap it to jump
     there. On the folded phone it hides while the panel is open.
 
+72. **Orders, then commit (part 3).** In your move and attack phases, orders are
+    queued, not carried out:
+    - a move is a dashed ink arrow;
+    - an attack is set up on the order slip as before, but **ADD TO ORDERS** draws a red
+      arrow labelled with its column and chance ("2:1 · 58%");
+    - the panel lists the queued orders, each with **CANCEL**, plus the OP and munitions
+      left to spend. Tapping an arrow highlights its order there;
+    - each new order is checked as if the earlier ones had happened: stacking counts
+      queued moves, a unit can only be in one attack, and queued attacks set aside their
+      OP and munitions;
+    - giving a unit a new move replaces its old order.
+73. **COMMIT ORDERS** replaces END PHASE (just "COMMIT" on the folded phone). It carries
+    out the orders in the order you gave them, then runs on to your next phase, with the
+    computer playing its side in between. The game is saved before the turn plays back,
+    so closing the app mid-animation loses nothing.
+74. **No rule changes.** Move and attack phases stay separate (your answer). Each attack
+    is checked again when its turn comes at commit; one that's no longer possible (say,
+    its units were lost in an earlier attack) is skipped, with a line in Dispatches.
+    Attack dice are still rolled one attack at a time, in the queue's order, through
+    `rng.js`. A test checks that committing two attacks gives exactly the same game as
+    making them one by one.
+75. **The playback (STYLE.md §8):**
+    - Each group of orders (your moves, your attacks, the enemy's moves, then its
+      attacks) shows its arrows first.
+    - Then pieces slide along the arrows (0.6 s) and a barrage puffs over the target with
+      a 2 px shake (0.6 s).
+    - The dice tumble on a small order slip (0.8 s) and show the roll, the losses and a
+      stamp; a short pause lets you read them.
+    - Losses float up in red, and a captured territory's colour cross-fades (0.6 s).
+    - If the action is off screen, the map jumps to it.
+    - **A tap on the map** hurries the current animation; **SKIP** jumps to the end.
+    - **Fast mode** (Settings, at the bottom of the panel) keeps only the captures.
+      **Reduce Motion** on the phone turns playback off entirely; Dispatches still list
+      everything.
+76. **The computer's turn is recorded as it plays**, without changing what it decides. A
+    test plays 16 phases with and without the recording and checks the games are
+    identical, so the balance is untouched.
+77. **Saves are now version 3** (they hold the queued orders). Version 2 saves load with
+    an empty queue.
+
 ## Questions for you (answered)
 1. **Combat table — answered: RULES.md is right.**
    - The balance tests used `tools/t2.py`, which patched the simulator's 1:2 and 1:1
@@ -401,3 +441,19 @@ I'll change it.
       - **Front** shows the whole front line.
       - Is it still smooth to pan and pinch on the phone? The map file is a little bigger
         (1.0 MB, was 0.95 MB).
+- [ ] **Orders, then commit.** Start a campaign as the Entente.
+      - Germany's opening moves should play back first: dashed arrows, then pieces
+        sliding. Try **SKIP**.
+      - Tap one of your units, tap a brass-outlined territory: a dashed arrow appears and
+        the unit stays put. The top button shows **COMMIT 1**. Tap the arrow: the panel
+        shows the order with **CANCEL**.
+      - Tap **COMMIT**: the piece slides along the arrow, and you're in "Entente attack".
+      - Tap a German territory next to your units, then **ADD TO ORDERS**: a red arrow
+        with the odds appears. Add a second attack, then **COMMIT**: the dice tumble on a
+        small slip, losses float up in red, and then Germany's turn plays back the same
+        way.
+      - Tap the map during an animation to hurry it along.
+      - Turn on **Fast mode** (bottom of the panel) and commit again: only captures
+        should animate.
+      - With Reduce Motion on (Settings → Accessibility → Motion), nothing should
+        animate.

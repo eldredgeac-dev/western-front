@@ -67,7 +67,7 @@ function row(list, label, value) {
 }
 
 // The units in the territory: one button each (tap to select and see its moves).
-function unitList(info, onUnit) {
+function unitList(info, onUnit, onCancelOrder) {
   const section = el('section', 'unit-list');
   section.appendChild(el('h3', 'panel-subtitle', info.units.length ? 'Units here' : 'No units here'));
   for (const u of info.units) {
@@ -79,13 +79,20 @@ function unitList(info, onUnit) {
     text.appendChild(el('strong', '', u.title));
     text.appendChild(el('span', 'unit-detail', `${u.steps} of ${u.maxSteps} steps · ${u.quality}`));
     b.appendChild(text);
+    if (u.ordered) text.appendChild(el('span', 'unit-detail', u.ordered.text));
     b.addEventListener('click', () => onUnit(u.id));
     section.appendChild(b);
     if (info.selectedUnit === u.id) {
       const hint = u.moves || u.rails
         ? `Can move to ${u.moves} territor${u.moves === 1 ? 'y' : 'ies'} (brass outline) or go by rail to ${u.rails} (dashed).`
         : (u.why || 'This unit can\u2019t move now.');
-      section.appendChild(el('p', 'unit-hint', hint));
+      section.appendChild(el('p', 'unit-hint', u.ordered ? `${hint} Tap one to change its order.` : hint));
+      if (u.ordered && onCancelOrder) {
+        const c = el('button', 'btn btn-small', 'Cancel order');
+        c.type = 'button';
+        c.addEventListener('click', () => onCancelOrder(u.ordered.index));
+        section.appendChild(c);
+      }
     }
   }
   return section;
@@ -194,7 +201,7 @@ function orderSlip(slip, actions) {
 
   const buttons = el('div', 'slip-buttons');
   if (!slip.result) {
-    const go = el('button', 'btn btn-primary', 'Confirm order');
+    const go = el('button', 'btn btn-primary', slip.confirmLabel || 'Confirm order');
     go.type = 'button';
     go.disabled = !slip.ok;
     go.addEventListener('click', () => actions.onConfirm());
@@ -206,6 +213,40 @@ function orderSlip(slip, actions) {
   buttons.appendChild(cancel);
   card.appendChild(buttons);
   return card;
+}
+
+// The queued orders (orders, then commit): one line each, with CANCEL; a tapped
+// arrow's order is highlighted. Below: what's left to spend this phase.
+function ordersSection(orders, onCancel) {
+  const section = el('section', 'orders');
+  section.appendChild(el('h3', 'panel-subtitle', `Orders (${orders.list.length}) \u2014 tap COMMIT ORDERS to carry them out`));
+  for (const o of orders.list) {
+    const r = el('div', 'order-row' + (o.selected ? ' selected' : '') + (o.ok ? '' : ' bad'));
+    const t = el('span', 'order-text', `${o.index + 1}. ${o.text}`);
+    if (!o.ok) t.appendChild(el('span', 'order-why', `Not possible now: ${o.reason}`));
+    r.appendChild(t);
+    const b = el('button', 'btn btn-small', 'Cancel');
+    b.type = 'button';
+    b.setAttribute('aria-label', `Cancel order ${o.index + 1}`);
+    b.addEventListener('click', () => onCancel(o.index));
+    r.appendChild(b);
+    section.appendChild(r);
+  }
+  if (orders.left) section.appendChild(el('p', 'orders-left', `Left to spend: ${orders.left}`));
+  return section;
+}
+
+// Settings kept on this phone: fast mode (STYLE.md §8).
+function settingsSection(settings, onFast) {
+  const section = el('section', 'settings');
+  section.appendChild(el('h3', 'panel-subtitle', 'Settings'));
+  const b = el('button', 'btn btn-small', settings.fast ? 'Fast mode: on' : 'Fast mode: off');
+  b.type = 'button';
+  b.setAttribute('aria-pressed', String(Boolean(settings.fast)));
+  b.addEventListener('click', onFast);
+  section.appendChild(b);
+  section.appendChild(el('p', 'unit-hint', 'Fast mode plays turns back with only the capture animation. With Reduce Motion on in your phone\u2019s settings, nothing animates.'));
+  return section;
 }
 
 // A decision an event asks for (RULES.md §10). The turn waits until it's answered.
@@ -235,6 +276,7 @@ export function showPanel(container, info, terrainData, actions = {}) {
   if (actions.error) parts.push(el('p', 'panel-error', actions.error));
   if (actions.slip) parts.push(orderSlip(actions.slip, actions));
   if (actions.choice) parts.push(choiceCard(actions.choice, actions.onChoose));
+  if (actions.orders) parts.push(ordersSection(actions.orders, actions.onCancelOrder));
   if (!info) {
     parts.push(el('p', 'panel-hint', 'Tap a territory on the map to see its details. Pinch to zoom.'));
   } else {
@@ -255,11 +297,12 @@ export function showPanel(container, info, terrainData, actions = {}) {
       terrainList.appendChild(li);
     }
     row(dl, 'Terrain', terrainList);
-    parts.push(unitList(info, actions.onUnit || (() => {})));
+    parts.push(unitList(info, actions.onUnit || (() => {}), actions.onCancelOrder));
     parts.push(dl);
   }
   if (actions.situation) parts.push(situationSection(actions.situation));
   if (actions.log && actions.log.length) parts.push(dispatches(actions.log));
+  if (actions.settings) parts.push(settingsSection(actions.settings, actions.onFast));
   parts.push(legend(terrainData));
   container.replaceChildren(...parts);
 }

@@ -12,10 +12,12 @@ import { applyDemo } from './ui/demo.js';
 import { armisticeScore } from './engine/systems/will.js';
 import { pendingChoice, chooseOption } from './engine/events.js';
 import { unitsIn, unitType, nationOf } from './engine/units.js';
-import { moveTargets, railTargets, moveUnit, railMove, phaseAllows } from './engine/moves.js';
+import { moveTargets, railTargets, phaseAllows } from './engine/moves.js';
 import { beginGame, endPhase, phaseOf } from './engine/turn.js';
-import { oddsPreview, resolveAttack, eligibleAttackers, barrageMax } from './engine/combat.js';
+import { oddsPreview, eligibleAttackers, barrageMax } from './engine/combat.js';
 import { frontBoxes } from './engine/ai.js';
+import { queueCheck, addOrder, cancelOrder, commitOrders, snapshot } from './engine/orders.js';
+import { createPlayback } from './ui/animate.js';
 import { threat } from './engine/systems/replacements.js';
 
 // Find the page elements we need once, at start-up.
@@ -45,9 +47,25 @@ let selectedBox = null;
 let selectedUnit = null;
 // A message about the last order, if it wasn't allowed.
 let orderError = null;
-// The attack being planned on the order slip, or null:
-// { target, units: [ids], munitions, result: null or [[label, value]…], taken }
+// The attack being set up on the order slip, or null: { target, units: [ids], munitions }
 let attack = null;
+// The queued order whose arrow was tapped (its place in state.orders), or null.
+let selectedOrder = null;
+// Plays a committed turn back on the map (js/ui/animate.js); made in showMap().
+let playback = null;
+// Settings kept on this phone: { fast: true } for fast mode (STYLE.md §8).
+const SETTINGS_KEY = 'western-front-settings';
+let settings = readSettings();
+function readSettings() {
+  try {
+    return JSON.parse(getStorage()?.getItem(SETTINGS_KEY) || '{}') || {};
+  } catch (err) {
+    return {};
+  }
+}
+function saveSettings() {
+  try { getStorage()?.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (err) { /* not saved: fine */ }
+}
 
 // Get localStorage safely: just reading `window.localStorage` can throw
 // when storage is blocked.
@@ -229,9 +247,10 @@ function unitInfo(unit) {
     id: unit.id, unit, look: lookFor(unit),
     title: `${nationOf(data.engine, unit.nation).adjective} ${type.name.toLowerCase()}`,
     steps: unit.steps, maxSteps: type.maxSteps, quality: quality ? quality.name : unit.quality,
-    moves: moveTargets(state, orderData(), unit.id).length,
-    rails: railTargets(state, orderData(), unit.id).length,
+    moves: moveTargets(previewFor(unit.id), orderData(), unit.id).length,
+    rails: railTargets(previewFor(unit.id), orderData(), unit.id).length,
     why: whyNoOrders(unit),
+    ordered: queuedMove(unit.id) ? { index: queuedMove(unit.id).index, text: `Ordered to ${placeName(queuedMove(unit.id).order.to)}` } : null,
   };
 }
 
@@ -274,6 +293,25 @@ function orderData() {
   return data.engine;
 }
 
+// The queued orders, checked (js/engine/orders.js): { checks, state }, where `state`
+// is the board as it will be after the queued moves (and with the OP and munitions
+// for the queued attacks set aside).
+function planned() {
+  return queueCheck(state, orderData());
+}
+// The board as a unit's new order would find it: after every queued order except
+// that unit's own move (a new move order for it replaces the old one).
+function previewFor(unitId) {
+  const others = (state.orders || []).filter((o) => !(o.kind === 'move' && o.unit === unitId));
+  return queueCheck(state, orderData(), others).state;
+}
+// The queued move for a unit, and its place in the queue, or null.
+function queuedMove(unitId) {
+  const i = (state.orders || []).findIndex((o) => o.kind === 'move' && o.unit === unitId);
+  return i < 0 ? null : { index: i, order: state.orders[i] };
+}
+const placeName = (boxId) => boxName(data.map, data.boxesById[boxId]);
+
 // Show the panel for the selected territory (and unit).
 function refreshPanel() {
   showPanel(panelArea, selectedBox ? boxInfo(selectedBox) : null, data.terrainData, {
@@ -281,6 +319,8 @@ function refreshPanel() {
     choice: pendingChoice(state, data.engine), onChoose: answerChoice,
     slip: attack ? attackSlip() : null,
     onToggleUnit: toggleAttacker, onMunitions: changeMunitions, onConfirm: confirmAttack, onCancel: closeAttack,
+    orders: ordersInfo(), onCancelOrder: dropOrder, onShowOrder: showOrder,
+    settings: { fast: Boolean(settings.fast) }, onFast: toggleFast,
   });
   orderError = null;
 }
@@ -289,7 +329,8 @@ function refreshPanel() {
 function selectUnit(unitId) {
   selectedUnit = selectedUnit === unitId ? null : unitId;
   if (selectedUnit) {
-    mapView.showTargets(moveTargets(state, orderData(), selectedUnit), railTargets(state, orderData(), selectedUnit));
+    const pv = previewFor(selectedUnit);
+    mapView.showTargets(moveTargets(pv, orderData(), selectedUnit), railTargets(pv, orderData(), selectedUnit));
   } else {
     mapView.showTargets([], []);
   }
@@ -307,6 +348,8 @@ function openSheet(open) {
 // that's an order to move there (by road if it's next door, otherwise by rail).
 // Otherwise it selects the territory.
 function tapBox(boxId) {
+  if (playback && playback.isPlaying()) { playback.tap(); return; }   // a tap skips the animation
+  selectedOrder = null;
   if (isAttackTarget(boxId)) {
     selectBox(boxId);
     openAttack(boxId);
@@ -315,19 +358,20 @@ function tapBox(boxId) {
   }
   if (attack) closeAttack();
   if (selectedUnit) {
-    const near = moveTargets(state, orderData(), selectedUnit);
-    const rail = railTargets(state, orderData(), selectedUnit);
-    if (near.includes(boxId) || rail.includes(boxId)) {
+    const pv = previewFor(selectedUnit);
+    if (moveTargets(pv, orderData(), selectedUnit).includes(boxId) || railTargets(pv, orderData(), selectedUnit).includes(boxId)) {
+      // Orders, then commit: the move is queued as a dashed arrow, not made yet.
       try {
-        state = near.includes(boxId)
-          ? moveUnit(state, orderData(), selectedUnit, boxId)
-          : railMove(state, orderData(), selectedUnit, boxId);
+        state = addOrder(state, orderData(), { kind: 'move', unit: selectedUnit, to: boxId });
       } catch (err) {
         orderError = err.message;
       }
       persist();
+      const from = selectedBox;
+      selectedUnit = null;
+      mapView.showTargets([], []);
       redraw();
-      selectBox(boxId);
+      selectBox(from);
       return;
     }
   }
@@ -344,20 +388,21 @@ function isAttackTarget(boxId) {
 // Open the order slip for an attack on this territory, with every unit that can
 // attack it already chosen.
 function openAttack(boxId) {
-  attack = { target: boxId, units: eligibleAttackers(state, orderData(), boxId), munitions: 0, result: null };
+  attack = { target: boxId, units: eligibleAttackers(planned().state, orderData(), boxId), munitions: 0 };
   showAttackArrow();
 }
 
 // The grease-pencil arrow from the strongest chosen unit to the target.
 function showAttackArrow() {
   const chosen = attack.units.map((id) => state.units.find((u) => u.id === id)).filter(Boolean);
-  if (attack.result || !chosen.length) { mapView.clearPlannedAttack(); return; }
+  if (!chosen.length) { mapView.clearPlannedAttack(); return; }
   const lead = chosen.reduce((a, b) => (b.steps > a.steps ? b : a));
   mapView.showPlannedAttack(lead.box, attack.target);
 }
 
 // Everything the order slip shows, worked out by the combat engine.
 function attackSlip() {
+  const pv = planned().state;          // after the queued orders (OP and munitions set aside)
   const box = data.boxesById[attack.target];
   const order = { target: attack.target, units: attack.units, munitions: attack.munitions };
   const defenders = unitsIn(state, attack.target);
@@ -367,19 +412,19 @@ function attackSlip() {
     defenderText: defenders.length
       ? `Held by ${defenders.length} unit${defenders.length === 1 ? '' : 's'} (${defSteps} steps), trench level ${state.boxes[attack.target].trench}.`
       : 'No enemy units hold it.',
-    units: eligibleAttackers(state, orderData(), attack.target).map((id) => {
+    units: eligibleAttackers(pv, orderData(), attack.target).map((id) => {
       const u = state.units.find((x) => x.id === id);
       return { ...unitInfo(u), chosen: attack.units.includes(id) };
     }),
     munitions: attack.munitions, munitionsMax: 0, shifts: [], reasons: [],
-    result: attack.result, taken: attack.taken,
+    confirmLabel: 'Add to orders',
   };
-  if (attack.result || !attack.units.length) {
+  if (!attack.units.length) {
     slip.ok = false;
-    if (!attack.units.length && !attack.result) slip.reasons = ['Choose at least one unit.'];
+    slip.reasons = ['Choose at least one unit.'];
     return slip;
   }
-  const odds = oddsPreview(state, orderData(), order);
+  const odds = oddsPreview(pv, orderData(), order);
   const plan = odds.plan;
   const payer = plan.payer ? nationOf(data.engine, plan.payer) : null;
   slip.ok = plan.ok;
@@ -400,7 +445,7 @@ function attackSlip() {
     slip.ratioText = `${plan.attackSteps} steps against ${plan.defendSteps} \u2192 below 1:2`;
   }
   if (payer) {
-    const left = state.resources[payer.id];
+    const left = pv.resources[payer.id];
     slip.cost = `${plan.opCost} OP from ${payer.name} (${left.op} left)`;
     slip.munitionsMax = Math.min(barrageMax(data.engine, currentMonth(state)), left.munitions);
   }
@@ -417,35 +462,79 @@ function changeMunitions(change) {
   refreshPanel();
 }
 
-// CONFIRM ORDER: roll the dice and show what happened on the slip.
+// ADD TO ORDERS: queue the attack (a red arrow with its odds). The dice are rolled
+// when the orders are committed.
 function confirmAttack() {
-  let out;
   try {
-    out = resolveAttack(state, orderData(), { target: attack.target, units: attack.units, munitions: attack.munitions });
+    state = addOrder(state, orderData(), { kind: 'attack', target: attack.target, units: attack.units, munitions: attack.munitions });
   } catch (err) {
     orderError = err.message;
     refreshPanel();
     return;
   }
-  state = out.state;
   persist();
-  const r = out.result;
-  const steps = (o) => Object.values(o || {}).reduce((a, b) => a + b, 0);
-  const lines = [];
-  if (r.empty) lines.push(['Result', 'taken without a fight']);
-  else {
-    lines.push(['Column', r.plan.columnLabel], ['Dice', `${r.dice[0]} + ${r.dice[1]} = ${r.roll}`],
-      ['Table', `A${r.cell.a} D${r.cell.d}${r.cell.r ? ' R' : ''}`],
-      ['Our losses', `${steps(r.attackerLost)} steps`], ['Their losses', `${steps(r.defenderLost) + steps(r.retreatLost)} steps`]);
-    if (r.futile) lines.push(['Futile attack', `\u2212${data.engine.combat.futile.will} Will`]);
-  }
-  for (const [nat, w] of Object.entries(r.will || {})) {
-    if (!r.futile || nat !== r.plan.payer) lines.push([`${nationOf(data.engine, nat).name} Will`, w > 0 ? `+${w}` : `\u2212${-w}`]);
-  }
-  attack.result = lines;
-  attack.taken = r.taken;
+  attack = null;
   mapView.clearPlannedAttack();
   redraw();
+  refreshPanel();
+}
+
+// ---------------------------------------------------------------- queued orders
+// What the panel lists about the queued orders, and what's left to spend.
+function ordersInfo() {
+  const orders = state.orders || [];
+  if (!orders.length) return null;
+  const { checks, state: pv } = planned();
+  const phase = phaseOf(state, orderData());
+  const list = orders.map((o, i) => ({ index: i, text: orderText(o, checks[i]), ok: checks[i].ok, reason: checks[i].reason, selected: i === selectedOrder }));
+  const left = phase ? data.engine.nations.nations.filter((n) => n.side === phase.side && pv.resources[n.id] && (state.will[n.id] !== undefined))
+    .map((n) => `${n.name} ${pv.resources[n.id].op} OP, ${pv.resources[n.id].munitions} munitions`) : [];
+  return { list, left: phase && phase.kind === 'attack' ? left.join(' \u00b7 ') : '' };
+}
+// One order in plain words.
+function orderText(o, check) {
+  if (o.kind === 'move') {
+    const u = state.units.find((x) => x.id === o.unit);
+    return `Move ${u ? unitTitle(u) : 'a unit'} from ${u ? placeName(u.box) : '?'} to ${placeName(o.to)}`;
+  }
+  const odds = check && check.ok && check.odds ? ` at ${check.plan.columnLabel || 'no odds'}, ${Math.round(check.odds.pTake * 100)}% to take it` : '';
+  return `Attack ${placeName(o.target)} with ${o.units.length} unit${o.units.length === 1 ? '' : 's'}${o.munitions ? `, barrage of ${o.munitions}` : ''}${odds}`;
+}
+const unitTitle = (u) => `${nationOf(data.engine, u.nation).adjective} ${unitType(data.engine, u).name.toLowerCase()}`;
+
+// Draw the queued orders as arrows: dashed for moves, red with the odds for attacks.
+function drawOrderArrows() {
+  const orders = state.orders || [];
+  const { checks } = planned();
+  mapView.drawOrders(orders.map((o, i) => {
+    const c = checks[i];
+    if (o.kind === 'move') {
+      const u = state.units.find((x) => x.id === o.unit);
+      return { index: i, kind: 'move', from: u ? u.box : o.to, to: o.to, bad: !c.ok };
+    }
+    const lead = o.units.map((id) => state.units.find((x) => x.id === id)).filter(Boolean).sort((a, b) => b.steps - a.steps)[0];
+    const label = c.ok && c.odds ? (c.plan.empty ? 'empty' : `${c.plan.columnLabel} \u00b7 ${Math.round(c.odds.pTake * 100)}%`) : '';
+    return { index: i, kind: 'attack', from: lead ? lead.box : o.target, to: o.target, label, bad: !c.ok };
+  }));
+}
+// An arrow was tapped: show that order (with CANCEL ORDER) in the panel.
+function showOrder(i) {
+  if (playback && playback.isPlaying()) { playback.tap(); return; }
+  selectedOrder = i;
+  refreshPanel();
+  openSheet(true);
+}
+// CANCEL ORDER.
+function dropOrder(i) {
+  state = cancelOrder(state, i);
+  selectedOrder = null;
+  persist();
+  redraw();
+  refreshPanel();
+}
+function toggleFast() {
+  settings.fast = !settings.fast;
+  saveSettings();
   refreshPanel();
 }
 
@@ -479,11 +568,17 @@ function showMap() {
     const mapSize = { w: vb.width, h: vb.height };          // the whole map, in map units
     zoom = enableZoom(mapView.svg, {
       onTap: tapBox,
+      onTapOrder: showOrder,
       onViewChange: (k) => { mapView.declutter(); mapView.layout(k); showLocator(zoom.current()); },
       home: mapView.frontBounds,
       start: startPoint,
     });
     showLocator = createLocator($('locator'), mapSize, (x, y) => zoom.centreOn(x, y));
+    playback = createPlayback({
+      mapView, mapArea: $('map-area'), bar: $('playback'), barLabel: $('playback-label'), skip: $('btn-skip'),
+      slip: $('playback-slip'), showBoard, lookFor, describe: describeAction, fast: () => Boolean(settings.fast),
+      focus: focusOn,
+    });
     $('btn-zoom-in').addEventListener('click', () => zoom.zoomIn());
     $('btn-zoom-out').addEventListener('click', () => zoom.zoomOut());
     $('btn-zoom-fit').addEventListener('click', () => zoom.fit());
@@ -524,20 +619,70 @@ function redraw() {
   gameTitle.textContent = monthLabel(month);
   const phase = phaseOf(state, orderData());
   $('phase-label').textContent = state.over ? 'The war is over' : (phase ? phase.name : '');
-  $('btn-end-phase').disabled = state.over || Boolean(state.pendingChoice);
+  const n = (state.orders || []).length;
+  $('commit-count').textContent = n ? String(n) : '';
+  $('btn-end-phase').disabled = state.over || Boolean(state.pendingChoice) || Boolean(playback && playback.isPlaying());
+  drawOrderArrows();
   if (state.pendingChoice) openSheet(true);
 }
 
-// End Phase: on to the next phase that needs orders.
-function nextPhase() {
-  state = endPhase(state, orderData());
-  persist();
-  attack = null;
+// COMMIT ORDERS: carry out the queued orders, run on to the next phase that needs
+// your orders (the computer plays its side on the way), then play it all back.
+async function commit() {
+  if (!state || state.over || state.pendingChoice || (playback && playback.isPlaying())) return;
+  const out = commitOrders(state, orderData());
+  const actions = [...out.actions];
+  state = endPhase(out.state, orderData(), { record: (action, s) => actions.push({ ...action, after: snapshot(s) }) });
+  persist();                       // saved before the playback, so closing the app loses nothing
+  attack = null; selectedUnit = null; selectedOrder = null;
   mapView.clearPlannedAttack();
-  selectedUnit = null;
   mapView.showTargets([], []);
+  await playTurn(actions);
+}
+// Play actions back, then show the real state.
+async function playTurn(actions) {
+  openSheet(false);
+  $('btn-end-phase').disabled = true;
+  $('commit-count').textContent = '';
+  mapView.drawOrders([]);
+  // the panel would give the results away: show a short note while the turn plays
+  const note = document.createElement('p');
+  note.className = 'panel-hint';
+  note.textContent = 'The orders are being carried out. Tap the map to hurry one along, or SKIP to see the outcome at once.';
+  panelArea.replaceChildren(note);
+  gameScreen.classList.add('playing-back');
+  await playback.play(actions);
+  gameScreen.classList.remove('playing-back');
   redraw();
   refreshPanel();
+  if (state.pendingChoice) openSheet(true);
+}
+// Draw the map as it was partway through a turn (a snapshot from js/engine/orders.js).
+function showBoard(snap) {
+  const view = { ...state, boxes: snap.boxes, units: snap.units };
+  mapView.update(view, snap.month, monthLabel(snap.month), null);
+  mapView.drawUnits(snap.units, lookFor);
+  gameTitle.textContent = monthLabel(snap.month);
+}
+// During playback: if a territory being acted on is off screen, move the map to it.
+function focusOn(...ids) {
+  const [x, y, w, h] = zoom.current();
+  const pts = ids.filter(Boolean).map((id) => { const t = document.getElementById(id); return [Number(t.dataset.x), Number(t.dataset.y)]; });
+  const margin = 0.15;
+  const seen = (p) => p[0] > x + w * margin && p[0] < x + w * (1 - margin) && p[1] > y + h * margin && p[1] < y + h * (1 - margin);
+  if (!pts.length || pts.every(seen)) return;
+  const cx = pts.reduce((a, p) => a + p[0], 0) / pts.length; const cy = pts.reduce((a, p) => a + p[1], 0) / pts.length;
+  zoom.centreOn(cx, cy);
+}
+
+// Words for an action, for the playback bar and slip.
+function describeAction(a) {
+  const side = data.nations.sides.find((x) => x.id === a.side);
+  // "German" for a one-nation side, otherwise the side's name ("Entente")
+  const only = side && side.nations.length === 1 ? nationOf(data.engine, side.nations[0]) : null;
+  const sideName = only ? only.adjective : side ? side.name : '';
+  if (a.kind !== 'attack') return { sideName, title: '', label: '' };
+  return { sideName, title: `Attack on ${placeName(a.target)}`, label: a.result && !a.result.empty ? a.result.plan.columnLabel : '' };
 }
 
 // New Campaign: show the side and difficulty choices (RULES.md §13).
@@ -577,9 +722,11 @@ function startGame() {
   attack = null;
   // "?demo" in the address shows a sample war on the map (js/ui/demo.js).
   demoAttack = new URLSearchParams(window.location.search).has('demo') ? applyDemo(state) : null;
-  state = beginGame(state, orderData());
+  const opening = [];
+  state = beginGame(state, orderData(), { record: (action, s) => opening.push({ ...action, after: snapshot(s) }) });
   playState(state);
   persist();
+  if (opening.length && !demoAttack) playTurn(opening);
 }
 
 // Show the game screen for a state (new, continued or imported).
@@ -631,7 +778,7 @@ async function boot() {
   $('btn-import').addEventListener('click', () => $('import-file').click());
   $('import-file').addEventListener('change', (e) => importSave(e.target));
   $('btn-back').addEventListener('click', () => { showScreen(titleScreen); updateContinueButton(); });
-  $('btn-end-phase').addEventListener('click', () => { if (state) nextPhase(); });
+  $('btn-end-phase').addEventListener('click', () => { if (state) commit(); });
   wireSheet();
 
   newGameButton.disabled = true;   // until the data has loaded

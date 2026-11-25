@@ -7,13 +7,14 @@
 //   { kind: 'attack', target, units, munitions }   — an attack (js/engine/combat.js)
 //
 // What happened is described as a list of "actions" the screen plays back:
-//   { kind: 'move' | 'rail', side, unit, from, to }
-//   { kind: 'attack', side, target, units, munitions, from: {unitId: box}, result }
+//   { kind: 'move' | 'rail', side, unit, from, to, after }
+//   { kind: 'attack', side, target, units, munitions, from: {unitId: box}, result, after }
+// where `after` is a snapshot() of the board just after it.
 //   { kind: 'skipped', order, reason }
 // The computer's turn produces the same actions (see ai.js and turn.js).
 // Every exported function returns NEW data and never changes the state it's given.
 
-import { copyState } from './state.js';
+import { copyState, currentMonth } from './state.js';
 import { findUnit, sideOfUnit } from './units.js';
 import { moveUnit, railMove, moveTargets, addLog } from './moves.js';
 import { planAttack, oddsPreview, resolveAttack } from './combat.js';
@@ -91,13 +92,13 @@ export function commitOrders(state, data) {
       if (order.kind === 'move') {
         const out = doMove(s, data, order);
         s = out.state;
-        actions.push(out.action);
+        actions.push({ ...out.action, after: snapshot(s) });
       } else {
         const from = Object.fromEntries(order.units.map((id) => [id, (findUnit(s, id) || {}).box]));
         const out = resolveAttack(s, data, order);
         s = out.state;
         actions.push({ kind: 'attack', side: out.result.plan.side, target: order.target, units: order.units,
-          munitions: order.munitions || 0, from, result: out.result });
+          munitions: order.munitions || 0, from, result: out.result, after: snapshot(s) });
       }
     } catch (err) {
       addLog(s, `An order was cancelled: ${err.message}`);
@@ -108,8 +109,9 @@ export function commitOrders(state, data) {
   return { state: s, actions };
 }
 
-// A light copy of the board (owners, trenches and units) for the screen to show
-// partway through playing back a turn.
+// A light copy of the board (the month, owners, trenches, units and Will) for the
+// screen to show partway through playing back a turn.
 export function snapshot(state) {
-  return { boxes: JSON.parse(JSON.stringify(state.boxes)), units: JSON.parse(JSON.stringify(state.units)), will: { ...state.will } };
+  return { month: currentMonth(state), boxes: JSON.parse(JSON.stringify(state.boxes)),
+    units: JSON.parse(JSON.stringify(state.units)), will: { ...state.will } };
 }

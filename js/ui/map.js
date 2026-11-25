@@ -278,12 +278,10 @@ export function createMapView(container, svg, { nations, boxNameFn, noteNameFn, 
     if (boxId) sel.appendChild(svgEl('use', { href: '#shape-' + boxId, class: 'selected-outline' }));
   }
 
-  // A grease-pencil arrow for an attack that's planned but not yet confirmed.
-  // It starts inside `fromId`, crosses the shared border and ends inside `toId`.
-  function showPlannedAttack(fromId, toId) {
-    const plans = layer('plans');
-    plans.replaceChildren();
-    if (!byId[fromId] || !byId[toId]) return;
+  // The shape of a grease-pencil arrow from inside `fromId` into `toId`, crossing
+  // their shared border (or, for a rail move, straight across the map). Returns the
+  // path for the main stroke, a fainter second stroke, and the middle point.
+  function arrowShape(fromId, toId) {
     const [a, b] = [fromId, toId].sort();
     const edge = svg.querySelector(`.edge[data-a="${a}"][data-b="${b}"]`);
     const A = anchor(fromId); const B = anchor(toId);
@@ -309,11 +307,46 @@ export function createMapView(container, svg, { nations, boxNameFn, noteNameFn, 
       const c = Math.cos(ang); const s = Math.sin(ang); const hx = -(ux / ul) * 6; const hy = -(uy / ul) * 6;
       return `M${end[0]},${end[1]}l${hx * c - hy * s},${hx * s + hy * c}`;
     };
-    const width = 'max(1.4px, calc(3.4px * var(--u)))';
-    plans.appendChild(svgEl('path', { d: curve(0) + head(0.5) + head(-0.5), class: 'plan-arrow', style: `stroke-width:${width}` }));
-    plans.appendChild(svgEl('path', { d: curve(0.6) + head(0.42), class: 'plan-arrow second', style: 'stroke-width:max(0.8px, calc(1.6px * var(--u)))' }));
+    const top = [(start[0] + 2 * bend[0] + end[0]) / 4, (start[1] + 2 * bend[1] + end[1]) / 4];
+    return { main: curve(0) + head(0.5) + head(-0.5), second: curve(0.6) + head(0.42), mid: top };
+  }
+  // Draw one arrow into `parent`. kind: 'attack' (front-red) or 'move' (dashed ink).
+  function drawArrow(parent, fromId, toId, kind, extra = {}) {
+    if (!byId[fromId] || !byId[toId] || fromId === toId) return null;
+    const shape = arrowShape(fromId, toId);
+    const g = svgEl('g', { class: `arrow ${kind}${extra.bad ? ' bad' : ''}` });
+    if (extra.index !== undefined) g.setAttribute('data-order', String(extra.index));
+    // a wide invisible stroke, so the arrow is easy to tap (44 px)
+    if (extra.index !== undefined) g.appendChild(svgEl('path', { d: shape.main, class: 'arrow-hit' }));
+    g.appendChild(svgEl('path', { d: shape.main, class: 'plan-arrow' }));
+    g.appendChild(svgEl('path', { d: shape.second, class: 'plan-arrow second' }));
+    if (extra.label) {
+      const t = svgEl('text', { x: shape.mid[0], y: shape.mid[1], class: 'arrow-label' });
+      t.textContent = extra.label;
+      g.appendChild(t);
+    }
+    parent.appendChild(g);
+    return g;
+  }
+
+  // The arrow for an attack being set up on the order slip (not yet added to orders).
+  function showPlannedAttack(fromId, toId) {
+    const plans = layer('plans');
+    plans.replaceChildren();
+    drawArrow(plans, fromId, toId, 'attack');
   }
   function clearPlannedAttack() { layer('plans').replaceChildren(); }
+
+  // The queued orders, as grease-pencil arrows you can tap (data-order = the order's
+  // place in the queue). list: [{ index, kind: 'move' | 'attack', from, to, label, bad }]
+  const ordersLayer = svgEl('g', { id: 'orders' });
+  layer('plans').after(ordersLayer);
+  function drawOrders(list) {
+    ordersLayer.replaceChildren();
+    const out = {};
+    for (const o of list) out[o.key ?? o.index] = drawArrow(ordersLayer, o.from, o.to, o.kind, o);
+    return out;
+  }
 
   // Hide any name that would overlap a more important one (call after zooming).
   // Order: cities (most VP first), pencil notes, the game's other towns (front line
@@ -358,6 +391,7 @@ export function createMapView(container, svg, { nations, boxNameFn, noteNameFn, 
   const targetsLayer = svgEl('g', { id: 'targets' });
   layer('selection').before(targetsLayer);
   let zoomK = 1;                                   // screen pixels per map unit
+  let lastScale = 0.3; let lastOffset = [8, 0];    // the latest piece size and offset (for ghosts)
   const PIECE_PX = { far: 26, mid: 32, near: 40 }; // a piece's width on screen
 
   //   units      — the game's units
@@ -428,6 +462,7 @@ export function createMapView(container, svg, { nations, boxNameFn, noteNameFn, 
     const level = svg.classList.contains('near') ? 'near' : svg.classList.contains('far') ? 'far' : 'mid';
     const px = PIECE_PX[level] / 30;              // screen pixels per piece unit
     const scale = px / zoomK;                     // map units per piece unit
+    lastScale = scale;
     const ctm = svg.getScreenCTM();
     if (!ctm) return;
     const blocked = hardThings();
@@ -465,6 +500,7 @@ export function createMapView(container, svg, { nations, boxNameFn, noteNameFn, 
       blocked.push(chosen[2]);                    // later stacks keep clear of this one
       // the stack's own origin, in map units from the town
       const ox = (chosen[0] - L * px) / zoomK; const oy = (chosen[1] - T * px) / zoomK;
+      spotOffset[spot.dataset.box] = [ox, oy]; lastOffset = [ox, oy];
       spot.firstChild.setAttribute('transform', `translate(${ox.toFixed(2)},${oy.toFixed(2)}) scale(${scale.toFixed(4)})`);
     }
   }
@@ -477,6 +513,52 @@ export function createMapView(container, svg, { nations, boxNameFn, noteNameFn, 
     for (const id of moveIds) targetsLayer.appendChild(svgEl('use', { href: '#shape-' + id, class: 'target move' }));
   }
 
+  // ---- playing a turn back (js/ui/animate.js uses these)
+  // Where a territory's stack stands now (map units): its town plus the stack's offset.
+  const spotOffset = {};
+  function standPoint(boxId) {
+    const [x, y] = anchor(boxId);
+    const o = spotOffset[boxId] || lastOffset;
+    return [x + o[0], y + o[1]];
+  }
+  // A loose piece on top of the map, for sliding along a move arrow.
+  function ghostPiece(unit, look) {
+    const g = svgEl('g', { class: 'ghost' });
+    const piece = stackSvg([unit], () => look);
+    g.appendChild(piece);
+    unitsLayer.appendChild(g);
+    const scale = lastScale;
+    return {
+      at(x, y) { g.setAttribute('transform', `translate(${x.toFixed(2)},${y.toFixed(2)}) scale(${scale.toFixed(4)})`); },
+      remove() { g.remove(); },
+    };
+  }
+  // Short-lived marks over a territory: barrage puffs, and a "−2" that floats up.
+  // They animate with CSS and remove themselves.
+  const effects = svgEl('g', { id: 'effects' });
+  // Grease pencil goes on top of everything, like on the acetate over a staff map:
+  // the planned attack, the queued orders, then the effects.
+  svg.appendChild(layer('plans'));
+  svg.appendChild(ordersLayer);
+  svg.appendChild(effects);
+  function puffs(boxId) {
+    const [x, y] = anchor(boxId);
+    const g = svgEl('g', { class: 'puffs', transform: `translate(${x},${y}) scale(${(1 / zoomK).toFixed(4)})` });
+    [[-14, -6, 0], [10, -10, 0.12], [0, 8, 0.22], [16, 6, 0.3], [-8, 12, 0.4]].forEach(([dx, dy, delay]) => {
+      g.appendChild(svgEl('circle', { cx: dx, cy: dy, r: 7, class: 'puff', style: `animation-delay:${delay}s` }));
+    });
+    effects.appendChild(g);
+    setTimeout(() => g.remove(), 900);
+  }
+  function floatText(boxId, text) {
+    const [x, y] = standPoint(boxId);
+    const t = svgEl('text', { class: 'float-loss', transform: `translate(${x},${y}) scale(${(1 / zoomK).toFixed(4)})` });
+    t.textContent = text;
+    effects.appendChild(t);
+    setTimeout(() => t.remove(), 700);
+  }
+  function clearEffects() { effects.replaceChildren(); for (const g of unitsLayer.querySelectorAll('.ghost')) g.remove(); }
+
   return { svg, update, select, declutter, frontBounds, showPlannedAttack, clearPlannedAttack,
-    drawUnits, layout, showTargets };
+    drawUnits, layout, showTargets, drawOrders, standPoint, ghostPiece, puffs, floatText, clearEffects };
 }

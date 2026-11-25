@@ -19,7 +19,8 @@ const reduceMotion = () => typeof matchMedia === 'function' && matchMedia('(pref
 //   onViewChange(k)   — the view moved (k = screen pixels per map unit)
 //   home()            — the area [x, y, w, h] the "Front" button shows (the front line)
 //   start()           — the point [x, y] to start on (map units), or null for home
-export function enableZoom(svg, { onTap, onViewChange = () => {}, home = null, start = null }) {
+//   onTapOrder(i)     — a queued order's arrow was tapped (i = its place in the queue)
+export function enableZoom(svg, { onTap, onTapOrder = () => {}, onViewChange = () => {}, home = null, start = null }) {
   const vb = svg.viewBox.baseVal;
   const W = vb.width; const H = vb.height;     // the whole map, in map units
   let view = { x: 0, y: 0, k: 1 };            // top-left corner (map units) and zoom
@@ -157,8 +158,10 @@ export function enableZoom(svg, { onTap, onViewChange = () => {}, home = null, s
     if (!pointers.has(e.pointerId)) return;
     pointers.delete(e.pointerId);
     if (gesture && gesture.kind === 'maybe-tap' && e.type === 'pointerup') {
+      const order = gesture.target.closest?.('[data-order]');
       const hit = gesture.target.closest?.('[data-box]');
-      if (hit) onTap(hit.dataset.box);
+      if (order) onTapOrder(Number(order.dataset.order));
+      else if (hit) onTap(hit.dataset.box);
     }
     // A one-finger pan that ends while still moving glides on.
     if (pointers.size === 0 && gesture && gesture.kind === 'pan' && gesture.v && performance.now() - gesture.time < 60) {
