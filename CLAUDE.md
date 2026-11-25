@@ -58,11 +58,12 @@ js/engine/state.js         newGame(scenario, seed), validate, migrate
 js/engine/turn.js          phase loop
 js/engine/combat.js        combat table, odds preview
 js/engine/rng.js           seeded RNG (mulberry32)
+js/engine/boxes.js         map checks, box names, trench maximums
 js/engine/ai.js            computer opponent (priority scoring)
 js/engine/systems/         supply.js, will.js (later: economy.js, blockade.js)
 js/ui/map.js  panel.js  log.js
 js/storage.js              save / load / export / import
-data/nations.json  unit-types.json  boxes-west.json  events.json  combat-table.json
+data/nations.json  unit-types.json  boxes-west.json  terrain.json  events.json  combat-table.json
 data/commanders.json  headlines.json
 data/news.json  quotes.json         (already written: real history, don't change facts without a source)
 data/scenarios/1914-west.json

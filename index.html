@@ -24,20 +24,14 @@
     </nav>
   </main>
 
-  <!-- Game screen: a placeholder in Milestone 1. The map arrives in Milestone 2. -->
+  <!-- Game screen: the map (drawn by js/ui/map.js) and the info panel (js/ui/panel.js). -->
   <main id="game-screen" class="screen game-screen" hidden>
     <header class="game-bar">
       <button id="btn-back" class="btn btn-small" type="button">‹ Back</button>
-      <span class="game-bar-title">December 1914</span>
+      <span id="game-title" class="game-bar-title">December 1914</span>
     </header>
-    <section id="map-area" class="map-area" aria-label="Map">
-      <p>Map goes here (Milestone 2)</p>
-    </section>
-    <section id="panel-area" class="panel-area" aria-label="Panel">
-      <p>Panel goes here</p>
-      <p class="note">Fold or unfold the phone: the map and panel should swap between
-        stacked and side by side.</p>
-    </section>
+    <section id="map-area" class="map-area" aria-label="Map"></section>
+    <section id="panel-area" class="panel-area" aria-label="Box details" aria-live="polite"></section>
   </main>
 
   <!-- type="module" lets main.js use import/export. -->

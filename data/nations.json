@@ -1,0 +1,14 @@
+{
+  "_about": "The two sides and their nations (RULES.md §1, §4). Milestone 2 only uses names and colours, to show who owns a box. Resources and traits are added in later milestones. See docs/DATA.md.",
+  "sides": [
+    {"id": "entente", "name": "Entente", "color": "#3d6fa8", "nations": ["fra", "gbr", "bel", "usa"]},
+    {"id": "germany", "name": "Germany", "color": "#6b6f73", "nations": ["ger"]}
+  ],
+  "nations": [
+    {"id": "ger", "name": "Germany", "short": "GER", "side": "germany"},
+    {"id": "fra", "name": "France", "short": "FRA", "side": "entente"},
+    {"id": "gbr", "name": "Britain", "short": "GBR", "side": "entente"},
+    {"id": "bel", "name": "Belgium", "short": "BEL", "side": "entente"},
+    {"id": "usa", "name": "United States", "short": "USA", "side": "entente"}
+  ]
+}
