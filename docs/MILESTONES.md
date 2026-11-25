@@ -8,38 +8,40 @@ Do one milestone per Claude Code session. For each one:
 
 ---
 
-- [ ] **1. Skeleton and deploy**
+- [x] **1. Skeleton and deploy**
   - A title screen ("Western Front 1914–18", New Game and Continue buttons) loads at
     `https://<username>.github.io/<repo>/` in Safari.
   - It fits folded and unfolded, and nothing hides under the notch or home bar.
   - The README explains how to turn on GitHub Pages and how to run it locally.
 
 - [ ] **2. Map from data**
-  - All sectors in `data/sectors-west.json` are drawn as an SVG map, from the coast in
-    the north to Switzerland in the south.
-  - Tapping a sector highlights it and shows its name, owner, terrain, trench level and
+  - All 72 boxes in `data/boxes-west.json` (12 lanes × 6 depth columns, RULES.md §2)
+    are drawn as an SVG map, from the coast in the north to Switzerland in the south.
+    Each box has an id like `l07-e3` (lane 7, column E3) and an explicit list of
+    neighbours, so later fronts don't have to be a grid.
+  - Tapping a box highlights it and shows its name, owner, terrain, trench level and
     victory points.
   - Each terrain type from RULES.md §3 (flooded, ridge, mud, chalk, open, forest,
     mountains, fortress) has its own colour or pattern, plus a small legend.
-  - Small sectors are still easy to tap. Fold/unfold re-lays out the screen correctly.
-  - `docs/DATA.md` describes every data file. A test checks that sector adjacency goes
+  - Small boxes are still easy to tap. Fold/unfold re-lays out the screen correctly.
+  - `docs/DATA.md` describes every data file. A test checks that box adjacency goes
     both ways and every id exists.
 
 - [ ] **3. Units and selection**
   - The 1914 scenario places all starting units, shown as counters with strength.
-  - Tapping a sector lists its units. Selecting a unit highlights the sectors it can
+  - Tapping a box lists its units. Selecting a unit highlights the boxes it can
     move into.
   - Stacking limit from RULES.md is enforced.
 
 - [ ] **4. Turn loop, movement and rail**
   - You can give move and rail orders, then press "End Phase" to step through the
     phases in RULES.md.
-  - The turn number and date (Aug 1914, Sep 1914…) go up. The log shows what happened.
-  - Trenches dig in on sectors that weren't attacked, up to the current maximum.
+  - The turn number and date (Dec 1914, Jan 1915…, 48 turns to Nov 1918) go up. The log shows what happened.
+  - Trenches dig in on boxes that weren't attacked, up to the current maximum.
 
 - [ ] **5. Combat**
   - Attacks spend offensive points (and munitions for barrages), resolve on the 2d6
-    combat table, and change unit strength and sector ownership.
+    combat table, and change unit strength and box ownership.
   - Before committing an attack, the screen shows the column, the chance of taking the
     box, expected losses, and every shift that applied (terrain, national traits, unit
     quality, trench, winter).
@@ -97,5 +99,44 @@ Do one milestone per Claude Code session. For each one:
 - V3: Eastern Front and Russia, so Germany fights on two fronts.
 - V4: More nations (Austria-Hungary, Italy, Ottomans), naval blockade and U-boats.
 
+## Pending rule fixes
+Gaps in RULES.md found in the first session. Each has a suggested fix that matches
+`tools/wfsim.py` where the simulator covers it. **Not agreed yet:** when we reach the
+milestone in brackets, confirm the fix, then update RULES.md and the code together.
+
+4. **[5, 9] Commander bonuses stack.** Haig's "+1 OP from 1916" and Hindenburg &
+   Ludendorff's "+1 RP" are added on top of the §6 table (so GBR has 3 OP in 1916–17).
+5. **[5] Mixed stacks and the French 75s.** The trait applies if any French unit is in
+   the defending box.
+6. **[5] Futile attacks in a coalition attack.** The nation with the most steps in the
+   attack pays the 3 Will.
+7. **[5] Empty enemy box.** No dice roll: it's captured automatically, still costs 1 OP,
+   and needs an adjacent in-supply unit.
+8. **[5] Tanks alone in a box.** The box counts as empty. If it's attacked, the tanks
+   retreat, or are destroyed if they can't.
+9. **[5] Retreats** respect the 3-unit stacking limit. If two boxes are equally deep, the
+   player picks (the computer picks the first).
+10. **[5] Taking losses.** Automatic in v1, strongest unit first. Choosing by hand is a
+    later idea.
+11. **[6] Rebuilt units (2 RP)** come back as the nation's basic infantry (US Infantry for
+    the USA), Regular quality, in a rear box the player picks. Elite and Stormtrooper
+    status is lost.
+12. **[8] Elite is permanent** until the unit is destroyed. That covers the Old
+    Contemptibles after Sir John French leaves, and the Dominion corps.
+13. **[8] Hindenburg Line.** Units in G1 of lanes 5–8 move to G2 (or to G3 if G2 is
+    full). Those G1 boxes become Entente-owned at trench 0. No Will change.
+14. **[8] Reinforcements** go in a rear box of the player's choice with room (the computer
+    picks at random). GBR goes in lanes 1–6 and the USA in lanes 9–12. If there's no room,
+    the unit waits a turn.
+15. **[6] Will rounding.** "1 per N steps, rounded down" is worked out each turn and the
+    remainder is dropped. Belgian losses are counted separately against FRA.
+16. **[6] USA Will reaching 0.** Nothing sudden happens, but US units can't attack while
+    US Will is 0.
+17. **[8, 9] Match RULES.md to the simulator.**
+    - The AI stops attacking at "this turn's RP + 2", not next turn's.
+    - The Kaiserschlacht gamble (−15) and H&L's "last gamble" (−3 a month) both apply in
+      Mar–Jul 1918.
+
 ## Later ideas
+- Let the player choose which unit takes each step loss (see pending fix 10).
 (Claude Code: add ideas here instead of building them.)

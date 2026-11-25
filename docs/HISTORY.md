@@ -1,7 +1,7 @@
 # History notes — the facts behind the game data
 
 This file only has what the game uses. Numbers are approximate. Where historians
-disagree, the range is given. Game values derived from them are tagged [tune] in RULES.md.
+disagree, the range is given. Game values derived from them are tagged [balanced] in RULES.md.
 
 ## Scale
 - **1 unit ≈ 5 infantry divisions.** 1 step ≈ 1¼ divisions.
