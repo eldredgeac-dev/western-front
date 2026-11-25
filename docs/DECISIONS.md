@@ -1,5 +1,14 @@
 # Decisions and questions (overnight work)
 
+**Summary:**
+- Milestones 3 (units and selection) and 4 (turn loop, movement, rail) are built,
+  with their screens.
+- The combat engine of Milestone 5 is built, with no screens yet.
+- So are `data/commanders.json` and `data/headlines.json`.
+- 82 tests pass. The combat table test reproduces the RULES.md §9.3 averages exactly.
+- The three questions for you are under **Questions for you**. The things to try on the
+  phone are in **Check on my phone** at the end.
+
 While you were away I worked through Milestones 3 and 4 and the combat engine of
 Milestone 5 on the branch `claude/laughing-faraday-6gey0m`. Wherever the rules or your
 instructions left something open, I made the most reasonable choice and wrote it down
@@ -129,5 +138,8 @@ I'll change it.
 - [ ] **Moving.** In "German move", tap a German territory, tap its unit, close the sheet
       (swipe it down) and tap a brass-outlined territory next door. The counter moves, and
       "Dispatches" in the panel says so. Try a dashed one too (a rail move).
+- [ ] **Counter details.** At full zoom: is the German cross pattée (top-left mark) clear
+      enough? It's small and dark on field grey. Counters also sit over their own town's
+      name. Tell me if you'd rather they sat beside it.
 - [ ] **End Phase.** Tap **END PHASE** four times: the label should go German attack →
       Entente move → Entente attack → back to German move, and the date to January 1915.
