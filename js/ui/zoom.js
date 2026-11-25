@@ -6,7 +6,10 @@
 
 const TAP_SLOP = 8;          // px a finger may wander and still be a tap
 const MAX_ZOOM = 6;          // × the "fill the screen" zoom (see docs/STYLE.md note in MILESTONES)
-const NEAR_ZOOM = 1.6;       // px per map unit at which small towns and VP circles appear
+// Detail levels (docs/STYLE.md §13), in screen pixels per map unit:
+// "far" below MID_ZOOM, "mid" from MID_ZOOM, "near" from NEAR_ZOOM.
+const MID_ZOOM = 1.4;
+const NEAR_ZOOM = 2.8;
 
 export function enableZoom(svg, { onTap, onViewChange = () => {}, home = null }) {
   const vb = svg.viewBox.baseVal;
@@ -37,7 +40,8 @@ export function enableZoom(svg, { onTap, onViewChange = () => {}, home = null })
     svg.setAttribute('viewBox', `${view.x} ${view.y} ${s.w / view.k} ${s.h / view.k}`);
     // Labels read this to stay a readable size on screen (css/style.css).
     svg.style.setProperty('--u', String(1 / view.k));
-    svg.classList.toggle('near', view.k >= NEAR_ZOOM);
+    const level = view.k >= NEAR_ZOOM ? 'near' : view.k >= MID_ZOOM ? 'mid' : 'far';
+    for (const l of ['far', 'mid', 'near']) svg.classList.toggle(l, l === level);
     // Tell the map once per frame at most (it tidies up the labels).
     if (!pending) { pending = true; requestAnimationFrame(() => { pending = false; onViewChange(); }); }
   }

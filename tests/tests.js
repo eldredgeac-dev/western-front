@@ -3,6 +3,7 @@
 import { hasSave, SAVE_KEY } from '../js/storage.js';
 import { checkMap, indexBoxes, boxName, trenchMax } from '../js/engine/boxes.js';
 import { newGame, currentMonth, monthLabel } from '../js/engine/state.js';
+import { battleCounts, bigBattles, scarLevel, shortMonth } from '../js/engine/battles.js';
 
 export const tests = [];
 
@@ -230,9 +231,99 @@ test('currentMonth: turn 48 is November 1918', () => {
 // Run every test and return the results.
 // `loadJson(path)` reads a file relative to the project folder; the browser
 // page and the Node runner each pass their own version.
-export async function runAll(loadJson) {
+// ---------------------------------------------------------------- the map picture
+// (img/map-west.svg, made by tools/build-map.mjs from data/boxes-west.json and
+// tools/map-extra.json; docs/STYLE.md §4 and §13)
+
+const inFrame = ([lat, lon]) => {
+  const [south, west, north, east] = data.extra.frame.bounds;
+  return lat > south && lat < north && lon > west && lon < east;
+};
+
+test('map: every box has an anchor town inside the map area', () => {
+  for (const b of data.map.boxes) {
+    check(b.anchor && b.anchor.town, b.id + ' needs an anchor town');
+    check(inFrame([b.anchor.lat, b.anchor.lon]), b.id + ' anchor is outside the map');
+  }
+});
+
+test('map picture: one territory per box and one border per neighbour pair', () => {
+  const ids = [...data.svg.matchAll(/class="territory" data-box="([a-z0-9-]+)"/g)].map((m) => m[1]);
+  check(ids.length === data.map.boxes.length, `${ids.length} territories, expected ${data.map.boxes.length}`);
+  for (const b of data.map.boxes) check(ids.includes(b.id), b.id + ' has no territory on the map');
+  const borders = new Set([...data.svg.matchAll(/class="edge" data-a="([a-z0-9-]+)" data-b="([a-z0-9-]+)"/g)]
+    .map((m) => m[1] + '|' + m[2]));
+  const wanted = new Set();
+  for (const b of data.map.boxes) for (const n of b.neighbours) wanted.add([b.id, n].sort().join('|'));
+  for (const w of wanted) check(borders.has(w), `neighbours ${w} have no border on the map`);
+  for (const e of borders) check(wanted.has(e), `border ${e} joins boxes that aren't neighbours`);
+});
+
+test('map picture: detail appears by zoom level (STYLE.md §13)', () => {
+  for (const [id, level] of [['railways', 'lod-mid'], ['roads', 'lod-mid'], ['villages', 'lod-near'],
+    ['landmarks', 'lod-near'], ['contours', 'lod-near']]) {
+    check(data.svg.includes(`<g id="${id}" class="${level}">`), `${id} should be tagged ${level}`);
+  }
+  check(/class="label town map-label lod-mid"/.test(data.svg), 'town names appear from mid zoom');
+  check(/class="river-label map-label lod-mid"/.test(data.svg), 'river names appear from mid zoom');
+});
+
+test('map extras: railways, roads, villages and landmarks are named and on the map', () => {
+  for (const r of data.extra.railways.list) {
+    check(r.id && r.name && r.points.length >= 2, 'railway needs an id, name and points');
+    check(r.points.some(inFrame), r.id + ' is entirely off the map');
+  }
+  for (const r of data.extra.roads.list) check(r.name && r.points.every(inFrame), 'road ' + r.name);
+  for (const v of data.extra.villages.list) check(v.name && inFrame(v.at), 'village ' + v.name);
+  const landmarks = data.extra.landmarks.list.map((l) => l.name);
+  for (const name of ['Fort Douaumont', 'Mort Homme', 'Hill 304', 'Vimy Ridge', 'Hill 60', 'Delville Wood',
+    'Messines Ridge', 'Chemin des Dames', 'Butte de Vauquois']) {
+    check(landmarks.includes(name), 'missing landmark ' + name);
+  }
+  for (const l of data.extra.landmarks.list) {
+    check(['fort', 'hill', 'wood', 'ridge'].includes(l.kind) && inFrame(l.at), 'landmark ' + l.name);
+  }
+});
+
+test('map picture: uses only STYLE.md palette colours', () => {
+  const hexes = new Set((data.svg.match(/#[0-9a-fA-F]{6}\b/g) || []).map((h) => h.toUpperCase()));
+  for (const h of hexes) check(PALETTE.includes(h), h + ' is not a STYLE.md colour');
+});
+
+// ---------------------------------------------------------------- the battle record
+const sampleBattles = {
+  battles: [
+    { box: 'l11-e1', month: '1916-02', stepsLost: 9 },
+    { box: 'l11-e1', month: '1916-03', stepsLost: 2 },
+    { box: 'l11-e1', month: '1916-10', stepsLost: 6 },
+    { box: 'l06-g1', month: '1916-07', stepsLost: 12 },
+    { box: 'l02-g1', month: '1917-10', stepsLost: 5 },
+  ],
+};
+
+test('battles: counts how often each territory was fought over', () => {
+  const c = battleCounts(sampleBattles);
+  check(c['l11-e1'] === 3 && c['l06-g1'] === 1 && c['l02-g1'] === 1, JSON.stringify(c));
+  check(Object.keys(battleCounts(newGame(data.scenario, 1))).length === 0, 'a new game has no battles');
+});
+
+test('battles: scar level grows with the number of battles', () => {
+  check([0, 1, 2, 3, 4, 9].map(scarLevel).join() === '0,1,2,2,3,3', [0, 1, 2, 3, 4, 9].map(scarLevel).join());
+});
+
+test('battles: pencil notes only for 6+ steps lost, grouped by territory, oldest first', () => {
+  const big = bigBattles(sampleBattles);
+  check(big.length === 2, `${big.length} notes, expected 2`);
+  check(big[0].box === 'l11-e1' && big[0].months.join() === '1916-02,1916-10', JSON.stringify(big[0]));
+  check(big[1].box === 'l06-g1', JSON.stringify(big[1]));
+  check(shortMonth('1916-02') === 'Feb 1916', shortMonth('1916-02'));
+});
+
+export async function runAll(loadJson, loadText) {
   const results = [];
   try {
+    data.extra = await loadJson('tools/map-extra.json');
+    data.svg = await loadText('img/map-west.svg');
     data.map = await loadJson('data/boxes-west.json');
     data.terrain = await loadJson('data/terrain.json');
     data.nations = await loadJson('data/nations.json');

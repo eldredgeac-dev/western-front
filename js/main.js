@@ -6,6 +6,8 @@ import { newGame, currentMonth, monthLabel } from './engine/state.js';
 import { loadMapSvg, createMapView } from './ui/map.js';
 import { enableZoom } from './ui/zoom.js';
 import { showPanel } from './ui/panel.js';
+import { battleCounts, bigBattles, scarLevel, shortMonth } from './engine/battles.js';
+import { applyDemo } from './ui/demo.js';
 
 // Find the page elements we need once, at start-up.
 const $ = (id) => document.getElementById(id);
@@ -27,6 +29,8 @@ let state = null;
 // The drawn map and its zoom controls (made once, on the first New Campaign).
 let mapView = null;
 let zoom = null;
+// The planned attack shown in demo mode, or null.
+let demoAttack = null;
 
 // Get localStorage safely: just reading `window.localStorage` can throw
 // when storage is blocked.
@@ -136,6 +140,9 @@ function showMap() {
     mapView = createMapView(mapHolder, data.mapSvg, {
       nations: data.nations,
       boxNameFn: (id) => boxName(data.map, data.boxesById[id]),
+      // pencil notes use the box's name, or its town if it has none ("Thiepval")
+      noteNameFn: (id) => data.boxesById[id].name || data.boxesById[id].anchor.town,
+      shortMonthFn: shortMonth,
     });
     zoom = enableZoom(mapView.svg, {
       onTap: selectBox, onViewChange: mapView.declutter, home: mapView.frontBounds,
@@ -145,8 +152,11 @@ function showMap() {
     $('btn-zoom-fit').addEventListener('click', () => zoom.fit());
   }
   const month = currentMonth(state);
-  mapView.update(state, month, monthLabel(month));
+  const record = { counts: battleCounts(state), big: bigBattles(state), scarLevel };
+  mapView.update(state, month, monthLabel(month), record);
   mapView.select(null);
+  if (demoAttack) mapView.showPlannedAttack(...demoAttack);
+  else mapView.clearPlannedAttack();
   zoom.fit();
 }
 
@@ -156,6 +166,8 @@ function startGame() {
   // The seed only has to be different each game; every roll then goes
   // through the seeded rng.js (from Milestone 5).
   state = newGame(data.scenario, Date.now() % 2147483647);
+  // "?demo" in the address shows a sample war on the map (js/ui/demo.js).
+  demoAttack = new URLSearchParams(window.location.search).has('demo') ? applyDemo(state) : null;
   showScreen(gameScreen);
   gameTitle.textContent = monthLabel(currentMonth(state));
   showMap();

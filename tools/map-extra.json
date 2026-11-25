@@ -1386,5 +1386,1770 @@
         "width": 24
       }
     ]
+  },
+  "railways": {
+    "_about": "Main railway lines of 1914 in the theatre, [lat, lon] through the main stations. Hand-traced (sources in docs/HISTORY.md); not today's network. 'id' lets later rail rules refer to a line. Shown from mid zoom.",
+    "list": [
+      {
+        "id": "nord-boulogne",
+        "name": "Paris–Amiens–Boulogne",
+        "points": [
+          [
+            48.881,
+            2.355
+          ],
+          [
+            48.936,
+            2.357
+          ],
+          [
+            49.264,
+            2.474
+          ],
+          [
+            49.379,
+            2.413
+          ],
+          [
+            49.507,
+            2.437
+          ],
+          [
+            49.89,
+            2.308
+          ],
+          [
+            50.105,
+            1.835
+          ],
+          [
+            50.513,
+            1.639
+          ],
+          [
+            50.726,
+            1.611
+          ]
+        ]
+      },
+      {
+        "id": "nord-maubeuge",
+        "name": "Creil–Compiègne–St-Quentin–Aulnoye",
+        "points": [
+          [
+            49.264,
+            2.474
+          ],
+          [
+            49.422,
+            2.825
+          ],
+          [
+            49.582,
+            2.997
+          ],
+          [
+            49.613,
+            3.217
+          ],
+          [
+            49.656,
+            3.3
+          ],
+          [
+            49.848,
+            3.293
+          ],
+          [
+            50.035,
+            3.471
+          ],
+          [
+            50.2,
+            3.836
+          ]
+        ]
+      },
+      {
+        "id": "amiens-lille",
+        "name": "Amiens–Arras–Douai–Lille",
+        "points": [
+          [
+            49.89,
+            2.308
+          ],
+          [
+            50.003,
+            2.648
+          ],
+          [
+            50.13,
+            2.76
+          ],
+          [
+            50.287,
+            2.781
+          ],
+          [
+            50.371,
+            3.09
+          ],
+          [
+            50.637,
+            3.071
+          ]
+        ]
+      },
+      {
+        "id": "lille-calais",
+        "name": "Lille–Hazebrouck–Calais",
+        "points": [
+          [
+            50.637,
+            3.071
+          ],
+          [
+            50.687,
+            2.881
+          ],
+          [
+            50.738,
+            2.735
+          ],
+          [
+            50.723,
+            2.54
+          ],
+          [
+            50.753,
+            2.252
+          ],
+          [
+            50.952,
+            1.856
+          ]
+        ]
+      },
+      {
+        "id": "hazebrouck-dunkirk",
+        "name": "Hazebrouck–Dunkirk",
+        "points": [
+          [
+            50.723,
+            2.54
+          ],
+          [
+            50.9,
+            2.393
+          ],
+          [
+            51.03,
+            2.376
+          ]
+        ]
+      },
+      {
+        "id": "hazebrouck-bruges",
+        "name": "Hazebrouck–Ypres–Roulers–Bruges",
+        "points": [
+          [
+            50.723,
+            2.54
+          ],
+          [
+            50.854,
+            2.725
+          ],
+          [
+            50.848,
+            2.876
+          ],
+          [
+            50.947,
+            3.13
+          ],
+          [
+            51.065,
+            3.1
+          ],
+          [
+            51.197,
+            3.217
+          ]
+        ]
+      },
+      {
+        "id": "lille-ghent",
+        "name": "Lille–Courtrai–Ghent",
+        "points": [
+          [
+            50.637,
+            3.071
+          ],
+          [
+            50.69,
+            3.181
+          ],
+          [
+            50.825,
+            3.264
+          ],
+          [
+            51.036,
+            3.71
+          ]
+        ]
+      },
+      {
+        "id": "coast",
+        "name": "Dunkirk–Furnes–Nieuport",
+        "points": [
+          [
+            51.03,
+            2.376
+          ],
+          [
+            51.072,
+            2.66
+          ],
+          [
+            51.128,
+            2.752
+          ]
+        ]
+      },
+      {
+        "id": "bruges-ostend",
+        "name": "Bruges–Ostend",
+        "points": [
+          [
+            51.197,
+            3.217
+          ],
+          [
+            51.228,
+            2.926
+          ]
+        ]
+      },
+      {
+        "id": "german-lateral",
+        "name": "Lille–Valenciennes–Hirson–Mézières–Sedan–Metz (the German lateral line)",
+        "points": [
+          [
+            50.637,
+            3.071
+          ],
+          [
+            50.358,
+            3.523
+          ],
+          [
+            50.2,
+            3.836
+          ],
+          [
+            49.922,
+            4.083
+          ],
+          [
+            49.765,
+            4.717
+          ],
+          [
+            49.698,
+            4.931
+          ],
+          [
+            49.519,
+            5.369
+          ],
+          [
+            49.443,
+            5.605
+          ],
+          [
+            49.358,
+            6.168
+          ],
+          [
+            49.109,
+            6.177
+          ]
+        ]
+      },
+      {
+        "id": "douai-busigny",
+        "name": "Douai–Cambrai–Busigny",
+        "points": [
+          [
+            50.371,
+            3.09
+          ],
+          [
+            50.176,
+            3.236
+          ],
+          [
+            50.035,
+            3.471
+          ]
+        ]
+      },
+      {
+        "id": "tergnier-reims",
+        "name": "Tergnier–La Fère–Laon–Reims",
+        "points": [
+          [
+            49.656,
+            3.3
+          ],
+          [
+            49.663,
+            3.366
+          ],
+          [
+            49.565,
+            3.618
+          ],
+          [
+            49.259,
+            4.025
+          ]
+        ]
+      },
+      {
+        "id": "laon-hirson",
+        "name": "Laon–Vervins–Hirson",
+        "points": [
+          [
+            49.565,
+            3.618
+          ],
+          [
+            49.74,
+            3.77
+          ],
+          [
+            49.83,
+            3.91
+          ],
+          [
+            49.922,
+            4.083
+          ]
+        ]
+      },
+      {
+        "id": "paris-soissons-laon",
+        "name": "Paris–Soissons–Laon",
+        "points": [
+          [
+            48.881,
+            2.355
+          ],
+          [
+            49.234,
+            2.889
+          ],
+          [
+            49.255,
+            3.09
+          ],
+          [
+            49.38,
+            3.325
+          ],
+          [
+            49.565,
+            3.618
+          ]
+        ]
+      },
+      {
+        "id": "est-nancy",
+        "name": "Paris–Château-Thierry–Châlons–Bar-le-Duc–Nancy (Est main line)",
+        "points": [
+          [
+            48.876,
+            2.359
+          ],
+          [
+            48.957,
+            2.885
+          ],
+          [
+            49.04,
+            3.4
+          ],
+          [
+            49.044,
+            3.957
+          ],
+          [
+            48.955,
+            4.355
+          ],
+          [
+            48.724,
+            4.585
+          ],
+          [
+            48.828,
+            4.985
+          ],
+          [
+            48.773,
+            5.16
+          ],
+          [
+            48.762,
+            5.591
+          ],
+          [
+            48.68,
+            5.891
+          ],
+          [
+            48.689,
+            6.174
+          ]
+        ]
+      },
+      {
+        "id": "reims-epernay",
+        "name": "Reims–Épernay",
+        "points": [
+          [
+            49.259,
+            4.025
+          ],
+          [
+            49.044,
+            3.957
+          ]
+        ]
+      },
+      {
+        "id": "reims-mezieres",
+        "name": "Reims–Rethel–Mézières",
+        "points": [
+          [
+            49.259,
+            4.025
+          ],
+          [
+            49.509,
+            4.367
+          ],
+          [
+            49.765,
+            4.717
+          ]
+        ]
+      },
+      {
+        "id": "chalons-verdun",
+        "name": "Châlons–Ste-Menehould–Verdun",
+        "points": [
+          [
+            48.955,
+            4.355
+          ],
+          [
+            49.09,
+            4.897
+          ],
+          [
+            49.106,
+            5.072
+          ],
+          [
+            49.164,
+            5.384
+          ]
+        ]
+      },
+      {
+        "id": "verdun-metz",
+        "name": "Verdun–Étain–Metz",
+        "points": [
+          [
+            49.164,
+            5.384
+          ],
+          [
+            49.21,
+            5.64
+          ],
+          [
+            49.17,
+            5.85
+          ],
+          [
+            49.109,
+            6.177
+          ]
+        ]
+      },
+      {
+        "id": "nancy-strasbourg",
+        "name": "Nancy–Lunéville–Sarrebourg–Strasbourg",
+        "points": [
+          [
+            48.689,
+            6.174
+          ],
+          [
+            48.59,
+            6.497
+          ],
+          [
+            48.65,
+            6.81
+          ],
+          [
+            48.735,
+            7.054
+          ],
+          [
+            48.741,
+            7.362
+          ],
+          [
+            48.585,
+            7.734
+          ]
+        ]
+      },
+      {
+        "id": "nancy-belfort",
+        "name": "Nancy–Épinal–Belfort",
+        "points": [
+          [
+            48.689,
+            6.174
+          ],
+          [
+            48.43,
+            6.33
+          ],
+          [
+            48.175,
+            6.443
+          ],
+          [
+            47.9,
+            6.56
+          ],
+          [
+            47.684,
+            6.497
+          ],
+          [
+            47.633,
+            6.852
+          ]
+        ]
+      },
+      {
+        "id": "belfort-basel",
+        "name": "Belfort–Mulhouse–Basel",
+        "points": [
+          [
+            47.633,
+            6.852
+          ],
+          [
+            47.742,
+            7.343
+          ],
+          [
+            47.548,
+            7.59
+          ]
+        ]
+      },
+      {
+        "id": "strasbourg-mulhouse",
+        "name": "Strasbourg–Colmar–Mulhouse",
+        "points": [
+          [
+            48.585,
+            7.734
+          ],
+          [
+            48.074,
+            7.347
+          ],
+          [
+            47.742,
+            7.343
+          ]
+        ]
+      },
+      {
+        "id": "metz-sarrebourg",
+        "name": "Metz–Sarrebourg",
+        "points": [
+          [
+            49.109,
+            6.177
+          ],
+          [
+            49.018,
+            6.39
+          ],
+          [
+            48.735,
+            7.054
+          ]
+        ]
+      },
+      {
+        "id": "metz-nancy",
+        "name": "Metz–Pont-à-Mousson–Nancy",
+        "points": [
+          [
+            49.109,
+            6.177
+          ],
+          [
+            48.905,
+            6.054
+          ],
+          [
+            48.689,
+            6.174
+          ]
+        ]
+      },
+      {
+        "id": "arras-hazebrouck",
+        "name": "Arras–Lens–Béthune–Hazebrouck",
+        "points": [
+          [
+            50.287,
+            2.781
+          ],
+          [
+            50.428,
+            2.826
+          ],
+          [
+            50.527,
+            2.64
+          ],
+          [
+            50.723,
+            2.54
+          ]
+        ]
+      }
+    ]
+  },
+  "roads": {
+    "_about": "Main roads that mattered in the war, [lat, lon]. Hand-traced (sources in docs/HISTORY.md). Shown from mid zoom.",
+    "list": [
+      {
+        "name": "Voie Sacrée",
+        "points": [
+          [
+            48.773,
+            5.16
+          ],
+          [
+            48.86,
+            5.21
+          ],
+          [
+            48.95,
+            5.27
+          ],
+          [
+            49.026,
+            5.284
+          ],
+          [
+            49.1,
+            5.33
+          ],
+          [
+            49.16,
+            5.384
+          ]
+        ]
+      },
+      {
+        "name": "Menin Road",
+        "points": [
+          [
+            50.851,
+            2.885
+          ],
+          [
+            50.846,
+            2.946
+          ],
+          [
+            50.836,
+            2.989
+          ],
+          [
+            50.797,
+            3.122
+          ]
+        ]
+      },
+      {
+        "name": "Albert–Bapaume road",
+        "points": [
+          [
+            50.003,
+            2.652
+          ],
+          [
+            50.019,
+            2.697
+          ],
+          [
+            50.04,
+            2.727
+          ],
+          [
+            50.069,
+            2.781
+          ],
+          [
+            50.104,
+            2.85
+          ]
+        ]
+      },
+      {
+        "name": "Chemin des Dames",
+        "points": [
+          [
+            49.47,
+            3.448
+          ],
+          [
+            49.473,
+            3.533
+          ],
+          [
+            49.455,
+            3.61
+          ],
+          [
+            49.443,
+            3.666
+          ],
+          [
+            49.44,
+            3.788
+          ],
+          [
+            49.462,
+            3.825
+          ]
+        ]
+      },
+      {
+        "name": "Arras–Cambrai road",
+        "points": [
+          [
+            50.291,
+            2.778
+          ],
+          [
+            50.27,
+            2.893
+          ],
+          [
+            50.25,
+            3.0
+          ],
+          [
+            50.176,
+            3.235
+          ]
+        ]
+      },
+      {
+        "name": "Amiens–St-Quentin road",
+        "points": [
+          [
+            49.894,
+            2.296
+          ],
+          [
+            49.868,
+            2.519
+          ],
+          [
+            49.875,
+            2.83
+          ],
+          [
+            49.848,
+            3.287
+          ]
+        ]
+      },
+      {
+        "name": "Bapaume–Cambrai road",
+        "points": [
+          [
+            50.104,
+            2.85
+          ],
+          [
+            50.15,
+            3.05
+          ],
+          [
+            50.176,
+            3.235
+          ]
+        ]
+      },
+      {
+        "name": "Béthune–La Bassée–Lille road",
+        "points": [
+          [
+            50.53,
+            2.64
+          ],
+          [
+            50.535,
+            2.807
+          ],
+          [
+            50.629,
+            3.057
+          ]
+        ]
+      }
+    ]
+  },
+  "villages": {
+    "_about": "Villages along the front, shown at full zoom. [lat, lon], about ±1 km. Sources in docs/HISTORY.md.",
+    "list": [
+      {
+        "name": "Dixmude",
+        "at": [
+          51.033,
+          2.863
+        ]
+      },
+      {
+        "name": "Pervyse",
+        "at": [
+          51.077,
+          2.792
+        ]
+      },
+      {
+        "name": "Ramscapelle",
+        "at": [
+          51.112,
+          2.776
+        ]
+      },
+      {
+        "name": "Steenstrate",
+        "at": [
+          50.92,
+          2.858
+        ]
+      },
+      {
+        "name": "Langemarck",
+        "at": [
+          50.913,
+          2.917
+        ]
+      },
+      {
+        "name": "Poelcappelle",
+        "at": [
+          50.922,
+          2.957
+        ]
+      },
+      {
+        "name": "St-Julien",
+        "at": [
+          50.887,
+          2.93
+        ]
+      },
+      {
+        "name": "Zonnebeke",
+        "at": [
+          50.871,
+          2.987
+        ]
+      },
+      {
+        "name": "Gheluvelt",
+        "at": [
+          50.836,
+          2.989
+        ]
+      },
+      {
+        "name": "Hooge",
+        "at": [
+          50.846,
+          2.946
+        ]
+      },
+      {
+        "name": "Zillebeke",
+        "at": [
+          50.833,
+          2.921
+        ]
+      },
+      {
+        "name": "St-Eloi",
+        "at": [
+          50.807,
+          2.895
+        ]
+      },
+      {
+        "name": "Wytschaete",
+        "at": [
+          50.786,
+          2.88
+        ]
+      },
+      {
+        "name": "Messines",
+        "at": [
+          50.766,
+          2.896
+        ]
+      },
+      {
+        "name": "Kemmel",
+        "at": [
+          50.783,
+          2.828
+        ]
+      },
+      {
+        "name": "Ploegsteert",
+        "at": [
+          50.726,
+          2.879
+        ]
+      },
+      {
+        "name": "Bailleul",
+        "at": [
+          50.738,
+          2.735
+        ]
+      },
+      {
+        "name": "Vlamertinghe",
+        "at": [
+          50.853,
+          2.818
+        ]
+      },
+      {
+        "name": "Fromelles",
+        "at": [
+          50.606,
+          2.855
+        ]
+      },
+      {
+        "name": "Neuve-Chapelle",
+        "at": [
+          50.585,
+          2.778
+        ]
+      },
+      {
+        "name": "Festubert",
+        "at": [
+          50.543,
+          2.737
+        ]
+      },
+      {
+        "name": "Givenchy",
+        "at": [
+          50.528,
+          2.754
+        ]
+      },
+      {
+        "name": "La Bassée",
+        "at": [
+          50.535,
+          2.807
+        ]
+      },
+      {
+        "name": "Loos",
+        "at": [
+          50.457,
+          2.793
+        ]
+      },
+      {
+        "name": "Hulluch",
+        "at": [
+          50.484,
+          2.816
+        ]
+      },
+      {
+        "name": "Vermelles",
+        "at": [
+          50.488,
+          2.746
+        ]
+      },
+      {
+        "name": "Lens",
+        "at": [
+          50.432,
+          2.831
+        ]
+      },
+      {
+        "name": "Souchez",
+        "at": [
+          50.392,
+          2.743
+        ]
+      },
+      {
+        "name": "Ablain-St-Nazaire",
+        "at": [
+          50.393,
+          2.703
+        ]
+      },
+      {
+        "name": "Carency",
+        "at": [
+          50.378,
+          2.7
+        ]
+      },
+      {
+        "name": "Neuville-St-Vaast",
+        "at": [
+          50.358,
+          2.762
+        ]
+      },
+      {
+        "name": "Thélus",
+        "at": [
+          50.354,
+          2.802
+        ]
+      },
+      {
+        "name": "Mont-St-Éloi",
+        "at": [
+          50.351,
+          2.693
+        ]
+      },
+      {
+        "name": "Gavrelle",
+        "at": [
+          50.33,
+          2.887
+        ]
+      },
+      {
+        "name": "Roeux",
+        "at": [
+          50.297,
+          2.904
+        ]
+      },
+      {
+        "name": "Wancourt",
+        "at": [
+          50.247,
+          2.873
+        ]
+      },
+      {
+        "name": "Gommecourt",
+        "at": [
+          50.143,
+          2.648
+        ]
+      },
+      {
+        "name": "Hébuterne",
+        "at": [
+          50.125,
+          2.637
+        ]
+      },
+      {
+        "name": "Serre",
+        "at": [
+          50.105,
+          2.676
+        ]
+      },
+      {
+        "name": "Beaumont-Hamel",
+        "at": [
+          50.084,
+          2.657
+        ]
+      },
+      {
+        "name": "Auchonvillers",
+        "at": [
+          50.081,
+          2.629
+        ]
+      },
+      {
+        "name": "Ovillers",
+        "at": [
+          50.031,
+          2.699
+        ]
+      },
+      {
+        "name": "La Boisselle",
+        "at": [
+          50.019,
+          2.697
+        ]
+      },
+      {
+        "name": "Contalmaison",
+        "at": [
+          50.026,
+          2.737
+        ]
+      },
+      {
+        "name": "Fricourt",
+        "at": [
+          49.997,
+          2.715
+        ]
+      },
+      {
+        "name": "Mametz",
+        "at": [
+          49.998,
+          2.738
+        ]
+      },
+      {
+        "name": "Montauban",
+        "at": [
+          50.004,
+          2.782
+        ]
+      },
+      {
+        "name": "Longueval",
+        "at": [
+          50.027,
+          2.796
+        ]
+      },
+      {
+        "name": "Guillemont",
+        "at": [
+          50.011,
+          2.823
+        ]
+      },
+      {
+        "name": "Ginchy",
+        "at": [
+          50.022,
+          2.837
+        ]
+      },
+      {
+        "name": "Flers",
+        "at": [
+          50.048,
+          2.818
+        ]
+      },
+      {
+        "name": "Courcelette",
+        "at": [
+          50.061,
+          2.749
+        ]
+      },
+      {
+        "name": "Le Sars",
+        "at": [
+          50.069,
+          2.781
+        ]
+      },
+      {
+        "name": "Combles",
+        "at": [
+          50.01,
+          2.866
+        ]
+      },
+      {
+        "name": "Maricourt",
+        "at": [
+          49.985,
+          2.783
+        ]
+      },
+      {
+        "name": "Péronne",
+        "at": [
+          49.932,
+          2.937
+        ]
+      },
+      {
+        "name": "Villers-Bretonneux",
+        "at": [
+          49.868,
+          2.519
+        ]
+      },
+      {
+        "name": "Bray-sur-Somme",
+        "at": [
+          49.94,
+          2.718
+        ]
+      },
+      {
+        "name": "Chaulnes",
+        "at": [
+          49.815,
+          2.8
+        ]
+      },
+      {
+        "name": "Roye",
+        "at": [
+          49.7,
+          2.79
+        ]
+      },
+      {
+        "name": "Lassigny",
+        "at": [
+          49.587,
+          2.844
+        ]
+      },
+      {
+        "name": "Montdidier",
+        "at": [
+          49.648,
+          2.57
+        ]
+      },
+      {
+        "name": "Cantigny",
+        "at": [
+          49.664,
+          2.491
+        ]
+      },
+      {
+        "name": "Vic-sur-Aisne",
+        "at": [
+          49.405,
+          3.113
+        ]
+      },
+      {
+        "name": "Crouy",
+        "at": [
+          49.402,
+          3.355
+        ]
+      },
+      {
+        "name": "Vailly",
+        "at": [
+          49.411,
+          3.517
+        ]
+      },
+      {
+        "name": "Laffaux",
+        "at": [
+          49.457,
+          3.432
+        ]
+      },
+      {
+        "name": "Craonne",
+        "at": [
+          49.441,
+          3.789
+        ]
+      },
+      {
+        "name": "Berry-au-Bac",
+        "at": [
+          49.401,
+          3.898
+        ]
+      },
+      {
+        "name": "Corbeny",
+        "at": [
+          49.462,
+          3.825
+        ]
+      },
+      {
+        "name": "Brimont",
+        "at": [
+          49.322,
+          4.017
+        ]
+      },
+      {
+        "name": "Belleau",
+        "at": [
+          49.088,
+          3.288
+        ]
+      },
+      {
+        "name": "Prosnes",
+        "at": [
+          49.181,
+          4.288
+        ]
+      },
+      {
+        "name": "Auberive",
+        "at": [
+          49.194,
+          4.432
+        ]
+      },
+      {
+        "name": "Souain",
+        "at": [
+          49.18,
+          4.539
+        ]
+      },
+      {
+        "name": "Tahure",
+        "at": [
+          49.23,
+          4.59
+        ]
+      },
+      {
+        "name": "Perthes",
+        "at": [
+          49.193,
+          4.629
+        ]
+      },
+      {
+        "name": "Massiges",
+        "at": [
+          49.189,
+          4.738
+        ]
+      },
+      {
+        "name": "Ville-sur-Tourbe",
+        "at": [
+          49.18,
+          4.783
+        ]
+      },
+      {
+        "name": "Mourmelon",
+        "at": [
+          49.131,
+          4.367
+        ]
+      },
+      {
+        "name": "Suippes",
+        "at": [
+          49.128,
+          4.536
+        ]
+      },
+      {
+        "name": "Montfaucon",
+        "at": [
+          49.274,
+          5.138
+        ]
+      },
+      {
+        "name": "Avocourt",
+        "at": [
+          49.203,
+          5.142
+        ]
+      },
+      {
+        "name": "Malancourt",
+        "at": [
+          49.233,
+          5.18
+        ]
+      },
+      {
+        "name": "Béthincourt",
+        "at": [
+          49.249,
+          5.235
+        ]
+      },
+      {
+        "name": "Cumières",
+        "at": [
+          49.227,
+          5.296
+        ]
+      },
+      {
+        "name": "Forges",
+        "at": [
+          49.283,
+          5.283
+        ]
+      },
+      {
+        "name": "Brabant",
+        "at": [
+          49.278,
+          5.329
+        ]
+      },
+      {
+        "name": "Samogneux",
+        "at": [
+          49.256,
+          5.338
+        ]
+      },
+      {
+        "name": "Louvemont",
+        "at": [
+          49.249,
+          5.401
+        ]
+      },
+      {
+        "name": "Bezonvaux",
+        "at": [
+          49.227,
+          5.466
+        ]
+      },
+      {
+        "name": "Ornes",
+        "at": [
+          49.252,
+          5.483
+        ]
+      },
+      {
+        "name": "Douaumont",
+        "at": [
+          49.215,
+          5.433
+        ]
+      },
+      {
+        "name": "Fleury",
+        "at": [
+          49.196,
+          5.421
+        ]
+      },
+      {
+        "name": "Vaux",
+        "at": [
+          49.199,
+          5.469
+        ]
+      },
+      {
+        "name": "Étain",
+        "at": [
+          49.212,
+          5.64
+        ]
+      },
+      {
+        "name": "Fresnes-en-Woëvre",
+        "at": [
+          49.104,
+          5.623
+        ]
+      },
+      {
+        "name": "Les Éparges",
+        "at": [
+          49.064,
+          5.604
+        ]
+      },
+      {
+        "name": "Apremont",
+        "at": [
+          48.873,
+          5.627
+        ]
+      },
+      {
+        "name": "Montsec",
+        "at": [
+          48.888,
+          5.715
+        ]
+      },
+      {
+        "name": "Seicheprey",
+        "at": [
+          48.873,
+          5.794
+        ]
+      },
+      {
+        "name": "Flirey",
+        "at": [
+          48.875,
+          5.85
+        ]
+      },
+      {
+        "name": "Pont-à-Mousson",
+        "at": [
+          48.905,
+          6.054
+        ]
+      },
+      {
+        "name": "Nomeny",
+        "at": [
+          48.89,
+          6.227
+        ]
+      },
+      {
+        "name": "Château-Salins",
+        "at": [
+          48.819,
+          6.513
+        ]
+      },
+      {
+        "name": "Morhange",
+        "at": [
+          48.924,
+          6.636
+        ]
+      },
+      {
+        "name": "Lunéville",
+        "at": [
+          48.589,
+          6.497
+        ]
+      },
+      {
+        "name": "Baccarat",
+        "at": [
+          48.45,
+          6.74
+        ]
+      },
+      {
+        "name": "Badonviller",
+        "at": [
+          48.5,
+          6.893
+        ]
+      },
+      {
+        "name": "Raon-l'Étape",
+        "at": [
+          48.405,
+          6.84
+        ]
+      },
+      {
+        "name": "Senones",
+        "at": [
+          48.394,
+          6.978
+        ]
+      },
+      {
+        "name": "Sarrebourg",
+        "at": [
+          48.735,
+          7.054
+        ]
+      },
+      {
+        "name": "Gérardmer",
+        "at": [
+          48.072,
+          6.879
+        ]
+      },
+      {
+        "name": "Metzeral",
+        "at": [
+          48.014,
+          7.074
+        ]
+      },
+      {
+        "name": "Thann",
+        "at": [
+          47.808,
+          7.103
+        ]
+      },
+      {
+        "name": "Cernay",
+        "at": [
+          47.806,
+          7.176
+        ]
+      },
+      {
+        "name": "Dannemarie",
+        "at": [
+          47.63,
+          7.122
+        ]
+      },
+      {
+        "name": "Altkirch",
+        "at": [
+          47.624,
+          7.24
+        ]
+      },
+      {
+        "name": "Pfetterhouse",
+        "at": [
+          47.502,
+          7.165
+        ]
+      }
+    ]
+  },
+  "landmarks": {
+    "_about": "Famous places of the war, drawn as small ink symbols at full zoom. 'kind': fort, hill (with 'height' in metres), wood or ridge. [lat, lon]; sources in docs/HISTORY.md.",
+    "list": [
+      {
+        "name": "Fort Douaumont",
+        "kind": "fort",
+        "at": [
+          49.218,
+          5.439
+        ]
+      },
+      {
+        "name": "Mort Homme",
+        "kind": "hill",
+        "height": 295,
+        "at": [
+          49.237,
+          5.27
+        ]
+      },
+      {
+        "name": "Hill 304",
+        "kind": "hill",
+        "height": 304,
+        "at": [
+          49.22,
+          5.235
+        ]
+      },
+      {
+        "name": "Vimy Ridge",
+        "kind": "ridge",
+        "at": [
+          50.38,
+          2.774
+        ]
+      },
+      {
+        "name": "Hill 60",
+        "kind": "hill",
+        "height": 60,
+        "at": [
+          50.823,
+          2.928
+        ]
+      },
+      {
+        "name": "Delville Wood",
+        "kind": "wood",
+        "at": [
+          50.026,
+          2.81
+        ]
+      },
+      {
+        "name": "Messines Ridge",
+        "kind": "ridge",
+        "at": [
+          50.77,
+          2.889
+        ]
+      },
+      {
+        "name": "Chemin des Dames",
+        "kind": "ridge",
+        "at": [
+          49.452,
+          3.64
+        ]
+      },
+      {
+        "name": "Butte de Vauquois",
+        "kind": "hill",
+        "height": 290,
+        "at": [
+          49.204,
+          5.072
+        ]
+      }
+    ]
   }
 }

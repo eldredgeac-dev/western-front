@@ -13,6 +13,7 @@
 @font-face { font-family: "Source Serif 4"; src: url("../fonts/source-serif-4-italic.woff2") format("woff2"); font-style: italic; font-display: swap; }
 @font-face { font-family: "Courier Prime"; src: url("../fonts/courier-prime.woff2") format("woff2"); font-weight: 400; font-display: swap; }
 @font-face { font-family: "Courier Prime"; src: url("../fonts/courier-prime-bold.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+@font-face { font-family: "Reenie Beanie"; src: url("../fonts/reenie-beanie.woff2") format("woff2"); font-display: swap; }
 
 :root {
   /* The map (paper) */
@@ -313,7 +314,7 @@ html, body {
 }
 /* Only territories take taps; everything drawn over them lets taps through. */
 .map-svg #terrain, .map-svg #relief, .map-svg #rivers, .map-svg #edges,
-.map-svg #nomansland, .map-svg #trenches, .map-svg #front, .map-svg #selection,
+.map-svg #trenches, .map-svg #front, .map-svg #selection,
 .map-svg #place-names, .map-svg #towns, .map-svg #cartouche, .map-svg #compass,
 .map-svg #scale-bar, .map-svg #countries, .map-svg .coast, .map-svg .border,
 .map-svg .border-1871, .map-svg .sea, .map-svg .sea-hatch, .map-svg .paper-grain,
@@ -322,7 +323,7 @@ html, body {
 .map-svg .territory { fill-opacity: 0.3; cursor: pointer; outline: none; }
 .map-svg .territory:focus-visible { stroke: var(--brass); stroke-width: calc(2px * var(--u)); }
 .map-svg .edge { stroke-width: max(0.45px, calc(0.8px * var(--u))); }
-.map-svg .no-mans-land { fill: none; stroke: url(#pat-craters); stroke-width: 7; stroke-linecap: round; stroke-linejoin: round; }
+.map-svg .front-bleed { fill: none; stroke: var(--front-red); stroke-opacity: 0.18; stroke-width: max(3.4px, calc(7px * var(--u))); stroke-linecap: round; stroke-linejoin: round; }
 .map-svg .front-line { fill: none; stroke: var(--front-red); stroke-width: max(1.4px, calc(2.8px * var(--u))); stroke-linecap: round; stroke-linejoin: round; }
 .map-svg .front-wire { fill: none; stroke: var(--ink); stroke-width: 0.3; stroke-linecap: round; }
 .map-svg .trench { fill: none; stroke: var(--ink); stroke-width: 0.35; stroke-linejoin: round; opacity: 0.85; }
@@ -338,14 +339,48 @@ html, body {
   .map-svg .selected-outline { animation: none; }
 }
 
+/* Detail by zoom (STYLE.md §13). js/ui/zoom.js puts "far", "mid" or "near" on the map;
+   things tagged lod-mid appear from mid zoom, lod-near only fully zoomed in. */
+.map-svg.far .lod-mid, .map-svg.far .lod-near, .map-svg.mid .lod-near { display: none; }
+/* lod-far: only when zoomed out (the coloured region edges). */
+.map-svg.mid .lod-far, .map-svg.near .lod-far { display: none; }
+/* The simple trench zigzags show until you're fully zoomed; then the real network. */
+.map-svg.near .trench-simple, .map-svg:not(.near) .trench-net { display: none; }
+
 /* Labels: grow with the map when zoomed in, never smaller than 11px on screen
-   (STYLE.md §3). Small towns and VP circles appear once you zoom in. */
-.map-svg .map-label { stroke-width: max(2.2px, calc(3px * var(--u))); }
-.map-svg .label.city { font-size: max(10px, calc(13px * var(--u))); }
-.map-svg .label.town, .map-svg .town-dot.other, .map-svg .vp-ring, .map-svg .vp-text { display: none; }
-.map-svg.near .label.town, .map-svg.near .town-dot.other, .map-svg.near .vp-ring, .map-svg.near .vp-text { display: inline; }
-.map-svg.near .label.town { font-size: max(6.5px, calc(11px * var(--u))); }
-.map-svg .river-label { font-size: max(7px, calc(11px * var(--u))); }
+   (STYLE.md §3). */
+.map-svg .map-label { stroke-width: calc(3px * var(--u)); stroke-opacity: 0.8; }
+.map-svg .region-edge { fill: none; stroke-width: calc(5px * var(--u)); stroke-opacity: 0.4; pointer-events: none; }
+.map-svg.near .front-line { stroke-width: calc(2px * var(--u)); stroke-opacity: 0.85; }
+.map-svg .label.city { font-size: clamp(calc(13px * var(--u)), 10px, calc(19px * var(--u))); }
+.map-svg .label.town { font-size: clamp(calc(11px * var(--u)), 6.5px, calc(14px * var(--u))); }
+.map-svg .label.village { font-size: clamp(calc(11px * var(--u)), 4.2px, calc(12px * var(--u))); }
+.map-svg .label.landmark { font-size: clamp(calc(11.5px * var(--u)), 4.6px, calc(13px * var(--u))); }
+.map-svg .road-label { font-size: clamp(calc(11px * var(--u)), 4.5px, calc(12px * var(--u))); }
+.map-svg .river-label { font-size: clamp(calc(11px * var(--u)), 7px, calc(15px * var(--u))); }
 .map-svg .country-label { font-size: max(15px, calc(12px * var(--u))); }
 .map-svg .country-label.small { font-size: max(9px, calc(11px * var(--u))); }
 .map-svg .sea-label { font-size: max(14px, calc(13px * var(--u))); }
+
+/* The trench network at full zoom, coloured like a 1917 British trench map:
+   German trenches red, Allied trenches blue. */
+.map-svg .trench-net { fill: none; stroke-width: 0.3; stroke-linejoin: miter; stroke-linecap: square; }
+.map-svg .trench-net.germany { stroke: var(--front-red); }
+.map-svg .trench-net.entente { stroke: var(--river); }
+.map-svg .trench-net.support { stroke-width: 0.26; opacity: 0.85; }
+.map-svg .trench-net.comms { stroke-width: 0.24; opacity: 0.75; }
+
+/* The living map: battle scars, the staff officer's pencil notes, planned attacks. */
+.map-svg .scar { pointer-events: none; }
+.map-svg .pencil-note {
+  font-family: "Reenie Beanie", cursive;
+  font-size: clamp(calc(14px * var(--u)), 7px, calc(17px * var(--u)));
+  fill: var(--ink-faded);
+}
+.map-svg .pencil-lead { fill: none; stroke: var(--ink-faded); stroke-width: max(0.3px, calc(0.8px * var(--u))); stroke-linecap: round; opacity: 0.8; }
+.map-svg .plan-arrow { fill: none; stroke: var(--front-red); stroke-linecap: round; stroke-linejoin: round; opacity: 0.8; }
+.map-svg .plan-arrow.second { opacity: 0.45; }
+.map-svg #notes, .map-svg #plans, .map-svg #region-edges, .map-svg #scars, .map-svg #villages, .map-svg #landmarks,
+.map-svg #contours, .map-svg #roads, .map-svg #railways, .map-svg #age-marks,
+.map-svg .bleed, .map-svg .coast-ink, .map-svg .border-ink, .map-svg .season-snow,
+.map-svg .season-spring { pointer-events: none; }

@@ -48,6 +48,9 @@ Do one milestone per Claude Code session. For each one:
   - Terrain and national traits (RULES.md §3–4) all work. The averages table in §9.3 is a
     passing test.
   - `tests/tests.html` is all green, including "same seed gives the same result".
+  - Every battle is recorded in the state as `battles` (territory, month, steps lost), so
+    the map can show battle scars and pencil notes (docs/STYLE.md §13). The order screen
+    shows the planned attack as a grease-pencil arrow.
 
 - [ ] **6. Feel and sound**
   - The animations in docs/STYLE.md §8: barrage, dice, losses, capture, Will change and
@@ -57,6 +60,11 @@ Do one milestone per Claude Code session. For each one:
   - The sounds in docs/STYLE.md §9 (public domain or CC0, each under 100 KB, sources in
     `sounds/CREDITS.md`). Sound is on by default with a toggle on the top bar, and it
     respects the silent switch.
+  - The interface details in docs/STYLE.md §13:
+    - the desk lit by a warm lamp from the top left (a soft vignette);
+    - commander cards sealed with a wax seal in the nation's colour;
+    - drop caps and old-style numbers in the newspaper;
+    - brass map pins marking your selected territory.
 
 - [ ] **7. Supply, replacements, national will**
   - Out-of-supply units can't attack and lose strength.

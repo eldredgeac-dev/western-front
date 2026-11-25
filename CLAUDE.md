@@ -47,7 +47,9 @@ Eastern Front, more nations and the naval blockade, so build it to grow.
 - Layout: map on top and panel below when narrow; side by side at ≥ 700px wide.
   Must re-lay out when I fold/unfold. No hard-coded widths.
 - Every tap target at least 44×44px. No hover-only features.
-- `touch-action: manipulation` on the map to stop double-tap zoom.
+- `touch-action: manipulation` on the map to stop double-tap zoom. (The map itself uses
+  `touch-action: none`, because `js/ui/zoom.js` does its own pinch-zoom; that also stops
+  double-tap zoom.)
 - No service worker (offline mode) until I ask for it.
 
 ## Folder layout
@@ -62,14 +64,17 @@ js/engine/rng.js           seeded RNG (mulberry32)
 js/engine/boxes.js         map checks, box names, trench maximums
 js/engine/ai.js            computer opponent (priority scoring)
 js/engine/systems/         supply.js, will.js (later: economy.js, blockade.js)
-js/ui/map.js  panel.js  log.js
+js/engine/battles.js       the battle record (scars and pencil notes on the map)
+js/ui/map.js  zoom.js  panel.js  log.js  demo.js
 js/storage.js              save / load / export / import
 data/nations.json  unit-types.json  boxes-west.json  terrain.json  events.json  combat-table.json
 data/commanders.json  headlines.json
 data/news.json  quotes.json         (already written: real history, don't change facts without a source)
 data/scenarios/1914-west.json
 tests/tests.html  tests/tests.js  tests/run.mjs
-docs/RULES.md  HISTORY.md  MILESTONES.md  DATA.md
+img/map-west.svg           the campaign map, made by tools/build-map.mjs (+ map-extra.json)
+fonts/                     OFL fonts (fonts/CREDITS.md)
+docs/RULES.md  HISTORY.md  MILESTONES.md  DATA.md  STYLE.md
 ```
 
 ## How to run and test

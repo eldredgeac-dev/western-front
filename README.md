@@ -37,11 +37,35 @@ Then open http://localhost:8000 in a browser.
 node tests/run.mjs
 ```
 
+## Rebuild the map (only after changing map data)
+The campaign map `img/map-west.svg` is made by a build script. The game itself doesn't
+need it. Re-run it only after changing anchor towns in `data/boxes-west.json`, terrain
+looks in `data/terrain.json`, or `tools/map-extra.json`:
+
+```bash
+cd tools && npm install && node build-map.mjs
+```
+
+It downloads Natural Earth rivers and elevation tiles once into `tools/cache/` (not
+committed). It refuses to write the map if any territory would touch a box that isn't
+its neighbour.
+
+Add `?demo` to the game's address to see a sample war on the map: battle scars, pencil
+notes, deep trenches and a planned attack.
+
 ## Folder guide
 - `index.html`: the page
-- `css/`: styles
+- `css/`: styles (the look is set by `docs/STYLE.md`)
 - `js/`: code (`js/engine/` is the game logic and never touches the page)
 - `data/`: game content as JSON
+- `img/`: the campaign map, made by `tools/build-map.mjs`
+- `fonts/`: free OFL fonts (see `fonts/CREDITS.md`)
 - `tests/`: tests
-- `docs/`: rules, history, balance and plan
-- `tools/`: the Python balance simulator
+- `docs/`: rules, history, style, balance and plan
+- `tools/`: the Python balance simulator and the map builder
+
+## Credits
+- **Map data:** Natural Earth (public domain).
+- **Elevation:** Terrarium tiles from AWS Open Data (Mapzen; SRTM, ETOPO1, EU-DEM and
+  others).
+- **Fonts:** SIL Open Font License (`fonts/CREDITS.md`).

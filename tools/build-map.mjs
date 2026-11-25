@@ -25,6 +25,7 @@ import { geoConicConformal } from 'd3-geo';
 import { feature, mesh } from 'topojson-client';
 import { deflateSync } from 'node:zlib';
 import polygonClipping from 'polygon-clipping';
+import { loadElevation } from './elevation.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..');
@@ -579,9 +580,44 @@ for (const ch of liveChains) {
   ch.xy = pts;
 }
 
+// Hand-drawn wobble (STYLE.md §13): nudge every border sideways by a smooth, tiny,
+// seeded amount, as if drawn with a pen. The ends stay put, so borders still meet,
+// and the checks below still prove every box touches exactly its neighbours.
+function handWobble(pts, key, amp) {
+  if (pts.length < 2) return pts;
+  // re-space the line to one point every 1.2 units
+  const even = [pts[0]];
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1]; const b = pts[i]; const n = Math.max(1, Math.round(dist(a, b) / 1.2));
+    for (let t = 1; t <= n; t++) even.push(add(a, mul(sub(b, a), t / n)));
+  }
+  const rnd = rngFrom('wobble' + key);
+  const knots = Array.from({ length: Math.ceil(even.length / 5) + 2 }, () => rnd() * 2 - 1);
+  const noise = (i) => {
+    const x = i / 5; const k = Math.floor(x); const t = x - k; const e = t * t * (3 - 2 * t);
+    return knots[k] * (1 - e) + knots[k + 1] * e;
+  };
+  const last = even.length - 1;
+  return even.map((p, i) => {
+    if (i === 0 || i === last) return p;
+    const q = even[Math.min(last, i + 1)]; const r = even[Math.max(0, i - 1)];
+    const d = sub(q, r); const L = len(d) || 1;
+    const taper = Math.min(1, i / 8, (last - i) / 8);          // calm near the ends
+    return add(p, mul([-d[1] / L, d[0] / L], amp * taper * noise(i)));
+  });
+}
+liveChains.forEach((ch, i) => {
+  ch.plain = ch.xy;                                             // kept in case we must undo it
+  if (ch.n1 === ch.n2) return;                                  // leave closed loops alone
+  ch.xy = simplify(handWobble(ch.xy, i, 0.32), 0.05);
+});
+
 // Join each box's borders into one outline.
-const rings = {};
-const ringProblems = [];
+let rings = {};
+let ringProblems = [];
+let tangled = [];
+function assembleRings() {
+rings = {}; ringProblems = []; tangled = [];
 for (let l = 0; l < NK * NC; l++) {
   const mine = liveChains.filter((c) => c.a === l || c.b === l);
   const box = boxOfLabel(l);
@@ -607,8 +643,16 @@ for (let l = 0; l < NK * NC; l++) {
   const ring = loops[0];
   if (ringArea(ring) < 0) ring.reverse();
   if (loops.length > 1 && Math.abs(ringArea(loops[1])) > 4) ringProblems.push(`${box.id} is in ${loops.length} pieces`);
-  if (ringSelfCrosses(ring)) ringProblems.push(`${box.id}'s outline crosses itself`);
+  if (ringSelfCrosses(ring)) { ringProblems.push(`${box.id}'s outline crosses itself`); tangled.push(l); }
   rings[box.id] = ring;
+}
+}
+// Where the wobble made an outline cross itself (tight corners), take the wobble
+// off that box's borders and try again.
+assembleRings();
+for (let tries = 0; tries < 3 && tangled.length; tries++) {
+  for (const ch of liveChains) if (tangled.includes(ch.a) || tangled.includes(ch.b)) ch.xy = ch.plain;
+  assembleRings();
 }
 
 // A picture of the raw result (tools/cache/debug.svg), handy when tuning.
@@ -769,7 +813,7 @@ const TEXTURES = {
   // ridge: short hachure strokes
   hachure: (c) => `<path d="M1,2 v2.6 M4.5,5.5 v2.6 M8,1.5 v2.6 M2.5,9 v2.6 M9.5,8.5 v2.6" stroke="${c}" stroke-width="0.55" stroke-linecap="round" opacity="0.8"/>`,
   // mud: a darker, blotchy wash (only shown in autumn)
-  blotch: (c) => `<g fill="${c}" opacity="0.22"><ellipse cx="4" cy="4" rx="4" ry="2.6"/><ellipse cx="13" cy="10" rx="3.2" ry="2.2"/><ellipse cx="6" cy="14.5" rx="2.6" ry="1.6"/><ellipse cx="16" cy="2.5" rx="1.8" ry="1.2"/></g>`,
+  blotch: (c) => `<g fill="${c}" opacity="0.11"><path d="M1,4c1,-3 5,-3 6,-1s-1,4 -3,3.5s-3.5,0 -3,-2.5z"/><path d="M11,9c1.5,-2 5,-1.5 5,0.5s-2,3 -3.5,2.5s-2.5,-1 -1.5,-3z"/><path d="M4,13.5c1,-1 3,-1 3.4,0.4s-1.4,1.8 -2.4,1.4s-1.6,-0.8 -1,-1.8z"/><circle cx="15.5" cy="3" r="0.9"/><circle cx="9" cy="16.5" r="0.7"/></g>`,
   // forest: stippled tree dots
   trees: (c) => `<g fill="${c}"><circle cx="1.5" cy="1.8" r="0.75"/><circle cx="4.6" cy="3.6" r="0.6"/><circle cx="2.6" cy="5.4" r="0.7"/><circle cx="6.2" cy="0.9" r="0.55"/><circle cx="5.6" cy="6.3" r="0.5"/></g>`,
   // mountains: little hill strokes
@@ -995,25 +1039,223 @@ function starPath(x, y, r1, r2, points) {
 }
 const capitalVp = Math.max(...map.boxes.map((b) => b.vp));
 
+// ---------------------------------------------------------------- detail pass (STYLE.md §13)
+// Every detail is tagged with the zoom level it appears at: "lod-mid" (mid zoom and
+// closer) or "lod-near" (fully zoomed). css/style.css hides them further out.
+
+// Contour lines from real elevation data (tools/elevation.mjs): every 50 m up to
+// 500 m, then every 100 m; every 200 m is an "index" contour, drawn a little bolder.
+async function contourSvg() {
+  const height = await loadElevation(join(here, 'cache/terrain'), [south - 0.1, west - 0.1, north + 0.1, east + 0.1]);
+  const gw = WIDTH + 1; const gh = HEIGHT + 1;          // one sample per map unit
+  let g = new Float32Array(gw * gh);
+  for (let y = 0; y < gh; y++) {
+    for (let x = 0; x < gw; x++) {
+      const [lon, lat] = projection.invert([x, y]);
+      g[y * gw + x] = height(lon, lat);
+    }
+  }
+  // Soften the data a little (two 3×3 blurs) so lines flow like a draughtsman's.
+  for (let pass = 0; pass < 2; pass++) {
+    const b = new Float32Array(gw * gh);
+    for (let y = 0; y < gh; y++) {
+      for (let x = 0; x < gw; x++) {
+        let sum = 0; let n = 0;
+        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+          const xx = x + dx; const yy = y + dy;
+          if (xx >= 0 && yy >= 0 && xx < gw && yy < gh) { sum += g[yy * gw + xx]; n++; }
+        }
+        b[y * gw + x] = sum / n;
+      }
+    }
+    g = b;
+  }
+  let top = 0;
+  for (const v of g) top = Math.max(top, v);
+  const levels = [];
+  for (let L = 50; L <= top; L += L < 500 ? 50 : 100) levels.push(L);
+
+  const at = (x, y) => g[y * gw + x];
+  const out = [];
+  for (const L of levels) {
+    // Marching squares: for each grid cell, which of its edges does the level cross?
+    // An edge crossing is named by its edge ("h x,y" = top edge of cell x,y).
+    const point = new Map(); const links = new Map();
+    const cross = (key, x1, y1, x2, y2) => {
+      if (!point.has(key)) {
+        const a = at(x1, y1); const b = at(x2, y2); const t = (L - a) / (b - a);
+        point.set(key, [x1 + (x2 - x1) * t, y1 + (y2 - y1) * t]);
+      }
+      return key;
+    };
+    const link = (k1, k2) => {
+      if (!links.has(k1)) links.set(k1, []); if (!links.has(k2)) links.set(k2, []);
+      links.get(k1).push(k2); links.get(k2).push(k1);
+    };
+    for (let y = 0; y < gh - 1; y++) {
+      for (let x = 0; x < gw - 1; x++) {
+        const tl = at(x, y) >= L; const tr = at(x + 1, y) >= L; const br = at(x + 1, y + 1) >= L; const bl = at(x, y + 1) >= L;
+        const c = (tl ? 8 : 0) | (tr ? 4 : 0) | (br ? 2 : 0) | (bl ? 1 : 0);
+        if (c === 0 || c === 15) continue;
+        const T = () => cross(`h${x},${y}`, x, y, x + 1, y);
+        const R = () => cross(`v${x + 1},${y}`, x + 1, y, x + 1, y + 1);
+        const B = () => cross(`h${x},${y + 1}`, x, y + 1, x + 1, y + 1);
+        const Lf = () => cross(`v${x},${y}`, x, y, x, y + 1);
+        switch (c) {
+          case 1: case 14: link(Lf(), B()); break;
+          case 2: case 13: link(B(), R()); break;
+          case 3: case 12: link(Lf(), R()); break;
+          case 4: case 11: link(T(), R()); break;
+          case 6: case 9: link(T(), B()); break;
+          case 7: case 8: link(Lf(), T()); break;
+          case 5: link(Lf(), T()); link(B(), R()); break;
+          case 10: link(T(), R()); link(Lf(), B()); break;
+          default: break;
+        }
+      }
+    }
+    // Walk the links into lines.
+    const seen = new Set();
+    for (const startKey of links.keys()) {
+      if (seen.has(startKey)) continue;
+      // start from a loose end if there is one, so open lines come out whole
+      let s0 = startKey;
+      const visitedProbe = new Set([s0]);
+      let prev = null;
+      while (true) {
+        const nb = links.get(s0).filter((k) => k !== prev && !visitedProbe.has(k));
+        if (links.get(s0).length < 2 || nb.length === 0) break;
+        prev = s0; s0 = nb[0]; visitedProbe.add(s0);
+        if (s0 === startKey) break;
+      }
+      const line = []; let cur = s0; let before = null;
+      while (cur && !seen.has(cur)) {
+        seen.add(cur); line.push(point.get(cur));
+        const next = links.get(cur).find((k) => k !== before && !seen.has(k));
+        before = cur; cur = next;
+      }
+      if (line.length < 4 || polylineLength(line) < 18) continue;
+      const smooth = simplify(chaikin(line, 2), 0.55);
+      out.push({ level: L, pts: smooth });
+    }
+  }
+  const index = out.filter((c) => c.level % 200 === 0);
+  const plain = out.filter((c) => c.level % 200 !== 0);
+  return `<g id="contours" class="lod-near">` +
+    `<path class="contour" d="${plain.map((c) => lineD(c.pts)).join('')}"/>` +
+    `<path class="contour index" d="${index.map((c) => lineD(c.pts)).join('')}"/></g>`;
+}
+
+// Railways: classic black-and-white tick line.
+function railwaySvg() {
+  const d = extra.railways.list.map((r) => lineD(simplify(handWobble(r.points.map(P), 'rail' + r.id, 0.15), 0.08))).join('');
+  return `<g id="railways" class="lod-mid"><defs><path id="line-rail" d="${d}"/></defs><use class="rail-base" href="#line-rail"/><use class="rail-ticks" href="#line-rail"/></g>`;
+}
+// Main roads: a thin cased (double) ink line, with names at full zoom.
+function roadSvg() {
+  const lines = extra.roads.list.map((r, i) => ({ name: r.name, pts: handWobble(r.points.map(P), 'road' + i, 0.15) }));
+  const d = lines.map((r) => lineD(r.pts)).join('');
+  const labels = lines.map((r) => {
+    const i = Math.floor(r.pts.length / 2); const a = r.pts[Math.max(0, i - 2)]; const b = r.pts[Math.min(r.pts.length - 1, i + 2)];
+    let ang = (Math.atan2(b[1] - a[1], b[0] - a[0]) * 180) / Math.PI;
+    if (ang > 90) ang -= 180; if (ang < -90) ang += 180;
+    return `<text class="road-label map-label lod-near" transform="translate(${f(r.pts[i][0])},${f(r.pts[i][1])}) rotate(${f(ang)})" dy="-1.6">${esc(r.name)}</text>`;
+  });
+  return `<g id="roads" class="lod-mid"><defs><path id="line-roads" d="${d}"/></defs><use class="road-case" href="#line-roads"/><use class="road-fill" href="#line-roads"/></g>` + labels.join('');
+}
+// Villages: a small ink circle and a name (full zoom only).
+function villageSvg() {
+  const outv = ['<g id="villages" class="lod-near">'];
+  for (const v of extra.villages.list) {
+    const [x, y] = P(v.at);
+    outv.push(`<circle class="village-dot" cx="${f(x)}" cy="${f(y)}" r="0.6"/><text class="label village map-label" x="${f(x)}" y="${f(y - 1.6)}">${esc(v.name)}</text>`);
+  }
+  outv.push('</g>');
+  return outv.join('');
+}
+// Landmarks: small ink symbols by kind, labelled in italic (full zoom only).
+function landmarkSvg() {
+  const outl = ['<g id="landmarks" class="lod-near">'];
+  for (const l of extra.landmarks.list) {
+    const [x, y] = P(l.at);
+    let sym = '';
+    if (l.kind === 'fort') sym = `<path class="lm-fort" d="${starPath(x, y, 2.6, 1.6, 5)}"/>`;
+    else if (l.kind === 'hill') sym = `<path class="lm-hill" d="M${f(x)},${f(y - 1.6)}l1.5,2.6h-3z"/><text class="lm-height" x="${f(x + 2.2)}" y="${f(y + 1)}">${l.height}</text>`;
+    else if (l.kind === 'wood') sym = `<g class="lm-wood"><circle cx="${f(x - 1.2)}" cy="${f(y)}" r="1.1"/><circle cx="${f(x + 1.2)}" cy="${f(y)}" r="1.1"/><circle cx="${f(x)}" cy="${f(y - 1.5)}" r="1.1"/></g>`;
+    else sym = `<path class="lm-ridge" d="M${f(x - 3)},${f(y)}q3,-2.2 6,0M${f(x - 2)},${f(y - 0.6)}l-0.4,1.4M${f(x)},${f(y - 1.1)}v1.5M${f(x + 2)},${f(y - 0.6)}l0.4,1.4"/>`;
+    outl.push(sym + `<text class="label landmark map-label" x="${f(x)}" y="${f(y - 3.2)}">${esc(l.name)}</text>`);
+  }
+  outl.push('</g>');
+  return outl.join('');
+}
+// Battle scars: crater stipple in three densities (map.js picks one per territory).
+function scarPatterns() {
+  const pats = [];
+  [10, 22, 40].forEach((count, i) => {
+    const rnd = rngFrom('scar' + i); const parts = [];
+    for (let n = 0; n < count; n++) {
+      const x = rnd() * 24; const y = rnd() * 24; const r = 0.3 + rnd() * (0.6 + i * 0.25);
+      parts.push(rnd() < 0.6
+        ? `<circle cx="${f(x)}" cy="${f(y)}" r="${f(r)}" fill="none" stroke="${C.inkFaded}" stroke-width="0.3"/>`
+        : `<circle cx="${f(x)}" cy="${f(y)}" r="${f(r * 0.45)}" fill="${C.inkFaded}"/>`);
+    }
+    pats.push(`<pattern id="pat-scar${i + 1}" patternUnits="userSpaceOnUse" width="24" height="24">${parts.join('')}</pattern>`);
+  });
+  // Snow: sparse flecks for the winter wash.
+  const rnd = rngFrom('snow'); const flecks = [];
+  for (let n = 0; n < 14; n++) flecks.push(`<circle cx="${f(rnd() * 16)}" cy="${f(rnd() * 16)}" r="${f(0.25 + rnd() * 0.3)}" fill="${C.paperDark}"/>`);
+  pats.push(`<pattern id="pat-snow" patternUnits="userSpaceOnUse" width="16" height="16">${flecks.join('')}</pattern>`);
+  return pats.join('\n');
+}
+// A coffee ring and foxing (age spots) near the bottom-left corner.
+function ageMarks() {
+  const rnd = rngFrom('age'); const o = ['<g id="age-marks">'];
+  const cx = 175; const cy = HEIGHT - 135; const r = 38;
+  // the ring: several broken arcs of uneven weight, and a faint stain inside
+  o.push(`<circle cx="${cx}" cy="${cy}" r="${r - 1}" fill="${C.ridge}" fill-opacity="0.05"/>`);
+  for (let k = 0; k < 5; k++) {
+    const a0 = rnd() * Math.PI * 2; const a1 = a0 + Math.PI * (0.6 + rnd() * 1.1); const rr = r + (rnd() - 0.5) * 2.2;
+    const p0 = [cx + Math.cos(a0) * rr, cy + Math.sin(a0) * rr]; const p1 = [cx + Math.cos(a1) * rr, cy + Math.sin(a1) * rr];
+    o.push(`<path d="M${f(p0[0])},${f(p0[1])}A${f(rr)},${f(rr)} 0 ${a1 - a0 > Math.PI ? 1 : 0} 1 ${f(p1[0])},${f(p1[1])}" fill="none" stroke="${C.ridge}" stroke-opacity="${f(0.12 + rnd() * 0.14)}" stroke-width="${f(0.8 + rnd() * 1.8)}" stroke-linecap="round"/>`);
+  }
+  // foxing: soft brown spots clustered towards the corner
+  for (let n = 0; n < 34; n++) {
+    const x = 10 + Math.pow(rnd(), 1.6) * 260; const y = HEIGHT - 10 - Math.pow(rnd(), 1.6) * 230;
+    const rr = 0.6 + rnd() * 3.2;
+    o.push(`<circle cx="${f(x)}" cy="${f(y)}" r="${f(rr)}" fill="${rnd() < 0.5 ? C.ridge : C.paperDark}" fill-opacity="${f(0.1 + rnd() * 0.18)}"/>`);
+  }
+  o.push('</g>');
+  return o.join('');
+}
+
 // ---------------------------------------------------------------- write the SVG
 const rivers = await riverLines();
+const contours = await contourSvg();
 const out = [];
 out.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${WIDTH} ${HEIGHT}" width="${WIDTH}" height="${HEIGHT}" class="map-svg">`);
 out.push('<!-- Made by tools/build-map.mjs. Do not edit by hand: change the data and re-run it. -->');
-out.push('<!-- Geography: Natural Earth (public domain), plus lines hand-traced in tools/map-extra.json. Look: docs/STYLE.md. -->');
+out.push('<!-- Geography: Natural Earth (public domain); elevation: Terrarium tiles (AWS Open Data, Mapzen; SRTM and others); lines hand-traced in tools/map-extra.json. Look: docs/STYLE.md. -->');
 out.push(`<defs>
 <style>
 .sea{fill:${C.paper}}
 .sea-hatch{fill:url(#pat-sea)}
 .land{fill:${C.paper}}
 .land.neutral{fill:${C.paperDark}}
-.coast{fill:none;stroke:${C.river};stroke-width:0.8;stroke-linejoin:round}
-.border{fill:none;stroke:${C.inkFaded};stroke-width:0.8;stroke-dasharray:5 1.6 1 1.6}
+.coast-ink{fill:none;stroke:${C.river};stroke-width:0.8;stroke-linejoin:round}
+.border-ink{fill:none;stroke:${C.inkFaded};stroke-width:0.8;stroke-dasharray:5 1.6 1 1.6}
 .border-1871{fill:none;stroke:${C.ink};stroke-width:1.1;stroke-dasharray:6 1.8 1.2 1.8}
-.texture,.ground,.hillshade,.hachures,.paper-grain,.fold,.vignette{pointer-events:none}
+.river-ink{fill:none;stroke:${C.river};stroke-width:0.9;stroke-linecap:round;stroke-linejoin:round}
+.bleed{fill:none;stroke-width:2.4;stroke-opacity:.13;stroke-linecap:round;stroke-linejoin:round}
+.bleed.river{stroke:${C.river}} .bleed.coast{stroke:${C.river}} .bleed.border{stroke:${C.inkFaded};stroke-width:2}
 .hillshade{fill:none;stroke:${C.ridge};stroke-opacity:.16;stroke-linecap:round;stroke-linejoin:round}
 .hachures{fill:none;stroke:${C.ridge};stroke-width:0.45;stroke-linecap:round;opacity:.85}
-.river{fill:none;stroke:${C.river};stroke-width:0.9;stroke-linecap:round;stroke-linejoin:round}
+.contour{fill:none;stroke:${C.inkFaded};stroke-width:0.28;stroke-opacity:.55;stroke-linejoin:round}
+.contour.index{stroke-width:0.5;stroke-opacity:.7}
+.rail-base{fill:none;stroke:${C.ink};stroke-width:1.05;stroke-opacity:.85;stroke-linejoin:round}
+.rail-ticks{fill:none;stroke:${C.paper};stroke-width:0.5;stroke-dasharray:2.2 2.2;stroke-linejoin:round}
+.road-case{fill:none;stroke:${C.ink};stroke-width:1.25;stroke-opacity:.8;stroke-linecap:round;stroke-linejoin:round}
+.road-fill{fill:none;stroke:${C.paper};stroke-width:0.6;stroke-linecap:round;stroke-linejoin:round}
+.road-label{font-family:${FONT.fell};font-style:italic;font-size:4.5px;fill:${C.ink};text-anchor:middle}
 .river-label{font-family:${FONT.fell};font-style:italic;font-size:7px;fill:${C.river};text-anchor:middle;letter-spacing:.06em}
 .territory{fill:transparent;stroke:none}
 .edge{fill:none;stroke:${C.ink};stroke-width:0.45;stroke-dasharray:2.2 1.4;stroke-opacity:.75;pointer-events:none}
@@ -1026,11 +1268,19 @@ out.push(`<defs>
 .capital{fill:${C.ink};stroke:${C.paper};stroke-width:0.5}
 .town-dot{fill:${C.ink}}
 .town-dot.other{fill:${C.inkFaded}}
+.village-dot{fill:none;stroke:${C.ink};stroke-width:0.35}
+.lm-fort{fill:none;stroke:${C.ink};stroke-width:0.45}
+.lm-hill{fill:${C.ink}}
+.lm-height{font-family:${FONT.fell};font-style:italic;font-size:3.6px;fill:${C.ink}}
+.lm-wood circle{fill:${C.forest};fill-opacity:.8}
+.lm-ridge{fill:none;stroke:${C.ridge};stroke-width:0.5;stroke-linecap:round}
 .map-label{pointer-events:none;paint-order:stroke;stroke:${C.paper};stroke-width:2.2px;stroke-linejoin:round;stroke-opacity:.85}
 .label{font-family:${FONT.place};fill:${C.ink};text-anchor:middle;letter-spacing:.08em}
 .label.city{font-size:10px}
 .label.town{font-size:6.5px}
 .label.town.other{fill:${C.inkFaded}}
+.label.village{font-size:4.2px;letter-spacing:.04em}
+.label.landmark{font-family:${FONT.fell};font-style:italic;font-size:4.6px;letter-spacing:.02em}
 .vp-ring{fill:${C.paper};stroke:${C.ink};stroke-width:0.6}
 .vp-text{font-family:${FONT.fell};font-size:5px;fill:${C.ink};text-anchor:middle;pointer-events:none}
 .cartouche-small{font-family:${FONT.place};font-size:9px;letter-spacing:.3em;fill:${C.ink};text-anchor:middle}
@@ -1038,14 +1288,15 @@ out.push(`<defs>
 .cartouche-date{font-family:${FONT.fell};font-style:italic;font-size:9.5px;fill:${C.ink};text-anchor:middle}
 .compass-n{font-family:${FONT.place};font-size:9px;fill:${C.ink};text-anchor:middle}
 .scale-text{font-family:${FONT.fell};font-size:6px;fill:${C.ink};text-anchor:middle}
-.mud-wash{opacity:0;transition:opacity .6s}
-.map-svg.autumn .mud-wash{opacity:1}
+.mud-wash,.season-snow,.season-spring{opacity:0;transition:opacity .6s}
+.map-svg.autumn .mud-wash,.map-svg.winter .season-snow,.map-svg.spring .season-spring{opacity:1}
 </style>
-<linearGradient id="fold-v" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="${C.paperDark}" stop-opacity="0"/><stop offset=".48" stop-color="${C.paperDark}" stop-opacity=".55"/><stop offset=".5" stop-color="${C.telegram}" stop-opacity=".7"/><stop offset="1" stop-color="${C.telegram}" stop-opacity="0"/></linearGradient>
-<linearGradient id="fold-h" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="${C.paperDark}" stop-opacity="0"/><stop offset=".48" stop-color="${C.paperDark}" stop-opacity=".5"/><stop offset=".5" stop-color="${C.telegram}" stop-opacity=".6"/><stop offset="1" stop-color="${C.telegram}" stop-opacity="0"/></linearGradient>
+<linearGradient id="fold-v" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="${C.paperDark}" stop-opacity="0"/><stop offset=".48" stop-color="${C.paperDark}" stop-opacity=".6"/><stop offset=".5" stop-color="${C.telegram}" stop-opacity=".75"/><stop offset="1" stop-color="${C.telegram}" stop-opacity="0"/></linearGradient>
+<linearGradient id="fold-h" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="${C.paperDark}" stop-opacity="0"/><stop offset=".48" stop-color="${C.paperDark}" stop-opacity=".55"/><stop offset=".5" stop-color="${C.telegram}" stop-opacity=".65"/><stop offset="1" stop-color="${C.telegram}" stop-opacity="0"/></linearGradient>
 <radialGradient id="vignette" cx=".5" cy=".5" r=".72"><stop offset=".62" stop-color="${C.leather}" stop-opacity="0"/><stop offset="1" stop-color="${C.leather}" stop-opacity=".42"/></radialGradient>
 <pattern id="pat-paper" patternUnits="userSpaceOnUse" width="96" height="96"><image href="${paperGrainPng(160)}" width="96" height="96"/></pattern>
 ${patternDefs()}
+${scarPatterns()}
 <clipPath id="map-frame"><rect x="0" y="0" width="${WIDTH}" height="${HEIGHT}"/></clipPath>
 </defs>`);
 // Everything is drawn on one sheet of paper: nothing spills past its edge.
@@ -1064,6 +1315,9 @@ out.push('</g>');
 // Each territory's outline, stored once and reused below with <use>.
 out.push('<defs id="shapes">');
 for (const box of map.boxes) out.push(`<path id="shape-${box.id}" d="${polyD(shapes[box.id])}"/>`);
+// Each territory as a clip, so map.js can paint an owner-coloured band just inside
+// its border (the coloured region edges of a campaign map).
+for (const box of map.boxes) out.push(`<clipPath id="clip-${box.id}"><use href="#shape-${box.id}"/></clipPath>`);
 out.push('</defs>');
 
 // Terrain (static): ground tones, then textures. Mud only shows in autumn (map.js
@@ -1080,20 +1334,37 @@ for (const box of map.boxes) {
   }
 }
 out.push('</g>');
+// Seasons (map.js sets "winter" Dec–Feb and "spring" Mar–May).
+out.push(`<g class="season-snow"><rect width="${WIDTH}" height="${HEIGHT}" fill="${C.telegram}" fill-opacity="0.32"/><rect width="${WIDTH}" height="${HEIGHT}" fill="url(#pat-snow)"/></g>`);
+out.push(`<rect class="season-spring" width="${WIDTH}" height="${HEIGHT}" fill="${C.forest}" fill-opacity="0.07"/>`);
+// Battle scars and owner-coloured region edges go here (map.js).
+out.push('<g id="scars"></g><g id="region-edges"></g>');
 
-// Relief, coast, rivers, borders.
+// Relief: contours (full zoom), then ridge shading and hachures.
+out.push(contours);
 out.push('<g id="relief">', reliefSvg(), '</g>');
-out.push(`<path class="coast" d="${coastLines.map((l) => lineD(thin(l, 0.6))).join('')}"/>`);
-out.push('<g id="rivers">');
-for (const r of rivers) out.push(`<path class="river" data-river="${esc(r.name)}" d="${lineD(thin(r.pts, 0.8))}"/>`);
-out.push('</g>');
-out.push(`<path class="border" d="${borderLines.map((l) => lineD(thin(l, 0.6))).join('')}"/>`);
-out.push(`<path class="border-1871" d="${lineD(extra.border1871.points.map(P))}"/>`);
+
+// Water and borders, hand-wobbled, each with a faint ink bleed underneath.
+const wobbled = (pts, key) => simplify(handWobble(thin(pts, 0.6), key, 0.22), 0.12);
+const coastD = coastLines.map((l, i) => lineD(wobbled(l, 'coast' + i))).join('');
+const riverD = rivers.map((r, i) => lineD(wobbled(r.pts, 'river' + i))).join('');
+const borderD = borderLines.map((l, i) => lineD(wobbled(l, 'border' + i))).join('');
+// Each line is stored once (in <defs>) and drawn twice with <use>: bleed, then ink.
+out.push(`<defs><path id="line-coast" d="${coastD}"/><path id="line-rivers" d="${riverD}"/><path id="line-borders" d="${borderD}"/></defs>`);
+out.push('<use class="bleed coast" href="#line-coast"/><use class="coast-ink" href="#line-coast"/>');
+out.push('<g id="rivers"><use class="bleed river" href="#line-rivers"/><use class="river-ink" href="#line-rivers"/></g>');
+out.push('<use class="bleed border" href="#line-borders"/><use class="border-ink" href="#line-borders"/>');
+out.push(`<path class="border-1871" d="${lineD(handWobble(extra.border1871.points.map(P), '1871', 0.3))}"/>`);
+// Roads and railways (mid zoom and closer).
+out.push(roadSvg());
+out.push(railwaySvg());
 
 // Territories: the tap targets. map.js tints them by owner (30%, STYLE.md §4.5).
+// data-x / data-y is the anchor town, used for arrows and pencil notes.
 out.push('<g id="territories">');
 for (const box of map.boxes) {
-  out.push(`<use ${attrs({ id: box.id, class: 'territory', 'data-box': box.id, href: '#shape-' + box.id })}/>`);
+  const [ax, ay] = P([box.anchor.lat, box.anchor.lon]);
+  out.push(`<use ${attrs({ id: box.id, class: 'territory', 'data-box': box.id, 'data-x': f(ax), 'data-y': f(ay), href: '#shape-' + box.id })}/>`);
 }
 out.push('</g>');
 
@@ -1116,24 +1387,28 @@ for (const key of [...wanted].sort()) {
   out.push(`<path ${attrs({ class: 'edge', 'data-a': a, 'data-b': b, 'data-left': left, d })}/>`);
 }
 out.push('</g>');
-// map.js fills these: no-man's land, trenches, the front line, the selection.
-out.push('<g id="nomansland"></g><g id="trenches"></g><g id="front"></g><g id="selection"></g>');
+// map.js fills these: trenches, the front line, plans, the selection, pencil notes.
+out.push('<g id="trenches"></g><g id="front"></g><g id="plans"></g><g id="selection"></g>');
 
-// Names of seas, countries and rivers.
+// Villages and landmarks (full zoom).
+out.push(villageSvg());
+out.push(landmarkSvg());
+
+// Names of seas, countries and rivers (river names from mid zoom).
 out.push('<g id="place-names">');
 for (const l of extra.placeNames.list) {
   const [x, y] = P(l.at);
   out.push(`<text class="${l.cls}" x="${f(x)}" y="${f(y)}">${esc(l.text)}</text>`);
 }
-out.push(...riverLabels(rivers));
+out.push(...riverLabels(rivers).map((t) => t.replace('class="river-label map-label"', 'class="river-label map-label lod-mid"')));
 out.push('</g>');
 
-// Towns: symbols and names. Named boxes get a VP number in a small circle.
+// Towns: symbols and names. Named boxes get a VP number in a small circle (mid zoom).
 out.push('<g id="towns">');
 for (const t of extra.otherTowns.list) {
   const [x, y] = P(t.at);
-  out.push(`<circle class="town-dot other" cx="${f(x)}" cy="${f(y)}" r="0.9"/>`);
-  out.push(`<text class="label town other map-label" x="${f(x)}" y="${f(y - 2.4)}">${esc(t.name)}</text>`);
+  out.push(`<circle class="town-dot other lod-mid" cx="${f(x)}" cy="${f(y)}" r="0.9"/>`);
+  out.push(`<text class="label town other map-label lod-mid" x="${f(x)}" y="${f(y - 2.4)}">${esc(t.name)}</text>`);
 }
 for (const box of map.boxes) {
   const [x, y] = P([box.anchor.lat, box.anchor.lon]);
@@ -1144,19 +1419,22 @@ for (const box of map.boxes) {
     const name = box.short && box.name.length > 14 ? box.short : box.name;
     out.push(`<g class="city-label" data-box="${box.id}" transform="translate(${f(x)},${f(y)})">` +
       `<text class="label city map-label" y="-7">${esc(name)}</text>` +
-      `<circle class="vp-ring" cx="0" cy="8.5" r="3.4"/><text class="vp-text" y="10.2">${box.vp}</text></g>`);
+      `<circle class="vp-ring lod-mid" cx="0" cy="8.5" r="3.4"/><text class="vp-text lod-mid" y="10.2">${box.vp}</text></g>`);
   } else {
     out.push(`<circle class="town-dot" cx="${f(x)}" cy="${f(y)}" r="1"/>`);
-    out.push(`<text class="label town map-label" data-box="${box.id}" x="${f(x)}" y="${f(y - 2.6)}">${esc(box.anchor.town)}</text>`);
+    out.push(`<text class="label town map-label lod-mid" data-box="${box.id}" x="${f(x)}" y="${f(y - 2.6)}">${esc(box.anchor.town)}</text>`);
   }
 }
 out.push('</g>');
+// Pencil notes from the staff officer (map.js).
+out.push('<g id="notes"></g>');
 
-// Furniture and the paper itself, on top: grain, two fold creases, vignette.
+// Furniture and the paper itself, on top: grain, age marks, fold creases, vignette.
 out.push(compassRose(46, HEIGHT - 70, 24));
 out.push(scaleBar(86, HEIGHT - 30));
 out.push(cartouche());
 out.push(`<rect class="paper-grain" x="0" y="0" width="${WIDTH}" height="${HEIGHT}" fill="url(#pat-paper)"/>`);
+out.push(ageMarks());
 out.push(`<rect class="fold" x="${WIDTH / 2 - 7}" y="0" width="14" height="${HEIGHT}" fill="url(#fold-v)"/>`);
 out.push(`<rect class="fold" x="0" y="${HEIGHT / 2 - 7}" width="${WIDTH}" height="14" fill="url(#fold-h)"/>`);
 out.push(`<rect class="vignette" x="0" y="0" width="${WIDTH}" height="${HEIGHT}" fill="url(#vignette)"/>`);

@@ -4,7 +4,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { runAll } from './tests.js';
+import { runAll, PALETTE } from './tests.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -50,6 +50,11 @@ const ruleChecks = [
   ['rule: js/engine/ never hard-codes place names', () =>
     webFiles.filter((f) => f.startsWith('js/engine/') && /Verdun|Paris|France/.test(read(f)))],
 
+  ['rule: css/style.css only uses docs/STYLE.md palette colours', () => {
+    const hexes = read('css/style.css').match(/#[0-9a-fA-F]{6}\b/g) || [];
+    return [...new Set(hexes.filter((h) => !PALETTE.includes(h.toUpperCase())))];
+  }],
+
   ['rule: index.html has the phone viewport tag', () => {
     const html = read('index.html');
     return html.includes('width=device-width, initial-scale=1, viewport-fit=cover') ? [] : ['index.html'];
@@ -57,7 +62,7 @@ const ruleChecks = [
 ];
 
 // Node reads the data files straight from disk.
-const results = await runAll(async (f) => JSON.parse(read(f)));
+const results = await runAll(async (f) => JSON.parse(read(f)), async (f) => read(f));
 for (const [name, fn] of ruleChecks) {
   const problems = fn();
   results.push(problems.length === 0
