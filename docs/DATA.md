@@ -74,7 +74,8 @@ instead of +1: open ground 2, forest and mountains 0).
 - `cannot-attack`: this nation's units can't attack.
 - `note`: shown on the Nations screen only.
 
-`from` and `to` (`"YYYY-MM"`) limit when a trait works.
+`from` and `to` (`"YYYY-MM"`) limit when a trait works. `tech` names a tech in
+`economy.json` that starts the trait early once researched (Defence in depth).
 
 ## `nations.json`: sides and nations
 | Field | Meaning |
@@ -148,6 +149,33 @@ and `effects`). The computer picks `aiChoice`; a human player is asked, and the 
 `greenUntil`). `afterEntry` lists US arrivals `after` months from the declaration.
 `placeLanes` limits where a nation's units arrive (GBR lanes 1–6, USA 9–12). Units with
 `greenTurns` in `unit-types.json` arrive Green for that many months.
+
+## `economy.json`: the war economy (RULES.md §19) [balanced]
+Manpower is each nation's `rp` schedule and the Industry base is its `munitions`
+schedule, both in `nations.json`. This file adds the rest:
+
+| Field | What it is |
+|---|---|
+| `stockCap` | Most munitions a nation can hold in its stockpile (3) |
+| `munitionCost` | IP per munition (1) |
+| `aiResearchCap` | Most IP the computer puts into research each month (3) |
+| `autoAllocateLevels` | Difficulty levels where Auto-allocate starts on (`recruit`) |
+| `industryBonus` | Per nation, a schedule `[{from, value}]` of the war-economy bonus |
+| `cities` | Industrial cities: `box`, `holder` (the side that starts with it), `effects` `{nation: IP}` that apply while the other side owns it, and a `note` |
+| `techs` | Research: `id`, `name`, `nations` that can pay for it (France and Britain share the creeping barrage), `historical` month it arrives free (`null` = never happened), `earliest` month it can be researched, `cost` in IP, `effect`, optional `replaces`, `text` (what it does) and `note` (one line of history) |
+
+Tech `effect` kinds:
+
+| `kind` | What it does |
+|---|---|
+| `barrage-max` | `side`'s barrage maximum becomes `max` |
+| `reinforce` | `count` new `type` units for `nation` (placed like reinforcements) |
+| `industry` | `nation` gets `value` more Industry every month |
+| `trait` | `nation`'s trait `trait` starts (the trait in `nations.json` names the tech in its `tech` field) |
+| `convert` | as the event effect of the same name |
+
+`replaces` names what a tech brought forward so it doesn't happen twice: `{event: id}` or
+`{reinforcement: {month, nation, type}}`.
 
 ## `ai.json`: the computer opponent (RULES.md §13–§14) [balanced]
 | Field | Meaning |

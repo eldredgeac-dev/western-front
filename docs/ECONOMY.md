@@ -1,5 +1,8 @@
 # ECONOMY.md — War economy (rules addendum, Version 1.3)
 
+> **Merged into `docs/RULES.md` §19 (and §4, §6, §7, §9, §10, §11) on 25 November 2026.
+> RULES.md is now the source of truth; this file is kept as the design record.**
+
 **For Claude Code:** merge this into `docs/RULES.md` as a new §19. Update §6
 (Resources) and §11 (German starting Will 105 → 108) to match. The simulator
 implementation is in `tools/econ_reference/wfsim.py`. Bring its `economy` / `split`

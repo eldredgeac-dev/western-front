@@ -8,12 +8,14 @@ import { unitsIn, stepsIn, stackRoom, unitType } from '../js/engine/units.js';
 import { moveTargets, railTargets, moveUnit, railMove } from '../js/engine/moves.js';
 import { next as rngNext, rollD6, roll2d6 } from '../js/engine/rng.js';
 import { resourcesFor } from '../js/engine/resources.js';
-import { beginGame, endPhase, phaseOf, digIn } from '../js/engine/turn.js';
+import { beginGame, endPhase, phaseOf, digIn, submitBudget } from '../js/engine/turn.js';
+import { manpower, industry, industryParts, cityEffects, researchOptions, techActive, checkBudget, applyBudget,
+  autoBudget, warOfficePhase, expectedMonth } from '../js/engine/systems/economy.js';
 import { inSupply, rearColumn, supplySources } from '../js/engine/supply.js';
 import { supplyPhase } from '../js/engine/systems/supply.js';
 import { spendReplacements, threat } from '../js/engine/systems/replacements.js';
 import { willPhase, armisticeScore, suddenVictory } from '../js/engine/systems/will.js';
-import { runEvents, chooseOption, pendingChoice, eventDue } from '../js/engine/events.js';
+import { runEvents, chooseOption, pendingChoice, eventDue, replacedByResearch } from '../js/engine/events.js';
 import { aiMove, aiAttack, frontBoxes } from '../js/engine/ai.js';
 import { SILHOUETTES, mix, isDark } from '../js/ui/counters.js';
 import { queueCheck, addOrder, cancelOrder, commitOrders } from '../js/engine/orders.js';
@@ -379,7 +381,7 @@ test('newGame: units start at full strength, on their own side, within stacking'
 
 test('newGame: starting Will and December 1914 resources match RULES.md §6 and §11', () => {
   const s = game();
-  check(s.will.ger === 105 && s.will.fra === 75 && s.will.gbr === 85, JSON.stringify(s.will));
+  check(s.will.ger === 108 && s.will.fra === 75 && s.will.gbr === 85, JSON.stringify(s.will));
   check(s.will.usa === undefined, 'the USA has no Will until it enters the war');
   const r = s.resources;
   check(r.ger.op === 2 && r.ger.munitions === 3 && r.ger.rp === 3 && r.ger.rail === 3, 'GER ' + JSON.stringify(r.ger));
@@ -451,7 +453,7 @@ function endUntil(state, id) {
 
 test('turn: phases follow RULES.md §7 order', () => {
   const ids = data.phases.phases.map((p) => p.id);
-  check(ids.join() === 'events,germany-move,germany-attack,entente-move,entente-attack,supply,dig-in,replacements,will,newspaper', ids.join());
+  check(ids.join() === 'events,war-office,germany-move,germany-attack,entente-move,entente-attack,supply,dig-in,replacements,will,newspaper', ids.join());
 });
 
 test('turn: a new game waits at the German move; End Phase steps through the turn', () => {
@@ -809,7 +811,7 @@ test('combat: taking a named box changes Will (RULES.md §11)', () => {
   s.units = s.units.filter((u) => !['l06-e2'].includes(u.box) || u.nation === 'ger');
   let plan = planAttack(s, bundle(), { target: 'l06-e3', units: ['ger-06'] });
   let r = applyCombatResult(s, bundle(), plan, { a: 0, d: 0, r: true });
-  check(r.taken && s.will.fra === 70 && s.will.ger === 107, `FRA ${s.will.fra} GER ${s.will.ger}`);
+  check(r.taken && s.will.fra === 70 && s.will.ger === 110, `FRA ${s.will.fra} GER ${s.will.ger}`);
   // Germany takes the Channel Ports (8 VP, lane 1): GBR −8 −15, GER +4
   s = atWar('1915-04');
   s.boxes['l01-e2'].owner = 'germany';
@@ -817,7 +819,7 @@ test('combat: taking a named box changes Will (RULES.md §11)', () => {
   place(s, 'ger-01', 'l01-e2');
   plan = planAttack(s, bundle(), { target: 'l01-e3', units: ['ger-01'] });
   applyCombatResult(s, bundle(), plan, { a: 0, d: 0, r: true });
-  check(s.will.gbr === 85 - 8 - 15 && s.will.ger === 105 + 4, `GBR ${s.will.gbr} GER ${s.will.ger}`);
+  check(s.will.gbr === 85 - 8 - 15 && s.will.ger === 108 + 4, `GBR ${s.will.gbr} GER ${s.will.ger}`);
   // The Entente takes Lille (3 VP): GER −3; FRA and GBR +0 (¼ of 3, rounded down)
   s = atWar('1915-04', 'entente');
   s.boxes['l03-g1'].owner = 'entente';
@@ -825,7 +827,7 @@ test('combat: taking a named box changes Will (RULES.md §11)', () => {
   place(s, 'gbr-02', 'l03-g1');
   plan = planAttack(s, bundle(), { target: 'l03-g2', units: ['gbr-02'] });
   applyCombatResult(s, bundle(), plan, { a: 0, d: 0, r: true });
-  check(s.will.ger === 102 && s.will.fra === 75 && s.will.gbr === 85, `GER ${s.will.ger}`);
+  check(s.will.ger === 105 && s.will.fra === 75 && s.will.gbr === 85, `GER ${s.will.ger}`);
 });
 
 test('combat: every attack is recorded for the map (battle scars and pencil notes)', () => {
@@ -899,7 +901,7 @@ test('Will: 1 per 3 steps (GER) or 2 (FRA, GBR), rounded down; Belgian losses co
   const s = copyOf(started());
   s.lostThisTurn = { ger: 7, fra: 5, gbr: 1, bel: 2, usa: 0 };
   willPhase(s, bundle());
-  check(s.will.ger === 105 - 2 && s.will.gbr === 85, `GER ${s.will.ger} GBR ${s.will.gbr}`);
+  check(s.will.ger === 108 - 2 && s.will.gbr === 85, `GER ${s.will.ger} GBR ${s.will.gbr}`);
   check(s.will.fra === 75 - 2 - 1, `FRA ${s.will.fra} (5 French steps → 2, 2 Belgian → 1)`);
 });
 
@@ -931,10 +933,10 @@ test('victory: FRA or GBR Will at 0, or Paris taken — Germany wins; GER Will a
 
 test('victory: the Armistice Score after November 1918 (RULES.md §11)', () => {
   const s = copyOf(started());
-  check(armisticeScore(s, bundle()) === 105 - 80, 'start: 105 − (75 + 85) / 2 = 25');
+  check(armisticeScore(s, bundle()) === 108 - 80, 'start: 108 − (75 + 85) / 2 = 28');
   s.boxes['l06-e3'].owner = 'germany';   // Amiens (5)
   s.boxes['l03-g2'].owner = 'entente';   // Lille (3)
-  check(armisticeScore(s, bundle()) === 25 + 5 - 3, 'captured VP count');
+  check(armisticeScore(s, bundle()) === 28 + 5 - 3, 'captured VP count');
   s.turn = 48; s.will = { ger: 70, fra: 70, gbr: 72 };
   s.boxes['l06-e3'].owner = 'entente';
   willPhase(s, bundle());
@@ -1001,7 +1003,7 @@ test('saves: an old version 1 save (owners and trenches only) is upgraded', () =
   v1.boxes['l06-g1'].owner = 'entente'; v1.boxes['l06-g1'].trench = 0;
   const up = migrateState(v1, data.scenario, bundle());
   check(up.version === STATE_VERSION && up.turn === 5 && up.boxes['l06-g1'].owner === 'entente', 'kept month and owners');
-  check(up.units.length === 37 && !up.units.some((u) => u.box === 'l06-g1') && up.will.ger === 105 &&
+  check(up.units.length === 37 && !up.units.some((u) => u.box === 'l06-g1') && up.will.ger === 108 &&
     checkState(up, bundle()).length === 0, 'filled in the rest (and no German unit left in the lost box)');
 });
 
@@ -1112,11 +1114,11 @@ test('events: Vimy makes 2 British units Elite; stormtroopers; the Kaiserschlach
 test('difficulty: Will bonuses and the computer\'s resources follow RULES.md §13', () => {
   const g = (player, level) => newGame(data.scenario, 1, bundle(), { player, level });
   let s = g('entente', 'recruit');
-  check(s.will.fra === 90 && s.will.gbr === 100 && s.will.ger === 105, 'Recruit: +15 to each of your nations');
+  check(s.will.fra === 90 && s.will.gbr === 100 && s.will.ger === 108, 'Recruit: +15 to each of your nations');
   check(s.resources.ger.munitions === Math.round(3 * 0.8) && s.resources.ger.rp === Math.round(3 * 0.8), 'computer ×0.8');
   check(s.controllers.germany === 'ai' && s.controllers.entente === 'human', 'who plays what');
   s = g('germany', 'field-marshal');
-  check(s.will.fra === 85 && s.will.ger === 105 && s.aiSkill.entente === 'expert', 'Field Marshal: computer +10, Expert');
+  check(s.will.fra === 85 && s.will.ger === 108 && s.aiSkill.entente === 'expert', 'Field Marshal: computer +10, Expert');
   check(s.resources.fra.munitions === Math.round(2 * 1.3), 'computer ×1.3');
   s = g('germany', 'veteran');
   check(s.will.gbr === 90 && s.resources.gbr.rp === Math.round(2 * 1.15), 'Veteran: +5, ×1.15');
@@ -1358,6 +1360,258 @@ test('saves: a version 3 save gets empty War Office records', () => {
   check(up.version === STATE_VERSION && Array.isArray(up.history) && up.lossesTotal && typeof up.lossesTotal === 'object', 'records added');
 });
 
+// ---------------------------------------------------------------- the war economy (RULES.md §19)
+// The data bundle with the economy switched on (data/economy.json).
+const eco = () => ({ ...bundle(), economy: data.economy });
+// A game set to the start of `month`, both sides human, budgets not yet spent.
+function ecoAt(month, options = {}) {
+  const s = newGame(data.scenario, 5, eco(), options);
+  const [y, m] = month.split('-').map(Number);
+  s.turn = (y * 12 + m) - (1914 * 12 + 12) + 1;
+  s.resources = resourcesFor(eco(), month);
+  for (const r of Object.values(s.resources)) r.munitions = 0;
+  return s;
+}
+const tanksOf = (s, nation) => s.units.filter((u) => u.nation === nation && u.type === 'tanks').length;
+
+test('economy §19.1: Manpower is the replacements schedule (×difficulty) and goes to RP', () => {
+  const s = ecoAt('1915-06');
+  check(manpower(s, eco(), 'ger') === 3 && manpower(s, eco(), 'fra') === 3 && manpower(s, eco(), 'gbr') === 2, '1915');
+  check(manpower(s, eco(), 'ger', '1917-03') === 2 && manpower(s, eco(), 'ger', '1918-08') === 1, 'GER later');
+  check(manpower(s, eco(), 'fra', '1916-03') === 2 && manpower(s, eco(), 'fra', '1918-03') === 1, 'FRA later');
+  check(manpower(s, eco(), 'gbr', '1916-03') === 3 && manpower(s, eco(), 'usa') === 2, 'GBR 1916, USA');
+  s.resourceMult = { germany: 1.3 };
+  check(manpower(s, eco(), 'ger') === Math.round(3 * 1.3), 'difficulty ×1.3');
+});
+
+test('economy §19.2: Industry = old munitions + war-economy bonus', () => {
+  const s = ecoAt('1915-06');
+  const ip = (n, m) => industry(s, eco(), n, m);
+  check(ip('ger', '1915-06') === 4 && ip('ger', '1918-06') === 4, 'GER 3 + 1');
+  check(ip('fra', '1915-06') === 2 && ip('fra', '1916-06') === 4 && ip('fra', '1917-06') === 5 && ip('fra', '1918-06') === 6,
+    'FRA 2 / 3+1 / 4+1 / 5+1');
+  check(ip('gbr', '1915-06') === 1 && ip('gbr', '1916-06') === 3 && ip('gbr', '1917-06') === 4, 'GBR 1 / 3 / 4');
+  check(ip('usa', '1918-06') === 1, 'USA 1');
+});
+
+test('economy §19.2: difficulty multiplies the base only, not the bonus', () => {
+  const s = ecoAt('1916-06');
+  s.resourceMult = { germany: 1.3, entente: 0.8 };
+  check(industry(s, eco(), 'ger') === Math.round(3 * 1.3) + 1, 'GER ' + industry(s, eco(), 'ger'));
+  check(industry(s, eco(), 'fra') === Math.round(3 * 0.8) + 1, 'FRA ' + industry(s, eco(), 'fra'));
+});
+
+test('economy §19.3: industrial cities change Industry when captured', () => {
+  const s = ecoAt('1916-06');
+  const before = Object.fromEntries(['ger', 'fra', 'gbr'].map((n) => [n, industry(s, eco(), n)]));
+  const lose = (box, side, n, change) => {
+    const t = copyOf(s); t.boxes[box].owner = side;
+    check(industry(t, eco(), n) === before[n] + change, `${box}: ${n} ${industry(t, eco(), n)}`);
+    return t;
+  };
+  lose('l07-e3', 'germany', 'fra', -3);   // Paris
+  lose('l06-e3', 'germany', 'fra', -1);   // Amiens
+  lose('l01-e3', 'germany', 'gbr', -2);   // Channel Ports
+  const lille = lose('l03-g2', 'entente', 'ger', -1);
+  check(industry(lille, eco(), 'fra') === before.fra + 1, 'Lille retaken: FRA +1');
+  lose('l11-g3', 'entente', 'ger', -2);   // Metz
+  lose('l10-g3', 'entente', 'ger', -1);   // Sedan–Mézières
+  check(cityEffects(s, eco()).length === 6 && !cityEffects(s, eco()).some((c) => c.lost), 'six cities, none lost at the start');
+});
+
+test('economy §19.3: Industry never goes below 0', () => {
+  const s = ecoAt('1915-06');
+  s.boxes['l07-e3'].owner = 'germany'; s.boxes['l06-e3'].owner = 'germany';
+  const p = industryParts(s, eco(), 'fra');
+  check(p.base + p.bonus + p.cities === -2 && p.total === 0, JSON.stringify(p));
+});
+
+test('economy §19.4: the stockpile starts empty, holds at most 3 and carries over', () => {
+  let s = newGame(data.scenario, 5, eco(), { player: 'germany', level: 'regular' });
+  check(Object.values(s.resources).every((r) => r.munitions === 0), 'empty at the start');
+  s = beginGame(s, eco());
+  check(s.pendingBudget.join() === 'germany' && s.resources.ger.munitions === 0, 'the German budget waits');
+  check(s.resources.fra.munitions === 2 && s.resources.gbr.munitions === 1, 'the computer bought munitions with all its Industry');
+  s = submitBudget(s, eco(), 'germany', { ger: { munitions: 3, research: 0 } });
+  check(s.resources.ger.munitions === 3 && !s.pendingBudget, 'stockpile 3');
+  // play on to January: the stockpile is still there when the next budget comes
+  for (let i = 0; i < 20 && !s.pendingBudget; i++) s = endPhase(s, eco());
+  check(currentMonth(s) === '1915-01' && s.pendingBudget, 'January budget waits');
+  check(s.resources.ger.munitions === 3, 'carried over: ' + s.resources.ger.munitions);
+  check(checkBudget(s, eco(), 'ger', { munitions: 1, research: 0 }).length > 0, 'no room for more than 3');
+});
+
+test('economy §19.4: barrages spend the stockpile; unspent Industry is lost', () => {
+  const s = ecoAt('1915-04', { player: 'both' });
+  s.phase = phaseIndex('entente-attack');
+  s.resources.fra.munitions = 2;
+  const out = resolveAttack(s, eco(), { target: 'l06-g1', units: ['fra-03'], munitions: 2 });
+  check(out.state.resources.fra.munitions === 0, 'spent from the stockpile');
+  const t = ecoAt('1916-06');
+  applyBudget(t, eco(), 'ger', { munitions: 1, research: 0 });
+  check(t.budget.ger.industry === 4 && t.budget.ger.unspent === 3 && t.resources.ger.munitions === 1, JSON.stringify(t.budget.ger));
+});
+
+test('economy §19.4: a budget that breaks the rules is refused', () => {
+  const s = ecoAt('1916-06');
+  check(checkBudget(s, eco(), 'ger', { munitions: 3, research: 2, tech: null }).some((p) => p.includes('more than')), 'overspending');
+  check(checkBudget(s, eco(), 'ger', { munitions: 0, research: 2, tech: 'defence-in-depth' }).length > 0, 'before its earliest date');
+  check(checkBudget(s, eco(), 'ger', { munitions: 0, research: 2, tech: 'landships' }).length > 0, 'another nation\'s tech');
+  check(checkBudget(s, eco(), 'ger', { munitions: -1, research: 0 }).length > 0, 'negative');
+  check(checkBudget(s, eco(), 'ger', { munitions: 2, research: 0 }).length === 0, 'a fair budget is fine');
+  let threw = false;
+  try { applyBudget(s, eco(), 'ger', { munitions: 9, research: 0 }); } catch (e) { threw = true; }
+  check(threw && s.resources.ger.munitions === 0, 'applyBudget throws and changes nothing');
+});
+
+test('economy §19.5: research only between the earliest and historical dates', () => {
+  const ids = (m, n) => researchOptions(ecoAt(m), eco(), n).map((t) => t.id).join();
+  check(ids('1915-12', 'fra') === '', 'nothing in 1915');
+  check(ids('1916-01', 'fra') === 'creeping-barrage,heavy-artillery' && ids('1916-01', 'gbr') === 'creeping-barrage', 'Jan 1916');
+  check(ids('1916-06', 'gbr') === 'landships', 'creeping barrage arrived historically in June 1916');
+  check(ids('1916-06', 'ger') === '' && ids('1916-07', 'ger') === 'defence-in-depth', 'Defence in depth from Jul 1916');
+  check(ids('1918-01', 'ger') === 'a7v' && ids('1918-01', 'fra') === 'renault-ft,heavy-artillery', '1918');
+});
+
+test('economy §19.5: progress carries over; a tech completes when it reaches its cost', () => {
+  const s = ecoAt('1916-03');
+  applyBudget(s, eco(), 'gbr', { munitions: 0, research: 3, tech: 'landships' });
+  check(s.research.landships === 3 && !s.techs.includes('landships'), '3 of 10');
+  s.turn += 1;
+  const tanks = tanksOf(s, 'gbr');
+  applyBudget(s, eco(), 'gbr', { munitions: 0, research: 3, tech: 'landships' });
+  s.research.landships = 7; s.turn += 1;
+  applyBudget(s, eco(), 'gbr', { munitions: 0, research: 3, tech: 'landships' });
+  check(s.techs.includes('landships') && tanksOf(s, 'gbr') === tanks + 1, 'Landships ready: the first British tank arrives');
+  check(s.log.some((l) => (l.text || l).toString().includes('Landships')), 'logged');
+});
+
+test('economy §19.5: a researched tech\'s historical event doesn\'t happen twice', () => {
+  const s = ecoAt('1916-09');
+  s.phase = 0; s.eventsDone = []; s.techs = ['landships'];
+  const before = tanksOf(s, 'gbr');
+  runEvents(s, eco());
+  check(tanksOf(s, 'gbr') === before, 'no September 1916 tank: ' + tanksOf(s, 'gbr'));
+  check(replacedByResearch(s, eco(), { reinforcement: { month: '1916-09', nation: 'gbr', type: 'tanks' } }), 'replaced');
+  const t = ecoAt('1916-09'); t.phase = 0; t.eventsDone = [];
+  runEvents(t, eco());
+  check(tanksOf(t, 'gbr') === before + 1, 'without research it arrives on time');
+  const u = ecoAt('1918-01'); u.phase = 0; u.eventsDone = []; u.techs = ['stormtroop-tactics'];
+  runEvents(u, eco());
+  check(u.units.filter((x) => x.type === 'stormtroopers').length === 0, 'no second Stormtrooper conversion');
+  const r = ecoAt('1918-06'); r.phase = 0; r.eventsDone = []; r.techs = ['renault-ft'];
+  const fra = tanksOf(r, 'fra');
+  runEvents(r, eco());
+  check(tanksOf(r, 'fra') === fra, 'no second June 1918 Renault');
+});
+
+test('economy §19.5: each tech does what RULES.md says', () => {
+  // Creeping barrage: max 3 for the Entente only, and France and Britain share it
+  let s = ecoAt('1916-02');
+  s.research = { 'creeping-barrage': 5 };
+  applyBudget(s, eco(), 'gbr', { munitions: 0, research: 3, tech: 'creeping-barrage' });
+  check(barrageMax(eco(), '1916-02', s, 'entente') === 3 && barrageMax(eco(), '1916-02', s, 'germany') === 2, 'max 3, Entente only');
+  check(!researchOptions(s, eco(), 'fra').some((t) => t.id === 'creeping-barrage'), 'France has it too');
+  check(barrageMax(eco(), '1916-06', ecoAt('1916-06'), 'entente') === 3, 'free in June 1916');
+  // Heavy artillery programme: France +1 IP a month
+  s = ecoAt('1916-06');
+  const ip = industry(s, eco(), 'fra');
+  s.research = { 'heavy-artillery': 9 };
+  applyBudget(s, eco(), 'fra', { munitions: 0, research: 1, tech: 'heavy-artillery' });
+  check(industry(s, eco(), 'fra') === ip + 1, 'FRA +1 IP');
+  // Defence in depth: works from research, before Jan 1917
+  s = atWar('1916-10', 'entente');
+  s.techs = ['defence-in-depth'];
+  s.boxes['l06-g1'].trench = 2;
+  const plan = planAttack(s, eco(), { target: 'l06-g1', units: ['fra-03'] });
+  applyCombatResult(s, eco(), plan, { a: 1, d: 0, r: false });
+  check(unit(s, 'fra-03').steps === 2, 'researched early: +1 attacker loss in October 1916');
+  check(techActive(ecoAt('1917-01'), eco(), 'defence-in-depth'), 'free in January 1917');
+  // Stormtroop tactics: up to 4 infantry units convert
+  s = ecoAt('1917-08');
+  s.research = { 'stormtroop-tactics': 9 };
+  applyBudget(s, eco(), 'ger', { munitions: 0, research: 1, tech: 'stormtroop-tactics' });
+  check(s.units.filter((u) => u.type === 'stormtroopers').length === 4, 'four Stormtroopers');
+  // A7V: Germany's one tank
+  s = ecoAt('1918-02');
+  s.research = { a7v: 10 };
+  applyBudget(s, eco(), 'ger', { munitions: 0, research: 2, tech: 'a7v' });
+  check(tanksOf(s, 'ger') === 1, 'one German tank');
+});
+
+test('economy §19.7: the computer tops up munitions to 3, then ≤3 IP into the cheapest tech', () => {
+  let s = ecoAt('1916-08');
+  s.resources.ger.munitions = 1;
+  let b = autoBudget(s, eco(), 'ger', 3);
+  check(b.munitions === 2 && b.research === 2 && b.tech === 'defence-in-depth', JSON.stringify(b));
+  s = ecoAt('1918-02');
+  s.resources.fra.munitions = 3;
+  b = autoBudget(s, eco(), 'fra', 3);
+  check(b.munitions === 0 && b.research === 3 && b.tech === 'renault-ft', 'cheapest tech, 3 IP: ' + JSON.stringify(b));
+  b = autoBudget(s, eco(), 'fra');
+  check(b.research === 6, 'a player\'s Auto-allocate has no 3 IP cap: ' + JSON.stringify(b));
+  s.research = { 'renault-ft': 6 };
+  check(autoBudget(s, eco(), 'fra').research === 2, 'never more than the tech still needs');
+  check(autoBudget(ecoAt('1915-03'), eco(), 'gbr', 3).research === 0, 'nothing to research in 1915');
+});
+
+test('economy §19.4: the War Office phase — the computer spends, a player\'s budget waits', () => {
+  const s = ecoAt('1916-08', { player: 'entente', level: 'regular' });
+  warOfficePhase(s, eco());
+  check(s.pendingBudget.join() === 'entente' && s.budget.ger && !s.budget.fra, 'German budget spent, Entente waits');
+  check(endPhase(s, eco()) === s, 'End Phase waits for the budget');
+  check(newGame(data.scenario, 1, eco(), { player: 'entente', level: 'recruit' }).autoAllocate.entente === true, 'Recruit: Auto-allocate on');
+  check(newGame(data.scenario, 1, eco(), { player: 'entente', level: 'regular' }).autoAllocate.entente === false, 'Regular: off');
+  check(newGame(data.scenario, 1, eco(), { player: 'both' }).autoAllocate.germany === true, 'hot seat: on');
+});
+
+test('economy §19.4: signing the budget carries on with the turn', () => {
+  let s = beginGame(newGame(data.scenario, 2, eco(), { player: 'entente', level: 'regular' }), eco());
+  check(s.pendingBudget.join() === 'entente' && phaseOf(s, eco()).id === 'germany-move', 'waits before Germany moves');
+  let threw = false;
+  try { submitBudget(s, eco(), 'entente', { fra: { munitions: 5, research: 0 } }); } catch (e) { threw = true; }
+  check(threw, 'a bad budget is refused');
+  s = submitBudget(s, eco(), 'entente', { fra: { munitions: 2, research: 0 }, gbr: { munitions: 1, research: 0 } }, { auto: true });
+  check(!s.pendingBudget && phaseOf(s, eco()).id === 'entente-move', 'Germany played its turn: ' + phaseOf(s, eco()).id);
+  check(s.resources.fra.munitions === 2 && s.autoAllocate.entente, 'stockpile bought, Auto-allocate on');
+});
+
+test('economy §19.6: research expected month at this month\'s rate, or its historical date', () => {
+  const s = ecoAt('1916-03');
+  s.research = { landships: 4 };
+  check(expectedMonth(s, eco(), 'landships', 3) === '1916-05', '6 more IP at 3 a month');
+  check(expectedMonth(s, eco(), 'landships', 0) === '1916-09', 'no spending: historical date');
+  check(expectedMonth(s, eco(), 'heavy-artillery', 0) === null, 'never, without spending');
+});
+
+test('economy: German starting Will is 108 (RULES.md §11)', () => {
+  check(data.nations.nations.find((n) => n.id === 'ger').startWill === 108, '108');
+});
+
+test('saves: a version 4 save gets the war economy (stockpile at most 3)', () => {
+  const v4 = copyOf(started());
+  v4.version = 4; delete v4.research; delete v4.techs; delete v4.budget; delete v4.autoAllocate;
+  v4.resources.ger.munitions = 5;
+  const up = migrateState(v4, data.scenario, eco());
+  check(up.version === STATE_VERSION && up.resources.ger.munitions === 3 && up.techs.length === 0 && up.autoAllocate.germany,
+    JSON.stringify(up.resources.ger));
+  check(checkState(up, eco()).length === 0, checkState(up, eco()).join());
+});
+
+test('economy: the same seed gives the same war (computer vs computer, a year)', () => {
+  const play = () => {
+    let s = newGame(data.scenario, 11, eco());
+    s.controllers = { germany: 'ai', entente: 'ai' };
+    s.aiSkill = { germany: 'standard', entente: 'standard' };
+    s = beginGame(s, eco());
+    for (let i = 0; i < 400 && currentMonth(s) < '1916-12' && !s.over; i++) s = endPhase(s, eco());
+    return s;
+  };
+  const a = play(); const b = play();
+  check(JSON.stringify(a) === JSON.stringify(b), 'identical');
+  check(Object.keys(a.research).length > 0, 'the computer researched: ' + JSON.stringify(a.research));
+});
+
 // ---------------------------------------------------------------- pieces (STYLE.md §5)
 test('rule: every unit type has a silhouette for its piece', () => {
   const types = data.unitTypes.types;
@@ -1391,6 +1645,7 @@ export async function runAll(loadJson, loadText) {
     data.events = await loadJson('data/events.json');
     data.ai = await loadJson('data/ai.json');
     data.headlines = await loadJson('data/headlines.json');
+    data.economy = await loadJson('data/economy.json');
   } catch (err) {
     results.push({ name: 'load data files', ok: false, error: err.message });
     return results;

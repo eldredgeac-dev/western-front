@@ -7,39 +7,41 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#221D18">
   <title>Western Front 1914–18</title>
-  <link rel="stylesheet" href="./css/style.css?v=10.1">
+  <link rel="stylesheet" href="./css/style.css?v=10.2">
   <!-- Version stamps (js/version.js): each file is asked for with "?v=…", so after an
        update the phone fetches the new files instead of keeping old copies. -->
   <script type="importmap">
   {
     "imports": {
-      "./js/engine/ai.js": "./js/engine/ai.js?v=10.1",
-      "./js/engine/battles.js": "./js/engine/battles.js?v=10.1",
-      "./js/engine/boxes.js": "./js/engine/boxes.js?v=10.1",
-      "./js/engine/combat.js": "./js/engine/combat.js?v=10.1",
-      "./js/engine/events.js": "./js/engine/events.js?v=10.1",
-      "./js/engine/history.js": "./js/engine/history.js?v=10.1",
-      "./js/engine/moves.js": "./js/engine/moves.js?v=10.1",
-      "./js/engine/orders.js": "./js/engine/orders.js?v=10.1",
-      "./js/engine/resources.js": "./js/engine/resources.js?v=10.1",
-      "./js/engine/rng.js": "./js/engine/rng.js?v=10.1",
-      "./js/engine/state.js": "./js/engine/state.js?v=10.1",
-      "./js/engine/supply.js": "./js/engine/supply.js?v=10.1",
-      "./js/engine/systems/replacements.js": "./js/engine/systems/replacements.js?v=10.1",
-      "./js/engine/systems/supply.js": "./js/engine/systems/supply.js?v=10.1",
-      "./js/engine/systems/will.js": "./js/engine/systems/will.js?v=10.1",
-      "./js/engine/turn.js": "./js/engine/turn.js?v=10.1",
-      "./js/engine/units.js": "./js/engine/units.js?v=10.1",
-      "./js/storage.js": "./js/storage.js?v=10.1",
-      "./js/ui/animate.js": "./js/ui/animate.js?v=10.1",
-      "./js/ui/counters.js": "./js/ui/counters.js?v=10.1",
-      "./js/ui/demo.js": "./js/ui/demo.js?v=10.1",
-      "./js/ui/ledger.js": "./js/ui/ledger.js?v=10.1",
-      "./js/ui/locator.js": "./js/ui/locator.js?v=10.1",
-      "./js/ui/map.js": "./js/ui/map.js?v=10.1",
-      "./js/ui/panel.js": "./js/ui/panel.js?v=10.1",
-      "./js/ui/zoom.js": "./js/ui/zoom.js?v=10.1",
-      "./js/version.js": "./js/version.js?v=10.1"
+      "./js/engine/ai.js": "./js/engine/ai.js?v=10.2",
+      "./js/engine/battles.js": "./js/engine/battles.js?v=10.2",
+      "./js/engine/boxes.js": "./js/engine/boxes.js?v=10.2",
+      "./js/engine/combat.js": "./js/engine/combat.js?v=10.2",
+      "./js/engine/events.js": "./js/engine/events.js?v=10.2",
+      "./js/engine/history.js": "./js/engine/history.js?v=10.2",
+      "./js/engine/moves.js": "./js/engine/moves.js?v=10.2",
+      "./js/engine/orders.js": "./js/engine/orders.js?v=10.2",
+      "./js/engine/resources.js": "./js/engine/resources.js?v=10.2",
+      "./js/engine/rng.js": "./js/engine/rng.js?v=10.2",
+      "./js/engine/state.js": "./js/engine/state.js?v=10.2",
+      "./js/engine/supply.js": "./js/engine/supply.js?v=10.2",
+      "./js/engine/systems/replacements.js": "./js/engine/systems/replacements.js?v=10.2",
+      "./js/engine/systems/economy.js": "./js/engine/systems/economy.js?v=10.2",
+      "./js/engine/systems/supply.js": "./js/engine/systems/supply.js?v=10.2",
+      "./js/engine/systems/will.js": "./js/engine/systems/will.js?v=10.2",
+      "./js/engine/turn.js": "./js/engine/turn.js?v=10.2",
+      "./js/engine/units.js": "./js/engine/units.js?v=10.2",
+      "./js/storage.js": "./js/storage.js?v=10.2",
+      "./js/ui/animate.js": "./js/ui/animate.js?v=10.2",
+      "./js/ui/budget.js": "./js/ui/budget.js?v=10.2",
+      "./js/ui/counters.js": "./js/ui/counters.js?v=10.2",
+      "./js/ui/demo.js": "./js/ui/demo.js?v=10.2",
+      "./js/ui/ledger.js": "./js/ui/ledger.js?v=10.2",
+      "./js/ui/locator.js": "./js/ui/locator.js?v=10.2",
+      "./js/ui/map.js": "./js/ui/map.js?v=10.2",
+      "./js/ui/panel.js": "./js/ui/panel.js?v=10.2",
+      "./js/ui/zoom.js": "./js/ui/zoom.js?v=10.2",
+      "./js/version.js": "./js/version.js?v=10.2"
     }
   }
   </script>
@@ -47,7 +49,7 @@
 <body>
   <!-- Title screen: a dark desk with the folded map on it (docs/STYLE.md §12). -->
   <main id="title-screen" class="screen title-screen">
-    <img class="title-map" src="./img/map-west.svg?v=10.1" alt="" aria-hidden="true">
+    <img class="title-map" src="./img/map-west.svg?v=10.2" alt="" aria-hidden="true">
     <div class="title-block">
       <p class="title-kicker">A strategy game of the Great War</p>
       <h1 class="title-name">Western Front</h1>
@@ -125,6 +127,9 @@
     </section>
     <!-- The War Office ledger (js/ui/ledger.js): opens over the game screen. -->
     <section id="war-office" class="war-office" hidden aria-label="War Office"></section>
+    <!-- The War Office budget (js/ui/budget.js): opens at the start of a month when
+         your budget waits (RULES.md §19.4). -->
+    <section id="budget" class="war-office" hidden aria-label="War Office budget"></section>
     <section id="panel-sheet" class="panel-sheet" aria-label="Territory details">
       <button id="sheet-handle" class="sheet-handle" type="button" aria-label="Show or hide the details" aria-expanded="false">
         <span class="sheet-grip" aria-hidden="true"></span>
@@ -134,6 +139,6 @@
   </main>
 
   <!-- type="module" lets main.js use import/export. -->
-  <script type="module" src="./js/main.js?v=10.1"></script>
+  <script type="module" src="./js/main.js?v=10.2"></script>
 </body>
 </html>

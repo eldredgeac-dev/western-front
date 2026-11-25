@@ -8,7 +8,9 @@ import { resourcesFor, applyDifficulty } from './resources.js';
 // recognised and upgraded (Milestone 8).
 //   1: owners and trenches only (Milestone 2)
 //   2: units, Will, resources, the dice, the phase and the log (Milestones 3–5)
-export const STATE_VERSION = 4;
+//   3: queued orders   4: the War Office's records
+//   5: the war economy (RULES.md §19): the munitions stockpile, research, budgets
+export const STATE_VERSION = 5;
 
 // Build a brand-new game from a scenario (data/scenarios/*.json).
 //   seed — any whole number; it drives every dice roll (js/engine/rng.js)
@@ -53,6 +55,10 @@ export function newGame(scenario, seed, data = {}, options = {}) {
     orders: [],               // orders queued this phase, not yet committed (js/engine/orders.js)
     history: [],              // one row per month: Will, strength, losses (js/engine/history.js)
     lossesTotal: {},          // steps lost per nation in earlier months (the Butcher's Bill)
+    research: {},             // IP put into each tech so far (js/engine/systems/economy.js)
+    techs: [],                // techs researched (bought) in this game
+    budget: {},               // this month's War Office budget per nation
+    autoAllocate: {},         // per side: spend the budget automatically each month?
     log: [],
   };
   if (data.nations) {
@@ -62,6 +68,9 @@ export function newGame(scenario, seed, data = {}, options = {}) {
       state.lostThisTurn[n.id] = 0;
     }
     state.resources = resourcesFor(data, currentMonth(state));
+    // With the war economy the munitions stockpile starts empty: the first War
+    // Office budget fills it (RULES.md §19.4).
+    if (data.economy) for (const r of Object.values(state.resources)) r.munitions = 0;
   }
   setUpSides(state, data, options);
   return state;
@@ -77,6 +86,10 @@ function setUpSides(state, data, options) {
   state.resourceMult = {};
   state.willBonus = {};
   const level = data.ai ? data.ai.levels.find((l) => l.id === state.level) : null;
+  // Auto-allocate the War Office budget (RULES.md §19.4): on by default on Recruit,
+  // and when one person plays both sides (they can turn it off on the budget screen).
+  const autoLevels = (data.economy && data.economy.autoAllocateLevels) || [];
+  state.autoAllocate = Object.fromEntries(sides.map((id) => [id, player === 'both' || autoLevels.includes(state.level)]));
   if (!level || player === 'both') return;
   for (const side of sides) {
     const ai = state.controllers[side] === 'ai';
@@ -87,6 +100,7 @@ function setUpSides(state, data, options) {
     if (state.will[n.id] !== undefined) state.will[n.id] += state.willBonus[n.side] || 0;
   }
   applyDifficulty(state.resources, data, state.resourceMult);
+  if (data.economy) for (const r of Object.values(state.resources)) r.munitions = 0;
 }
 
 // The month ("YYYY-MM") of the current turn. Turn 1 is the scenario's start month.
@@ -149,6 +163,16 @@ export function migrateState(saved, scenario, data) {
     state.history = [];
     state.lossesTotal = {};
   }
+  if (version < 5) {
+    // Version 5 added the war economy. The munitions on hand become the stockpile
+    // (at most 3); research starts from nothing.
+    const cap = data.economy ? data.economy.stockCap : 3;
+    for (const r of Object.values(state.resources || {})) r.munitions = Math.min(cap, r.munitions || 0);
+    state.research = {};
+    state.techs = [];
+    state.budget = {};
+    state.autoAllocate = Object.fromEntries(Object.keys(state.controllers || {}).map((side) => [side, true]));
+  }
   state.version = STATE_VERSION;
   return state;
 }
@@ -182,5 +206,9 @@ export function checkState(state, data) {
     }
   }
   if (!Number.isFinite(state.rng)) problems.push('the dice are missing');
+  const cap = data.economy ? data.economy.stockCap : null;
+  for (const [id, r] of Object.entries(state.resources || {})) {
+    if (cap !== null && (!Number.isInteger(r.munitions) || r.munitions < 0 || r.munitions > cap)) problems.push(`${id} has a bad munitions stockpile`);
+  }
   return problems;
 }

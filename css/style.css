@@ -634,3 +634,57 @@ html, body {
 @media (prefers-reduced-motion: reduce) { .will-fill { transition: none; } }
 /* The version line on the title screen: small and quiet. */
 .version-note { margin-top: 4px; font-size: 0.8rem; color: var(--ink-faded); }
+
+/* ---------- The war economy (RULES.md §19): the War Office budget page, the
+   munitions stockpile as shells, research progress bars. Same ledger paper. ---------- */
+.budget-page .ledger-title { margin-top: 4px; }
+.budget-card { margin: 16px 0 0; }
+.budget-split {
+  display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; margin: 8px 0;
+}
+.budget-figure { margin: 0; display: flex; flex-direction: column; min-width: 5.5em; }
+.budget-figure-right { text-align: right; }
+.budget-figure-name { font-size: 0.85rem; color: var(--ink-faded); }
+.budget-figure .ledger-num { font: 700 1.05rem var(--font-type); }
+/* the brass slider: a thick ruled track and a brass plate to drag (44px to tap) */
+.budget-slider {
+  -webkit-appearance: none; appearance: none; width: 100%; min-width: 0; height: var(--tap);
+  background: transparent; margin: 0; touch-action: pan-y;
+}
+.budget-slider::-webkit-slider-runnable-track { height: 6px; background: var(--ink); border-radius: 1px; }
+.budget-slider::-moz-range-track { height: 6px; background: var(--ink); border-radius: 1px; }
+.budget-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 30px; height: 30px; margin-top: -12px;
+  background: var(--brass); border: 2px solid var(--ink); border-radius: 3px;
+}
+.budget-slider::-moz-range-thumb { width: 26px; height: 26px; background: var(--brass); border: 2px solid var(--ink); border-radius: 3px; }
+.budget-slider:disabled { opacity: 0.4; }
+.budget-slider:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+.budget-stock { display: flex; align-items: center; gap: 6px; }
+.shells { flex: none; vertical-align: middle; }
+.shell { stroke: var(--ink); stroke-width: 1.2; }
+.shell-full { fill: var(--ink); }
+.shell-new { fill: var(--brass); }
+.shell-empty { fill: none; stroke: var(--ink-faded); stroke-dasharray: 2 1.5; }
+.shell-band { stroke: var(--paper); stroke-width: 1; }
+.shell-empty + .shell-band { stroke: var(--ink-faded); }
+.research-bar { display: block; height: 8px; margin: 4px 0; border: 1px solid var(--ink); background: var(--paper-dark); }
+.research-fill { display: block; height: 100%; background: var(--ink); }
+.tech-pick { display: grid; gap: 6px; margin: 8px 0 0; }
+.tech-option {
+  display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2px 10px;
+  min-height: var(--tap); padding: 6px 10px; text-align: left;
+  font: 0.95rem var(--font-ui); color: var(--ink); background: transparent;
+  border: 1px solid var(--ink-faded); border-radius: var(--radius); cursor: pointer;
+}
+.tech-option .research-bar { grid-column: 1 / -1; grid-row: 2; }
+.tech-option[aria-checked="true"] { border: 2px solid var(--ink); background: var(--paper-dark); }
+.tech-option[aria-checked="true"] .tech-name::before { content: "✓ "; }
+.tech-figures { font-size: 0.85rem; }
+.budget-auto { display: flex; align-items: center; gap: 10px; min-height: var(--tap); margin: 14px 0 6px; font-size: 0.95rem; }
+.budget-auto input { width: 24px; height: 24px; flex: none; accent-color: var(--ink); }
+.budget-sign { width: 100%; margin: 6px 0 4px; }
+.tech-row { margin: 10px 0 0; padding-bottom: 6px; border-bottom: 1px solid rgba(110, 98, 83, 0.45); }
+.tech-head { margin: 0; }
+.tech-note { font-style: italic; }
+.ledger-line-tight { display: block; margin-top: 2px; }

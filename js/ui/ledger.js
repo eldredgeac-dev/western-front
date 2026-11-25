@@ -5,6 +5,8 @@
 // Score, what's happening this month, countdowns, and a small strength chart.
 // Every figure comes from ledger() in js/engine/history.js.
 
+import { shellIcons, progressBar } from './budget.js';
+
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const INK = '#2B241C';
 const HORIZON = '#6F8FAF';
@@ -41,8 +43,32 @@ function willCell(n) {
   return td;
 }
 
+// A figure with an arrow comparing it to last month (▲ up, ▼ down).
+function figureWithTrend(value, change) {
+  const td = el('td', 'ledger-num');
+  td.appendChild(el('span', 'ledger-num', String(value)));
+  if (change !== null && change !== undefined) {
+    const arrow = change > 0 ? '▲' : change < 0 ? '▼' : '–';
+    td.appendChild(el('span', 'will-trend', change === 0 ? 'same as last month' : `${arrow} ${signed(change)} since last month`));
+  }
+  return td;
+}
+
+// Research in progress (a bar and the month it's expected) and techs already done.
+function researchCell(e, monthName) {
+  const td = el('td', 'ledger-text');
+  for (const r of e.research) {
+    td.appendChild(el('span', 'ledger-line-tight', r.name));
+    td.appendChild(progressBar(r.progress, r.cost, `${r.name}: ${r.progress} of ${r.cost}`));
+    td.appendChild(el('span', 'ledger-sub', `${r.progress} / ${r.cost} IP · ${r.expected ? `expected ${monthName(r.expected)}` : 'not expected'}`));
+  }
+  if (e.researched.length) td.appendChild(el('span', 'ledger-sub', `Done: ${e.researched.join(', ')}`));
+  if (!e.research.length && !e.researched.length) td.appendChild(el('span', 'ledger-sub', 'None in progress'));
+  return td;
+}
+
 // The nations table: one column per nation, one ruled row per figure.
-function nationsTable(l) {
+function nationsTable(l, monthName) {
   const wrap = el('div', 'ledger-scroll');
   const table = el('table', 'ledger-table');
   const head = el('tr');
@@ -56,9 +82,25 @@ function nationsTable(l) {
     table.appendChild(tr);
   };
   row('National Will', willCell);
+  const eco = l.nations.some((n) => n.economy);
+  if (eco) {
+    // the war economy (RULES.md §19.6): Manpower and Industry with their trend
+    row('Manpower (MP)', (n) => figureWithTrend(n.economy.manpower, n.economy.manpowerChange));
+    row('Industry (IP)', (n) => figureWithTrend(n.economy.industry, n.economy.industryChange));
+  }
   for (const key of ['op', 'munitions', 'rp', 'rail']) {
+    if (key === 'munitions' && eco) {
+      row('Munitions stockpile', (n) => {
+        const td = el('td', 'ledger-num');
+        td.appendChild(shellIcons(n.economy.stock, n.economy.stockCap));
+        td.appendChild(el('span', 'ledger-sub', `${n.economy.stock} of ${n.economy.stockCap}`));
+        return td;
+      });
+      continue;
+    }
     row(RESOURCE_NAMES[key], (n) => { const r = n.resources.find((x) => x.key === key); return `${r.left} / ${r.of}`; });
   }
+  if (eco) row('Research', (n) => researchCell(n.economy, monthName));
   row('Units', (n) => String(n.units));
   row('Strength (steps)', (n) => String(n.steps));
   row('Casualties this month', (n) => thousands(n.bill.month.casualties));
@@ -72,7 +114,9 @@ function nationsTable(l) {
   });
   row('Orders from the front', (n) => (n.cannotAttack ? el('td', 'ledger-text ledger-warn', `No attacks: ${n.cannotAttack}`) : el('td', 'ledger-text', 'Can attack')));
   wrap.appendChild(table);
-  const note = el('p', 'ledger-line ledger-sub', 'OP, munitions, replacements and rail moves: left to spend / this month\u2019s allowance. Casualties: 85,000 for every step lost.');
+  const note = el('p', 'ledger-line ledger-sub', eco
+    ? 'OP, replacements and rail moves: left to spend / this month\u2019s allowance. Manpower and Industry: this month\u2019s budget. Casualties: 85,000 for every step lost.'
+    : 'OP, munitions, replacements and rail moves: left to spend / this month\u2019s allowance. Casualties: 85,000 for every step lost.');
   const box = el('div');
   box.append(wrap, note);
   return box;
@@ -87,6 +131,20 @@ function citiesSection(l) {
     const total = side.cities.reduce((a, c) => a + c.vp, 0);
     p.appendChild(el('strong', '', `${side.name} (${total} VP): `));
     p.appendChild(document.createTextNode(side.cities.map((c) => `${c.name} ${c.vp}`).join(' · ') || 'none'));
+    s.appendChild(p);
+  }
+  return s;
+}
+
+// The industrial cities (RULES.md §19.3): held or lost, and what that does to Industry.
+function industrySection(l, nameOf) {
+  const s = el('section', 'ledger-section');
+  s.appendChild(el('h3', 'ledger-heading', 'Industrial cities'));
+  for (const c of l.industrialCities) {
+    const p = el('p', 'ledger-line');
+    const effect = Object.entries(c.effects).map(([n, v]) => `${nameOf(n)} ${signed(v)} IP`).join(', ');
+    p.appendChild(el('strong', c.lost ? 'ledger-warn' : '', `${c.name}: ${c.lost ? 'LOST' : 'held'}. `));
+    p.appendChild(document.createTextNode(c.lost ? `${effect} a month.` : `If lost: ${effect} a month.`));
     s.appendChild(p);
   }
   return s;
@@ -207,10 +265,11 @@ export function showLedger(container, l, { monthName, nameOf, adjectiveOf, onClo
   top.appendChild(el('p', 'ledger-kicker', 'WAR OFFICE'));
   page.appendChild(top);
   page.appendChild(el('h2', 'ledger-title', `The state of the war, ${monthName(l.month)}`));
-  page.appendChild(nationsTable(l));
+  page.appendChild(nationsTable(l, monthName));
   page.appendChild(scoreSection(l));
   page.appendChild(strengthChart(l, l.sides, monthName));
   page.appendChild(citiesSection(l));
+  if (l.industrialCities && l.industrialCities.length) page.appendChild(industrySection(l, nameOf));
   page.appendChild(eventsSection(l, nameOf));
   page.appendChild(countdownSection(l, adjectiveOf));
   container.replaceChildren(page);

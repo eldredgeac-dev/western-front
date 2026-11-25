@@ -151,7 +151,7 @@ export function aiAttack(state, data, side, record = null) {
       for (const target of targets) {
         const units = eligibleAttackers(state, data, target).filter((id) => state.units.find((u) => u.id === id).nation === nation);
         if (!units.length) continue;
-        const maxMun = Math.min(res.munitions, barrageMax(data, month));
+        const maxMun = Math.min(res.munitions, barrageMax(data, month, state, side));
         for (let mun = 0; mun <= maxMun; mun++) {
           const s = scoreAttack(state, data, side, nation, target, units, mun, skill);
           if (!s) continue;

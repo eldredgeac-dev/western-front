@@ -137,6 +137,40 @@ failing, as it did in 1917. Pétain's card then speeds up the recovery.
   per step**.
 - The killed share is about 18–21% by nation, so the game uses 1 in 5.
 
+## The war economy (Version 1.3, RULES.md §19)
+The economy was designed with a reference simulator (see docs/ECONOMY.md §19.8). Its code is
+now part of `tools/wfsim.py`, and the economy is on by default (`economy=True`; set
+`economy=False` and German Will 105 to play Version 1.2). Re-run on 25 November 2026:
+
+**Matchups** (200 games each; Germany / Entente / draw):
+
+| Matchup | Germany | Entente | Draw | ECONOMY.md said |
+|---|---|---|---|---|
+| Standard vs Standard | 40% | 43% | 18% | 49 / 40 / 11 |
+| Expert vs Expert | 45% | 42% | 13% | 43 / 44 / 13 |
+| Turtle Germany vs Standard | 22% | 46% | 32% | 21 / 49 / 30 |
+| Standard vs Turtle Entente | 100% | 0% | 0% | 100 / 0 / 0 |
+| Beginner Germany vs Standard | 12% | 70% | 18% | 13 / 70 / 16 |
+| Standard vs Beginner Entente | 46% | 48% | 7% | 44 / 52 / 5 |
+| Reckless Germany vs Standard | 0% | 100% | 0% | 0 / 100 / 0 |
+| Standard vs Reckless Entente | 57% | 42% | 0% | 54 / 45 / 2 |
+
+**Difficulty** (80 games each; player win %):
+
+| Level | Careful as GER | Careful as ENT | Beginner as GER | Beginner as ENT |
+|---|---|---|---|---|
+| Recruit | 74% | 85% | 70% | 84% |
+| Regular | 43% | 43% | 12% | 48% |
+| Veteran | 30% | 26% | 2% | 41% |
+| Field Marshal | 9% | 15% | 1% | 16% |
+
+**Why Standard vs Standard moved:** the reference computer aimed for 4 munitions in a
+stockpile that holds only 3, so whenever its stockpile was full it threw away 1 IP a month.
+The merged simulator follows RULES.md §19.7 (top up to 3). With `mun_target=4` it gives
+Germany 48%, Entente 39%, draw 14%, matching ECONOMY.md. Everything stays inside the healthy
+ranges below; a passive Germany still wins about 22% (ECONOMY.md's "watch in playtesting"
+note still applies).
+
 ## How to re-test after changing a rule
 On the Mac, in the repo folder:
 ```

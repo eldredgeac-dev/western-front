@@ -51,7 +51,7 @@ def mkey(t):
 # The default settings follow docs/RULES.md. (They used to be passed in by
 # tools/levels.py; levels.py now only adds the difficulty levels on top.)
 DEFAULT = dict(
-  will={'GER':105,'FRA':75,'GBR':85,'USA':90},            # §11 starting Will
+  will={'GER':108,'FRA':75,'GBR':85,'USA':90},            # §11 starting Will (GER 108 with the economy, §19)
   stack=3, dug_in_level=2, winter_shift=1, mutiny_at=35,   # §5 stacking, §9.4 dug in, §9.2 winter, §10 mutinies
   blockade1=1, blockade1_every=2,                          # §10 1916: GER −1 Will every other month
   blockade2=1,                                             # §10 1917 Turnip Winter: GER −1 every month
@@ -64,6 +64,16 @@ DEFAULT = dict(
   score_end=True, avg_score=True, draw_margin=2,           # §11 Armistice Score (GER − FRA/GBR average), ±2 is a draw
   end_ger_will=25, end_boxes=3,                            # (old ending, unused while score_end is on)
   res_mult={'G':1.0,'E':1.0}, will_bonus={'G':0,'E':0},    # §13 difficulty (set by levels.py)
+  # §19 the war economy (Version 1.3). economy=False plays Version 1.2 (no stockpile,
+  # no research, no cities); then also set will GER 105 to get the old results.
+  economy=True,                                            # §19 on
+  split=True,                                              # separate Manpower and Industry (not one shared budget)
+  blockade_pp=0,                                           # §19.3 the blockade does NOT cut German Industry
+  industry=True,                                           # §19.3 industrial cities
+  stock_cap=3,                                             # §19.4 munitions stockpile, max 3
+  mun_target=3,                                            # §19.7 the computer tops the stockpile up to 3
+  res_cap=3,                                               # §19.7 ...then up to 3 IP a month into research
+  pp_extra={'GER':(1,1), 'FRA':(0,1), 'GBR':(0,0), 'USA':(0,0)},  # §19.2 war-economy bonus (1915, 1916+)
 )
 
 def resources(nat, t, cfg, side):
@@ -117,6 +127,22 @@ SKILL = {
 def best_col_low(g, att, tb, mn, s):
     c = g.column(att, tb, mn, s); return c is not None and c <= 1
 
+# The war economy (docs/RULES.md §19). Must match data/economy.json.
+# TECHS: research (§19.5). Historical month (None = never happened), earliest month, cost in IP.
+TECHS = {  # name: (nation, historical key or None, earliest key, cost)
+ 'creeping': ('ENT', 191606, 191601, 8),
+ 'tanks':    ('GBR', 191609, 191603, 10),
+ 'renault':  ('FRA', 191806, 191801, 8),
+ 'heavyart': ('FRA', None,   191601, 10),
+ 'depth':    ('GER', 191701, 191607, 8),
+ 'storm':    ('GER', 191801, 191707, 10),
+ 'a7v':      ('GER', None,   191801, 12),
+}
+# INDUSTRY: industrial cities (§19.3), box (lane-1, column) -> (nation it belongs to, IP lost if captured).
+# Lille (2,4) also gives France +1 IP when the Entente retakes it.
+INDUSTRY = {(6,0): ('FRA', 3), (0,0): ('GBR', 2), (5,0): ('FRA', 1),
+            (2,4): ('GER', 1), (10,5): ('GER', 2), (9,5): ('GER', 1)}
+
 def cmdr(g, nat):
     if not g.cfg.get('commanders'): return None
     r = _cmdr(g, nat)
@@ -156,6 +182,9 @@ class Game:
         self.reinf = None
         self.season_att = {}
         self.nivelle_used = False
+        self.stock = {n: 0 for n in ['GER','FRA','GBR','USA']}
+        self.econ_rp = {n: 0 for n in ['GER','FRA','GBR','USA']}
+        self.rprog = {}; self.tech = set(); self.ppspent = {n: {'mun':0,'rp':0,'res':0} for n in ['GER','FRA','GBR','USA']}
         self.month_att = {}
 
     def side(self, nat): return 'G' if nat == 'GER' else 'E'
@@ -169,6 +198,86 @@ class Game:
         if c == 'haig' and 191801 <= k <= 191804: rp = max(0, rp - 1)
         if c == 'hl': rp += 1
         return op, mu, rp
+    def has(self, t):
+        nat, hist, early, cost = TECHS[t]
+        if t in self.tech: return True
+        return (not self.cfg.get('economy')) and hist is not None and mkey(self.t) >= hist or (self.cfg.get('economy') and hist is not None and mkey(self.t) >= hist)
+    def pp(self, nat, s):
+        op, mu, rp = self.res(nat, s)
+        y = ym(self.t)[0]
+        ex = self.cfg.get('pp_extra', {}).get(nat)
+        if ex is None: ex = (self.cfg.get('pp_extra1', 1), self.cfg.get('pp_extra2', 2))
+        p = mu + rp + (ex[0] if y <= 1915 else ex[1])
+        if nat == 'GER': p -= {1917: 1, 1918: 2}.get(y, 0) * self.cfg.get('blockade_pp', 1)
+        for b, (n, v) in (INDUSTRY.items() if self.cfg.get('industry', True) else []):
+            owner_side = self.owner[b]
+            if n == 'GER' and owner_side == 'E':
+                if nat == 'GER': p -= v
+                if nat == 'FRA' and b == (2,4): p += v
+            if n in ('FRA','GBR') and owner_side == 'G' and nat == n: p -= v
+        if 'heavyart' in self.tech and nat == 'FRA': p += 1
+        return max(0, p)
+    # §19.4 and §19.7: each nation's monthly budget. With split=True, Manpower (= the
+    # replacements schedule) goes to RP and Industry buys munitions (stockpile, max
+    # stock_cap) and research; a careful AI tops munitions up to mun_target first.
+    def economy(self, s):
+        k = mkey(self.t); sk = self.sk[s]
+        nats = ['GER'] if s == 'G' else ['FRA','GBR'] + (['USA'] if self.us_declare and k >= self.us_declare else [])
+        sm = self.supply_maps()
+        for nat in nats:
+            p = self.pp(nat, s); hist_rp = self.res(nat, s)[2]
+            if self.cfg.get('no_stock'): self.stock[nat] = 0
+            need = sum(u['mx'] - u['steps'] for u in self.units if u['nat'] == nat and self.in_supply(u, sm))
+            need += 2 * self.pool[nat]
+            opts = [t for t, (n, hist, early, cost) in TECHS.items()
+                    if (n == nat or (n == 'ENT' and nat in ('FRA','GBR'))) and t not in self.tech
+                    and k >= early and not (hist and k >= hist)]
+            left = min((TECHS[t][3] - self.rprog.get(t, 0) for t in opts), default=0)
+            if self.cfg.get('no_research'): left = 0
+            cap = self.cfg.get('stock_cap', 6)
+            if self.cfg.get('split'):
+                rp = hist_rp                      # manpower: replacements only
+                p = max(0, p - hist_rp)           # industry = the rest (never below 0)
+                if not sk['smart_mun']:
+                    res = min(self.rng.randint(0, p), left); mun = p - res
+                else:
+                    tgt = self.cfg.get('mun_target', 4)
+                    mun = min(max(0, tgt - self.stock[nat]), p); p -= mun
+                    res = min(p, left, self.cfg.get('res_cap', 3)) if sk.get('research', True) else 0; p -= res
+                    mun += p
+            elif not sk['smart_mun']:   # beginner/novice: random split
+                rp = self.rng.randint(0, p); p -= rp
+                res = min(self.rng.randint(0, p), left); p -= res
+                mun = p
+            else:
+                rp = min(need, hist_rp, p); p -= rp
+                tgt = self.cfg.get('mun_target', 4)
+                mun = min(max(0, tgt - self.stock[nat]), p); p -= mun
+                res = min(p, left, self.cfg.get('res_cap', 3)) if sk.get('research', True) else 0; p -= res
+                extra = min(p, max(0, need - rp)); rp += extra; p -= extra
+                mun += p
+            self.econ_rp[nat] = rp
+            mun = min(mun, cap - self.stock[nat])
+            self.stock[nat] += mun
+            self.ppspent[nat]['mun'] += mun; self.ppspent[nat]['rp'] += rp; self.ppspent[nat]['res'] += res
+            # research: pick cheapest available unfinished tech for this nation
+            if res and opts:
+                if True:
+                    t = min(opts, key=lambda t: TECHS[t][3])
+                    self.rprog[t] = self.rprog.get(t, 0) + res
+                    if self.rprog[t] >= TECHS[t][3]:
+                        self.tech.add(t)
+                        if t == 'tanks': self.add('GBR', 'tank', self.rear_box('E'))
+                        if t == 'renault': self.add('FRA', 'tank', self.rear_box('E'))
+                        if t == 'a7v': self.add('GER', 'tank', self.rear_box('G'))
+                        if t == 'storm':
+                            n_ = 0
+                            for u in self.units:
+                                if u['nat'] == 'GER' and u['typ'] == 'inf' and n_ < 4: u['typ'] = 'storm'; n_ += 1
+    def rear_box(self, s):
+        col = self.rear_col(s)
+        b = [(l, col) for l in range(LANES) if self.owner[(l, col)] == s and len(self.at((l, col))) < self.cfg['stack']]
+        return self.rng.choice(b) if b else (0, col)
     def add(self, nat, typ, box, steps=None):
         mx = 5 if typ == 'usinf' else (2 if typ == 'tank' else 4)
         u = dict(nat=nat, typ=typ, steps=steps or mx, mx=mx, box=box, attacked=False, moved_rail=False)
@@ -204,7 +313,9 @@ class Game:
             if box[0] in CHALK_LANES and k >= 191506: m = 3
             if box[0] in WET_LANES: m = min(m, 2)
         return m
-    def max_mun(self): return 3 if mkey(self.t) >= 191606 else 2
+    def max_mun(self, side=None):
+        if self.cfg.get('economy') and side == 'E' and 'creeping' in self.tech: return 3
+        return 3 if mkey(self.t) >= 191606 else 2
     def column(self, att, box, mun, side, gas=0):
         dsteps = sum(u['steps'] for u in self.at(box))
         asteps = sum(u['steps'] for u in att)
@@ -238,7 +349,7 @@ class Game:
         dug = self.trench[box] >= self.cfg['dug_in_level']
         dsteps = sum(u['steps'] for u in self.at(box))
         ea = ed = pt = 0
-        did = self.at(box) and self.at(box)[0]['nat'] == 'GER' and mkey(self.t) >= 191701 and self.trench[box] >= 2 and self.cfg.get('traits', True)
+        did = self.at(box) and self.at(box)[0]['nat'] == 'GER' and (self.has('depth') if self.cfg.get('economy') else mkey(self.t) >= 191701) and self.trench[box] >= 2 and self.cfg.get('traits', True)
         if did: ea += 1
         for p, (a, d, r) in zip(BANDP, TABLE[col]):
             if dug and r: d += 1; r = 0
@@ -270,7 +381,7 @@ class Game:
         else:
             a, d, r = TABLE[col][self.roll()]
             if dug and r: d += 1; r = 0
-            if self.cfg.get('traits', True) and side == 'E' and mkey(self.t) >= 191701 and self.trench[box] >= 2 and defs[0]['nat'] == 'GER':
+            if self.cfg.get('traits', True) and side == 'E' and (self.has('depth') if self.cfg.get('economy') else mkey(self.t) >= 191701) and self.trench[box] >= 2 and defs[0]['nat'] == 'GER':
                 a += 1
         before_fra = lost['FRA']
         self.take_losses(att, a, lost); self.take_losses(defs, d, lost)
@@ -364,6 +475,8 @@ class Game:
         nats = ['GER'] if s == 'G' else ['FRA','GBR','USA']
         sm = self.supply_maps()
         res = {n: list(self.res(n, s)) for n in nats}
+        if self.cfg.get('economy'):
+            for n in nats: res[n][1] = self.stock.get(n, 0)
         failed = {n: 0 for n in nats}
         spent_loss = {n: 0.0 for n in nats}
         y, m = ym(self.t); k = mkey(self.t)
@@ -383,9 +496,9 @@ class Game:
                     # keep at least one unit in each source box unless capture is likely
                     gas = 2 if (nat == 'GER' and k == 191504 and tb[0] == 1 and not gas_used) else 0
                     if nat == 'FRA' and cmdr(self, 'FRA') == 'nivelle' and not self.nivelle_used and k >= 191704: gas = 2
-                    mun_opts = range(0, min(mu, self.max_mun()) + 1)
+                    mun_opts = range(0, min(mu, self.max_mun(s)) + 1)
                     if not sk['smart_mun']:
-                        mun_opts = [self.rng.randint(0, min(mu, self.max_mun()))]
+                        mun_opts = [self.rng.randint(0, min(mu, self.max_mun(s)))]
                     for mn in mun_opts:
                         col = self.column(att, tb, mn, s, gas)
                         if col is None: continue
@@ -418,6 +531,7 @@ class Game:
             niv = gas and nat == 'FRA' and cmdr(self, 'FRA') == 'nivelle'
             if niv: self.nivelle_used = True
             res[nat][0] -= 1; res[nat][1] -= mn
+            if self.cfg.get('economy'): self.stock[nat] -= mn
             spent_loss[nat] += ea
             self.stats['attacks'][s] += 1
             took = self.resolve(att, tb, mn, s, lost, gas)
@@ -462,12 +576,13 @@ class Game:
             gb = [u for u in self.units if u['nat'] == 'GBR' and u['typ'] == 'inf' and not u.get('green_until')]
             gb += [u for u in self.units if u['nat'] == 'GBR' and u['typ'] == 'inf' and u.get('green_until')]
             for u in gb[:2]: u['elite'] = True; u['green_until'] = 0
-        if k == 191801:
+        if k == 191801 and not (self.cfg.get('economy') and 'storm' in self.tech):
             n = 0
             for u in self.units:
                 if u['nat'] == 'GER' and u['typ'] == 'inf' and n < 4: u['typ'] = 'storm'; n += 1
         if self.us_declare and k == self.us_declare: self.will['USA'] = self.cfg['will']['USA']
         for nat, typ in self.reinf.get(k, []):
+            if self.cfg.get('economy') and typ == 'tank' and ((k == 191609 and 'tanks' in self.tech) or (k == 191806 and 'renault' in self.tech)): continue
             s_ = self.side(nat); col = self.rear_col(s_)
             boxes = [(l, col) for l in range(LANES) if self.owner[(l, col)] == s_ and len(self.at((l, col))) < self.cfg['stack']]
             if nat == 'GBR': boxes = [b for b in boxes if b[0] <= 5] or boxes
@@ -483,6 +598,8 @@ class Game:
         self.attacked_boxes = set(); self.month_att = {}; self.verdun_fra = 0
         lost = {n: 0 for n in ['GER','FRA','GBR','USA','BEL']}
         self.events()
+        if self.cfg.get('economy'):
+            self.economy('G'); self.economy('E')
         for s in ('G', 'E'):
             self.ai_move(s)
             res = self.ai_attack(s, lost)
@@ -504,7 +621,7 @@ class Game:
         # replacements
         for nat, s in [('GER','G'),('FRA','E'),('GBR','E'),('USA','E')]:
             if nat == 'USA' and not (self.us_declare and k >= self.us_declare): continue
-            rp = self.res(nat, s)[2]
+            rp = self.econ_rp[nat] if self.cfg.get('economy') else self.res(nat, s)[2]
             mine = [u for u in self.units if u['nat'] == nat and self.in_supply(u, sm) and u['steps'] < u['mx']]
             mine.sort(key=lambda u: (-(self.threat(u['box'], s)), u['steps']))
             if not self.sk[s]['smart_mun']: self.rng.shuffle(mine)
