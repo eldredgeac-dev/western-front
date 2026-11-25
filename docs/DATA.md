@@ -7,7 +7,7 @@ mean editing data. Every file starts with an `"_about"` line saying what it is f
 `tests/run.mjs` checks that every data file is valid JSON. The tests in
 `tests/tests.js` check that the map and scenario match `docs/RULES.md`.
 
-Planned files that don't exist yet: `combat-table.json`
+Planned files that don't exist yet:
 (5), `events.json` (9), `commanders.json` (11) and `headlines.json` (12). Describe each one
 here when it is added.
 
@@ -49,7 +49,33 @@ Each box:
 | `types[].draw` | How the map shows it, in docs/STYLE.md colours only. It can have: `ground` + `groundOpacity` (tints the whole territory; if a box has two, the higher `priority` wins), `texture` (a pattern drawn on top in `color`: `diagonal`, `hachure`, `blotch`, `trees` or `hills`), `season` (`"autumn"` = only shown September–November), `plain` (plain paper) or `badge` (`"star-fort"`). Change these, then re-run `tools/build-map.mjs`. |
 | `trenchMax.periods` | RULES.md §9.5. Each period runs from `from` (`"YYYY-MM"`) until the next one. `normal` is the usual limit; `byTerrain` gives a different limit for boxes with that terrain (if a box had two, the lower one wins). |
 
-The column shifts for each terrain will be added here in milestone 5 (combat).
+`types[].combat` is what the terrain does in an attack INTO the box: `shift` (columns),
+`months` (only in those months, e.g. mud in 9–11) and `tankShift` (the tank bonus there
+instead of +1: open ground 2, forest and mountains 0).
+
+## `combat-table.json`: combat (RULES.md §9)
+| Field | Meaning |
+|---|---|
+| `columns` | The odds columns, weakest first: `label` (`"3:2"`) and `ratio` (1.5) |
+| `rows` | The §9.3 table [balanced]: each row is a 2d6 range (`min`–`max`) with one result per column, written like RULES.md: `"A1 D3 R"` |
+| `trenchShiftPerLevel` | −1 per defender trench level |
+| `winter` | `months` and `shift` (−1 in Dec, Jan, Feb) |
+| `barrage` | Most munitions per attack: `[{from, max}]` (2, then 3 from June 1916) |
+| `opCost` | `single` (1), `coalition` (2, attackers from more than one nation), `emptyBox` (1) |
+| `dugInTrench` | Trench level from which an R becomes "+1 D, no retreat" (2) |
+| `advanceMax` | Most attackers that move into a captured box (2) |
+| `futile` | `worstColumn` ("1:1") and the `will` it costs (3) |
+| `capture` | Will changes for named boxes (RULES.md §11), by the capturing side: who loses the VP (`loserByLane`, `loserDefault`) and who gains a `share` of it; `special` boxes (Paris, the Channel Ports) add more |
+
+**National traits** in `nations.json` use these `kind`s:
+- `attack-shift`: that nation's attacks get `shift`.
+- `defend-shift`: enemy attacks on a box this nation defends get `shift`, up to `maxTrench`.
+- `enemy-attack-shift`: all the other side's attacks get `shift`.
+- `defender-extra-attacker-loss`: attacks on this nation at trench `minTrench`+ lose `loss` more steps.
+- `cannot-attack`: this nation's units can't attack.
+- `note`: shown on the Nations screen only.
+
+`from` and `to` (`"YYYY-MM"`) limit when a trait works.
 
 ## `nations.json`: sides and nations
 | Field | Meaning |

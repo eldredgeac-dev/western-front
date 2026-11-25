@@ -10,6 +10,8 @@ import { next as rngNext, rollD6, roll2d6 } from '../js/engine/rng.js';
 import { resourcesFor } from '../js/engine/resources.js';
 import { beginGame, endPhase, phaseOf, digIn } from '../js/engine/turn.js';
 import { inSupply, rearColumn, supplySources } from '../js/engine/supply.js';
+import { columnAverages, ratioColumn, planAttack, oddsPreview, resolveAttack, applyCombatResult,
+  barrageMax } from '../js/engine/combat.js';
 
 export const tests = [];
 
@@ -330,7 +332,7 @@ test('battles: pencil notes only for 6+ steps lost, grouped by territory, oldest
 const copyOf = (x) => JSON.parse(JSON.stringify(x));
 // The data bundle the engine expects.
 const bundle = () => ({ map: data.map, terrain: data.terrain, nations: data.nations,
-  unitTypes: data.unitTypes, phases: data.phases });
+  unitTypes: data.unitTypes, phases: data.phases, combat: data.combat });
 const game = (seed = 7) => newGame(data.scenario, seed, bundle());
 const phaseIndex = (id) => data.phases.phases.findIndex((p) => p.id === id);
 
@@ -554,6 +556,296 @@ test('turn: the same seed and orders give the same game', () => {
   check(play() === play(), 'two runs differ');
 });
 
+// ---------------------------------------------------------------- Milestone 5: combat
+// A game set in a given month, waiting at a side's attack phase.
+function atWar(month, side = 'germany', seed = 3) {
+  const s = copyOf(started(seed));
+  const [y, m] = month.split('-').map(Number);
+  s.turn = (y * 12 + m) - (1914 * 12 + 12) + 1;
+  s.phase = phaseIndex(side + '-attack');
+  s.resources = resourcesFor(bundle(), month);
+  return s;
+}
+const unit = (s, id) => s.units.find((u) => u.id === id);
+const place = (s, id, box, extra = {}) => Object.assign(unit(s, id), { box }, extra);
+const shiftOf = (plan, label) => (plan.shifts.find((x) => x.label.startsWith(label)) || {}).value;
+
+test('combat table: averages match RULES.md §9.3 exactly', () => {
+  const want = [[2.75, 0.86, 0], [2.39, 1.44, 3], [1.75, 2.00, 17], [1.39, 2.28, 42], [1.00, 2.75, 58], [0.58, 3.28, 83]];
+  want.forEach(([a, d, r], col) => {
+    const got = columnAverages(data.combat, col);
+    const label = data.combat.columns[col].label;
+    check(Math.abs(got.a - a) < 0.006, `${label} attacker ${got.a.toFixed(3)} ≠ ${a}`);
+    check(Math.abs(got.d - d) < 0.006, `${label} defender ${got.d.toFixed(3)} ≠ ${d}`);
+    check(Math.round(got.r * 100) === r, `${label} retreat ${(got.r * 100).toFixed(1)}% ≠ ${r}%`);
+  });
+});
+
+test('combat: odds give the highest column reached; below 1:2 is refused', () => {
+  const t = data.combat;
+  const cols = [[2, 4], [3, 4], [4, 4], [6, 4], [8, 4], [12, 4], [16, 4], [20, 4]].map(([a, d]) => ratioColumn(t, a, d));
+  check(cols.join() === '0,0,1,2,3,4,5,5', cols.join());
+  check(ratioColumn(t, 1, 4) === -1, '1:4 is below 1:2');
+  const s = atWar('1916-06');
+  place(s, 'ger-06', 'l06-g1', { steps: 1 });
+  const plan = planAttack(s, bundle(), { target: 'l06-e1', units: ['ger-06'] });
+  check(!plan.ok && plan.reasons.some((r) => r.includes('below 1:2')), 'a 1:4 attack is refused');
+});
+
+test('combat: trench, winter and the 1914 traits all shift the column (RULES.md §4, §9.2)', () => {
+  const s = atWar('1914-12');
+  // German 4 steps vs French 4 steps in the Somme E1 (trench 1), December 1914
+  const plan = planAttack(s, bundle(), { target: 'l06-e1', units: ['ger-06'] });
+  check(plan.ok, plan.reasons.join());
+  check(plan.ratioColumn === 1, '4 v 4 is 1:1');
+  check(shiftOf(plan, 'Trench') === -1 && shiftOf(plan, 'Winter') === -1, 'trench and winter −1');
+  check(shiftOf(plan, 'Heavy howitzers') === 1 && shiftOf(plan, 'The 75s') === -1, 'howitzers +1, the 75s −1');
+  check(plan.finalColumn === 0 && plan.columnLabel === '1:2', 'clamped to 1:2: ' + plan.columnLabel);
+});
+
+test('combat: terrain shifts — flooded, ridge, fortress, mud only in autumn', () => {
+  let s = atWar('1915-04');
+  let plan = planAttack(s, bundle(), { target: 'l01-e1', units: ['ger-01'] });
+  check(shiftOf(plan, 'Flooded') === -2 && shiftOf(plan, 'Flanders mud') === undefined, 'flooded −2, no mud in April');
+  s = atWar('1915-10');
+  plan = planAttack(s, bundle(), { target: 'l01-e1', units: ['ger-01'] });
+  check(shiftOf(plan, 'Flanders mud') === -1, 'mud −1 in October');
+  s = atWar('1915-04', 'entente');
+  plan = planAttack(s, bundle(), { target: 'l11-g1', units: ['fra-08'] });     // fra-08 holds Verdun E1
+  check(shiftOf(plan, 'Ridge') === -1, 'ridge −1');
+  s = atWar('1915-04');
+  plan = planAttack(s, bundle(), { target: 'l11-e1', units: ['ger-11'] });
+  check(shiftOf(plan, 'Ridge') === -1 && shiftOf(plan, 'Fortress') === -1, 'Verdun: ridge and fortress');
+});
+
+test('combat: the 75s stop at trench 2 and in 1917; howitzers end after 1915; exhaustion from Aug 1918', () => {
+  let s = atWar('1916-04');
+  s.boxes['l06-e1'].trench = 2;
+  let plan = planAttack(s, bundle(), { target: 'l06-e1', units: ['ger-06'] });
+  check(shiftOf(plan, 'The 75s') === undefined, 'no 75s at trench 2');
+  check(shiftOf(plan, 'Heavy howitzers') === undefined, 'no howitzers in 1916');
+  s = atWar('1917-04'); s.boxes['l06-e1'].trench = 1;
+  plan = planAttack(s, bundle(), { target: 'l06-e1', units: ['ger-06'] });
+  check(shiftOf(plan, 'The 75s') === undefined, 'no 75s in 1917');
+  s = atWar('1918-08', 'entente');
+  plan = planAttack(s, bundle(), { target: 'l06-g1', units: ['fra-03'] });
+  check(shiftOf(plan, 'Exhaustion') === 1, 'Entente +1 from August 1918');
+  s = atWar('1918-07', 'entente');
+  plan = planAttack(s, bundle(), { target: 'l06-g1', units: ['fra-03'] });
+  check(shiftOf(plan, 'Exhaustion') === undefined, 'not before August 1918');
+});
+
+test('combat: barrage +1 per munition, at most 2 (3 from June 1916)', () => {
+  let s = atWar('1916-05');
+  let plan = planAttack(s, bundle(), { target: 'l06-e1', units: ['ger-06'], munitions: 2 });
+  check(plan.ok && shiftOf(plan, 'Barrage') === 2, 'barrage of 2');
+  plan = planAttack(s, bundle(), { target: 'l06-e1', units: ['ger-06'], munitions: 3 });
+  check(!plan.ok, '3 munitions refused in May 1916');
+  check(barrageMax(bundle(), '1916-05') === 2 && barrageMax(bundle(), '1916-06') === 3, 'limits');
+  s = atWar('1916-06');
+  plan = planAttack(s, bundle(), { target: 'l06-e1', units: ['ger-06'], munitions: 3 });
+  check(plan.ok && shiftOf(plan, 'Barrage') === 3, 'creeping barrage of 3 in June 1916');
+});
+
+test('combat: unit quality — Green majority −1, any Elite +1, stormtroopers cancel a trench level', () => {
+  let s = atWar('1916-04', 'entente');
+  place(s, 'gbr-01', 'l06-e1', { quality: 'green' });
+  let plan = planAttack(s, bundle(), { target: 'l06-g1', units: ['gbr-01', 'fra-03'] });
+  check(shiftOf(plan, 'Green') === undefined, 'half Green is not more than half');
+  unit(s, 'fra-03').quality = 'green';
+  plan = planAttack(s, bundle(), { target: 'l06-g1', units: ['gbr-01', 'fra-03'] });
+  check(shiftOf(plan, 'Green') === -1, 'all Green −1');
+  unit(s, 'fra-03').quality = 'elite';
+  plan = planAttack(s, bundle(), { target: 'l06-g1', units: ['gbr-01', 'fra-03'] });
+  check(shiftOf(plan, 'Elite') === 1, 'any Elite +1');
+  s = atWar('1918-03');
+  unit(s, 'ger-06').type = 'stormtroopers';
+  plan = planAttack(s, bundle(), { target: 'l06-e1', units: ['ger-06'] });
+  check(shiftOf(plan, 'Stormtroopers') === 1, 'stormtroopers +1 against a trench');
+});
+
+test('combat: tanks +1, +2 on open ground, nothing in forest or mountains', () => {
+  const s = atWar('1917-04', 'entente');
+  const tank = { id: 'gbr-t1', nation: 'gbr', type: 'tanks', steps: 2, quality: 'regular', moved: false, railed: false, attacked: false };
+  s.units.push({ ...tank, box: 'l06-e1' });                       // the Somme: open ground
+  let plan = planAttack(s, bundle(), { target: 'l06-g1', units: ['gbr-t1', 'fra-03'] });
+  check(shiftOf(plan, 'Tanks') === 2, 'open ground +2: ' + shiftOf(plan, 'Tanks'));
+  unit(s, 'gbr-t1').box = 'l10-e1';                                // the Argonne: forest
+  plan = planAttack(s, bundle(), { target: 'l10-g1', units: ['gbr-t1', 'fra-07'] });
+  check(shiftOf(plan, 'Tanks') === undefined, 'forest: no tank bonus');
+  unit(s, 'gbr-t1').box = 'l04-e1';                                // Artois: chalk, not open
+  plan = planAttack(s, bundle(), { target: 'l04-g1', units: ['gbr-t1', 'fra-01'] });
+  check(shiftOf(plan, 'Tanks') === 1, 'elsewhere +1');
+});
+
+test('combat: costs 1 OP, 2 for a coalition; refused without OP', () => {
+  const s = atWar('1916-04', 'entente');
+  place(s, 'fra-02', 'l03-e1');
+  let plan = planAttack(s, bundle(), { target: 'l03-g1', units: ['gbr-02'] });
+  check(plan.ok && plan.opCost === 1 && plan.payer === 'gbr', 'single nation 1 OP');
+  plan = planAttack(s, bundle(), { target: 'l03-g1', units: ['gbr-02', 'fra-02'] });
+  check(plan.opCost === 2 && plan.nations.length === 2, 'coalition 2 OP');
+  s.resources.gbr.op = 0;
+  plan = planAttack(s, bundle(), { target: 'l03-g1', units: ['gbr-02'] });
+  check(!plan.ok, 'refused with no OP left');
+});
+
+test('combat: who may attack — adjacent, in supply, own phase, not after rail; Belgium never', () => {
+  let s = atWar('1915-04', 'entente');
+  check(!planAttack(s, bundle(), { target: 'l01-g1', units: ['bel-01'] }).ok, 'Belgium can\'t attack');
+  check(!planAttack(s, bundle(), { target: 'l08-g1', units: ['fra-01'] }).ok, 'not adjacent');
+  unit(s, 'fra-01').railed = true;
+  check(!planAttack(s, bundle(), { target: 'l04-g1', units: ['fra-01'] }).ok, 'railed this turn');
+  s = atWar('1915-04', 'entente');
+  for (const id of ['l04-e2', 'l03-e1', 'l05-e1']) s.boxes[id].owner = 'germany';
+  check(!planAttack(s, bundle(), { target: 'l04-g1', units: ['fra-01'] }).ok, 'out of supply');
+  s = atWar('1915-04', 'germany');
+  check(!planAttack(s, bundle(), { target: 'l04-g1', units: ['fra-01'] }).ok, 'not the Entente phase');
+});
+
+test('combat results: losses come off the strongest unit first; destroyed units go to the pool', () => {
+  const s = atWar('1915-04');
+  place(s, 'fra-12', 'l06-e1', { steps: 2 });                       // l06-e1: fra-03 (4) + fra-12 (2)
+  const plan = planAttack(s, bundle(), { target: 'l06-e1', units: ['ger-06'] });
+  const r = applyCombatResult(s, bundle(), plan, { a: 0, d: 2, r: false });
+  check(unit(s, 'fra-03').steps === 2 && unit(s, 'fra-12').steps === 2, 'strongest first, one at a time');
+  check(r.defenderLost.fra === 2 && !r.taken, 'two steps lost, not taken');
+  applyCombatResult(s, bundle(), plan, { a: 4, d: 0, r: false });
+  check(!unit(s, 'ger-06') && s.pool.ger === 1, 'a unit at 0 steps is destroyed and goes to the pool');
+});
+
+test('combat results: R — defenders fall back deeper, up to 2 attackers advance, trench drops to 0', () => {
+  const s = atWar('1915-04', 'entente');
+  place(s, 'fra-12', 'l06-e1');
+  place(s, 'fra-13', 'l06-e1');                                     // 3 French units attack
+  const plan = planAttack(s, bundle(), { target: 'l06-g1', units: ['fra-03', 'fra-12', 'fra-13'] });
+  const r = applyCombatResult(s, bundle(), plan, { a: 1, d: 1, r: true });
+  check(r.taken && s.boxes['l06-g1'].owner === 'entente' && s.boxes['l06-g1'].trench === 0, 'box taken, trench 0');
+  check(unit(s, 'ger-06').box === 'l06-g2', 'defender fell back to G2');
+  const inBox = s.units.filter((u) => u.box === 'l06-g1').length;
+  check(inBox === 2, `${inBox} attackers advanced (max 2)`);
+});
+
+test('combat results: dug in (trench 2+) turns R into +1 D and no retreat', () => {
+  const s = atWar('1916-04', 'entente');
+  s.boxes['l06-g1'].trench = 2;
+  const plan = planAttack(s, bundle(), { target: 'l06-g1', units: ['fra-03'] });
+  const r = applyCombatResult(s, bundle(), plan, { a: 1, d: 2, r: true });
+  check(!r.taken && unit(s, 'ger-06').box === 'l06-g1' && unit(s, 'ger-06').steps === 1, 'held, 3 steps lost');
+  applyCombatResult(s, bundle(), plan, { a: 0, d: 1, r: true });
+  check(s.boxes['l06-g1'].owner === 'entente', 'wiped out: the attacker may advance anyway');
+});
+
+test('combat results: defence in depth — +1 attacker loss vs German trench 2+ from 1917', () => {
+  let s = atWar('1917-04', 'entente');
+  s.boxes['l06-g1'].trench = 2;
+  let plan = planAttack(s, bundle(), { target: 'l06-g1', units: ['fra-03'] });
+  applyCombatResult(s, bundle(), plan, { a: 1, d: 0, r: false });
+  check(unit(s, 'fra-03').steps === 2, 'lost 2 steps, not 1');
+  s = atWar('1916-10', 'entente');
+  s.boxes['l06-g1'].trench = 2;
+  plan = planAttack(s, bundle(), { target: 'l06-g1', units: ['fra-03'] });
+  applyCombatResult(s, bundle(), plan, { a: 1, d: 0, r: false });
+  check(unit(s, 'fra-03').steps === 3, 'not before 1917');
+});
+
+test('combat results: a defender with nowhere to go is destroyed', () => {
+  const s = atWar('1915-04', 'entente');
+  for (const id of ['l06-g2', 'l05-g1', 'l07-g1']) s.boxes[id].owner = 'entente';
+  s.units = s.units.filter((u) => !['l06-g2', 'l05-g1', 'l07-g1'].includes(u.box));
+  const plan = planAttack(s, bundle(), { target: 'l06-g1', units: ['fra-03'] });
+  const r = applyCombatResult(s, bundle(), plan, { a: 1, d: 1, r: true });
+  check(r.taken && !unit(s, 'ger-06') && s.pool.ger === 1, 'cut off and destroyed');
+});
+
+test('combat: an empty enemy box is taken without a roll for 1 OP; tanks alone count as empty', () => {
+  let s = atWar('1915-04', 'entente');
+  place(s, 'ger-05', 'l05-g2');                                     // leave Arras G1 empty
+  const before = s.rng;
+  let out = resolveAttack(s, bundle(), { target: 'l05-g1', units: ['fra-02'] });
+  check(out.result.empty && out.result.taken && out.state.boxes['l05-g1'].owner === 'entente', 'taken');
+  check(out.state.resources.fra.op === s.resources.fra.op - 1 && out.state.rng === before, '1 OP, no dice');
+  check(unit(out.state, 'fra-02').box === 'l05-g1', 'the attacker moved in');
+  s = atWar('1917-04', 'entente');
+  place(s, 'ger-05', 'l05-g2');
+  s.units.push({ id: 'ger-t1', nation: 'ger', type: 'tanks', box: 'l05-g1', steps: 2, quality: 'regular', moved: false, railed: false, attacked: false });
+  out = resolveAttack(s, bundle(), { target: 'l05-g1', units: ['fra-02'] });
+  check(out.result.empty && unit(out.state, 'ger-t1').box !== 'l05-g1', 'tanks alone: box counts as empty and they fall back');
+});
+
+test('combat: a futile attack (1:1 or worse, box not taken) costs the attacking nation 3 Will', () => {
+  let s = atWar('1915-04', 'entente');
+  let plan = planAttack(s, bundle(), { target: 'l06-g1', units: ['fra-03'] });
+  check(plan.finalColumn <= 1, 'this attack is at 1:1 or worse: ' + plan.columnLabel);
+  let r = applyCombatResult(s, bundle(), plan, { a: 2, d: 1, r: false });
+  check(r.futile && s.will.fra === 75 - 3, 'FRA Will ' + s.will.fra);
+  s = atWar('1915-04', 'entente');
+  place(s, 'fra-12', 'l06-e1');
+  place(s, 'fra-13', 'l06-e1');
+  plan = planAttack(s, bundle(), { target: 'l06-g1', units: ['fra-03', 'fra-12', 'fra-13'], munitions: 2 });
+  check(plan.finalColumn >= 2, 'a careful attack at 3:2 or better: ' + plan.columnLabel);
+  r = applyCombatResult(s, bundle(), plan, { a: 1, d: 2, r: false });
+  check(!r.futile && s.will.fra === 75, 'no Will cost beyond losses');
+});
+
+test('combat: taking a named box changes Will (RULES.md §11)', () => {
+  // Germany takes Amiens (5 VP, lane 6): FRA −5, GER +2
+  let s = atWar('1915-04');
+  s.boxes['l06-e3'].owner = 'entente';
+  place(s, 'ger-06', 'l06-e2'); s.boxes['l06-e2'].owner = 'germany';
+  s.units = s.units.filter((u) => !['l06-e2'].includes(u.box) || u.nation === 'ger');
+  let plan = planAttack(s, bundle(), { target: 'l06-e3', units: ['ger-06'] });
+  let r = applyCombatResult(s, bundle(), plan, { a: 0, d: 0, r: true });
+  check(r.taken && s.will.fra === 70 && s.will.ger === 107, `FRA ${s.will.fra} GER ${s.will.ger}`);
+  // Germany takes the Channel Ports (8 VP, lane 1): GBR −8 −15, GER +4
+  s = atWar('1915-04');
+  s.boxes['l01-e2'].owner = 'germany';
+  s.units = s.units.filter((u) => u.box !== 'l01-e2');
+  place(s, 'ger-01', 'l01-e2');
+  plan = planAttack(s, bundle(), { target: 'l01-e3', units: ['ger-01'] });
+  applyCombatResult(s, bundle(), plan, { a: 0, d: 0, r: true });
+  check(s.will.gbr === 85 - 8 - 15 && s.will.ger === 105 + 4, `GBR ${s.will.gbr} GER ${s.will.ger}`);
+  // The Entente takes Lille (3 VP): GER −3; FRA and GBR +0 (¼ of 3, rounded down)
+  s = atWar('1915-04', 'entente');
+  s.boxes['l03-g1'].owner = 'entente';
+  s.units = s.units.filter((u) => u.box !== 'l03-g1');
+  place(s, 'gbr-02', 'l03-g1');
+  plan = planAttack(s, bundle(), { target: 'l03-g2', units: ['gbr-02'] });
+  applyCombatResult(s, bundle(), plan, { a: 0, d: 0, r: true });
+  check(s.will.ger === 102 && s.will.fra === 75 && s.will.gbr === 85, `GER ${s.will.ger}`);
+});
+
+test('combat: every attack is recorded for the map (battle scars and pencil notes)', () => {
+  const s = atWar('1916-02', 'germany');
+  const plan = planAttack(s, bundle(), { target: 'l11-e1', units: ['ger-11', 'ger-17'] });
+  applyCombatResult(s, bundle(), plan, { a: 3, d: 3, r: false });
+  const last = s.battles[s.battles.length - 1];
+  check(last.box === 'l11-e1' && last.month === '1916-02' && last.stepsLost === 6, JSON.stringify(last));
+  check(bigBattles(s).some((b) => b.box === 'l11-e1'), '6 steps lost earns a pencil note');
+});
+
+test('combat: the same seed gives the same result, and the old state is untouched', () => {
+  const s = atWar('1915-04', 'entente', 11);
+  const before = JSON.stringify(s);
+  const one = resolveAttack(s, bundle(), { target: 'l06-g1', units: ['fra-03'] });
+  const two = resolveAttack(s, bundle(), { target: 'l06-g1', units: ['fra-03'] });
+  check(JSON.stringify(one.state) === JSON.stringify(two.state) && one.result.roll === two.result.roll, 'same seed, same battle');
+  check(JSON.stringify(s) === before, 'the state passed in was changed');
+  check(unit(one.state, 'fra-03').attacked && one.state.attackedBoxes.includes('l06-g1'), 'attacker marked, box marked');
+  check(one.state.rng !== s.rng, 'the dice moved on');
+});
+
+test('combat: the odds preview — better columns mean better chances', () => {
+  const s = atWar('1916-08', 'entente');
+  place(s, 'fra-12', 'l06-e1');
+  place(s, 'fra-13', 'l06-e1');
+  const low = oddsPreview(s, bundle(), { target: 'l06-g1', units: ['fra-03'] });
+  const high = oddsPreview(s, bundle(), { target: 'l06-g1', units: ['fra-03', 'fra-12', 'fra-13'], munitions: 3 });
+  check(high.plan.finalColumn > low.plan.finalColumn, 'more men and guns, better column');
+  check(high.pTake > low.pTake && high.attackerLoss < low.attackerLoss + 1, `pTake ${low.pTake.toFixed(2)} → ${high.pTake.toFixed(2)}`);
+  check(low.pTake >= 0 && high.pTake <= 1, 'chances between 0 and 1');
+});
+
 export async function runAll(loadJson, loadText) {
   const results = [];
   try {
@@ -565,6 +857,7 @@ export async function runAll(loadJson, loadText) {
     data.scenario = await loadJson('data/scenarios/1914-west.json');
     data.unitTypes = await loadJson('data/unit-types.json');
     data.phases = await loadJson('data/phases.json');
+    data.combat = await loadJson('data/combat-table.json');
   } catch (err) {
     results.push({ name: 'load data files', ok: false, error: err.message });
     return results;

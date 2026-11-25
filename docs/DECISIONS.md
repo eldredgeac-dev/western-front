@@ -56,8 +56,48 @@ I'll change it.
 14. **Dispatches:** the log shows the last 8 lines in the panel, newest first, in the
     typewriter font.
 
+### Milestone 5: the combat engine (no screens yet)
+15. **Built to RULES.md.** The combat table is copied from RULES.md §9.3, and a test checks
+    it reproduces the §9.3 averages exactly (1:2 → 2.75 / 0.86 / 0% … 4:1 → 0.58 / 3.28 /
+    83%). See question 1 about the simulator.
+16. **The pending rule fixes in MILESTONES.md** that combat needs are built as suggested
+    there:
+    - French 75s count if any French unit defends (fix 5).
+    - An empty box is taken with no roll for 1 OP (fix 7).
+    - Tanks alone count as empty and fall back (fix 8).
+    - Retreats go to the deepest friendly box with room, first in the list if equal
+      (fix 9).
+    - Losses come off the strongest unit first, automatically (fix 10).
+17. **Who pays.** The nation with the most attacking steps pays the OP (1, or 2 for a
+    coalition) and the munitions, and takes the 3 Will if the attack is futile. This
+    matches pending fix 6. RULES.md doesn't say whose OP a coalition spends.
+18. **The attacker advances automatically** with its 2 strongest surviving units. RULES.md
+    says "may advance up to 2". Choosing which units (or not advancing) can come with the
+    attack screen.
+19. **Paris and the Channel Ports.** Their extra Will (FRA −25 and GER +10; GBR −15) is
+    added on top of the normal VP change, as `tools/wfsim.py` does.
+20. **Tanks on two terrains.** If a box had two terrains that change the tank bonus, the
+    smaller bonus counts. No box has that today.
+21. **Supply in combat.** Attackers must be in supply (`supply.js`). Losing steps for
+    being out of supply comes with Milestone 7.
+22. **Not yet built (later milestones):**
+    - Will from step losses each month, Will on capture of unnamed boxes (none in the
+      rules), and the victory check (Milestone 7).
+    - Event shifts like the April 1915 gas attack (Milestone 9). The engine already
+      accepts them as `extraShifts`.
+    - Commander effects (Milestone 11).
+    - The attack screen and its animations (Milestones 5–6).
+
 ## Questions for you
-(none yet)
+1. **The simulator's combat table is different from RULES.md.** `tools/wfsim.py`
+   (`TABLE0`) doesn't match RULES.md §9.3. For example, at 1:2 on a roll of 2–4 the
+   simulator has A3 D0 where RULES.md has A4 D0, and its 1:2 averages come out at about
+   2.39 / 1.00 instead of 2.75 / 0.86. RULES.md's own averages match its own table, so I
+   built the game to RULES.md. **Which one was the balance testing done with?** If it was
+   the simulator's, the [balanced] numbers may need re-checking against the real table.
+2. **The simulator's starting German Will is 80** (`DEFAULT['will']`), but RULES.md §11
+   says 105. I used 105. Perhaps `levels.py` overrides it; worth a look when the balance is
+   re-run.
 
 ## Check on my phone
 - [ ] **Counters.** Start a New Campaign and zoom in with **+** three times. Each front
