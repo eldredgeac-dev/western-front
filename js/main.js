@@ -1,5 +1,6 @@
 // main.js — starts the app: loads the data files, wires up the buttons,
 // and connects the map and the panel.
+import { VERSION, VERSION_LABEL } from './version.js';
 import { hasSave, saveGame, loadGame, readSave, saveText, exportName } from './storage.js';
 import { checkMap, indexBoxes, boxName, trenchMax } from './engine/boxes.js';
 import { newGame, currentMonth, monthLabel } from './engine/state.js';
@@ -83,7 +84,7 @@ function getStorage() {
 async function loadJson(path) {
   let response;
   try {
-    response = await fetch(path);
+    response = await fetch(`${path}?v=${VERSION}`);     // the version stamp: no stale copies
   } catch (err) {
     throw new Error(`Couldn't download ${path}. Check your connection.`);
   }
@@ -113,7 +114,7 @@ async function loadData() {
   ]);
   const problems = checkMap(map, terrainData);
   if (problems.length > 0) throw new Error('The map data has problems: ' + problems.join('; '));
-  const mapSvg = await loadMapSvg(map.mapSvg);
+  const mapSvg = await loadMapSvg(`${map.mapSvg}?v=${VERSION}`);
   // `engine` is the bundle of data files the game engine (js/engine/) works with.
   const engine = { map, terrain: terrainData, nations, unitTypes, phases, combat, victory, events, ai, commanders };
   return { map, terrainData, nations, scenario, quotes, unitTypes, phases, engine, mapSvg, boxesById: indexBoxes(map) };
@@ -785,6 +786,7 @@ function wireSheet() {
 }
 
 async function boot() {
+  $('version-note').textContent = VERSION_LABEL;
   updateContinueButton();
   newGameButton.addEventListener('click', showSetup);
   $('btn-begin').addEventListener('click', startGame);

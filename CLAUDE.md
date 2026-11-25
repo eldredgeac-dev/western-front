@@ -40,6 +40,10 @@ Eastern Front, more nations and the naval blockade, so build it to grow.
   file as the real backup. Always wrap `JSON.parse` and storage calls in try/catch.
 - File and folder names are **lowercase with hyphens** (GitHub Pages is case-sensitive).
 - Use **relative paths** (`./js/main.js`), never paths starting with `/`.
+- **Every release, raise the version** in `js/version.js` and the matching `?v=` number in
+  `index.html` (stylesheet, import map, main.js), so phones fetch the new files instead
+  of keeping old copies. The title screen shows the version. A new `js/` file needs an
+  import-map line too (tests/run.mjs checks).
 
 ## Phone requirements
 - `<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">`

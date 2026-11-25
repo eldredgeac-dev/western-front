@@ -55,6 +55,17 @@ const ruleChecks = [
     return [...new Set(hexes.filter((h) => !PALETTE.includes(h.toUpperCase())))];
   }],
 
+  ['rule: every js file has the version stamp from js/version.js (no stale copies on phones)', () => {
+    const version = (read('js/version.js').match(/VERSION = '([^']+)'/) || [])[1];
+    const html = read('index.html');
+    const problems = [];
+    for (const f of files.filter((x) => x.startsWith('js/') && x.endsWith('.js') && x !== 'js/main.js')) {
+      if (!html.includes(`"./${f}": "./${f}?v=${version}"`)) problems.push(`${f} is missing from the import map in index.html (or has an old version)`);
+    }
+    for (const f of ['css/style.css', 'js/main.js']) if (!html.includes(`./${f}?v=${version}`)) problems.push(`${f} in index.html needs ?v=${version}`);
+    return problems;
+  }],
+
   ['rule: index.html has the phone viewport tag', () => {
     const html = read('index.html');
     return html.includes('width=device-width, initial-scale=1, viewport-fit=cover') ? [] : ['index.html'];
