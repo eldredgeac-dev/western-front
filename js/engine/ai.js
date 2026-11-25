@@ -56,8 +56,14 @@ function stepTowards(state, data, from, to, side) {
   return b;
 }
 
+// Where each of these units is (for recording an attack: which box it came from).
+const unitsAt = (state, ids) => Object.fromEntries(ids.map((id) => [id, state.units.find((u) => u.id === id).box]));
+
 // ---------------------------------------------------------------- 2. defend
-export function aiMove(state, data, side) {
+// `record(action, state)` is optional: called after each move so the screen can play
+// the computer's turn back (js/engine/orders.js describes actions). It only watches;
+// it never changes what the computer decides.
+export function aiMove(state, data, side, record = null) {
   const cfg = data.ai.move;
   const boxes = boxesOf(data);
   const front = new Set(frontBoxes(state, data, side));
@@ -72,10 +78,11 @@ export function aiMove(state, data, side) {
     const order = [...front].sort((a, b) => threat(state, data, b) - threat(state, data, a));
     const target = order.find((b) => b !== here && stackRoom(state, data, b) > 0 && threat(state, data, b) > cfg.fillThreatAbove);
     if (!target) continue;
-    if (boxes[here].neighbours.includes(target)) { apply(state, (s) => moveUnit(s, data, u.id, target)); continue; }
-    if (railTargets(state, data, u.id).includes(target)) { apply(state, (s) => railMove(s, data, u.id, target)); continue; }
+    const note = (kind, to) => { if (record) record({ kind, side, unit: u.id, from: here, to }, state); };
+    if (boxes[here].neighbours.includes(target)) { if (apply(state, (s) => moveUnit(s, data, u.id, target))) note('move', target); continue; }
+    if (railTargets(state, data, u.id).includes(target)) { if (apply(state, (s) => railMove(s, data, u.id, target))) note('rail', target); continue; }
     const step = stepTowards(state, data, here, target, side);
-    if (step && stackRoom(state, data, step) > 0) apply(state, (s) => moveUnit(s, data, u.id, step));
+    if (step && stackRoom(state, data, step) > 0 && apply(state, (s) => moveUnit(s, data, u.id, step))) note('move', step);
   }
 }
 
@@ -128,7 +135,8 @@ function scoreAttack(state, data, side, nation, target, units, munitions, skill)
   return { score, odds };
 }
 
-export function aiAttack(state, data, side) {
+// `record` as for aiMove: called after each attack with its result.
+export function aiAttack(state, data, side, record = null) {
   const skill = data.ai.skills[(state.aiSkill || {})[side] || 'standard'];
   const month = currentMonth(state);
   const spent = {};
@@ -155,8 +163,10 @@ export function aiAttack(state, data, side) {
       }
     }
     if (!best || best.score <= 0) break;
+    const before = record ? unitsAt(state, best.units) : null;
     const out = resolveAttack(state, data, { target: best.target, units: best.units, munitions: best.mun });
     Object.assign(state, out.state);
+    if (record) record({ kind: 'attack', side, target: best.target, units: best.units, munitions: best.mun, from: before, result: out.result }, state);
     spent[best.nation] = (spent[best.nation] || 0) + best.loss;
     if (state.over) break;
   }

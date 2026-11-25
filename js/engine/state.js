@@ -8,7 +8,7 @@ import { resourcesFor, applyDifficulty } from './resources.js';
 // recognised and upgraded (Milestone 8).
 //   1: owners and trenches only (Milestone 2)
 //   2: units, Will, resources, the dice, the phase and the log (Milestones 3–5)
-export const STATE_VERSION = 2;
+export const STATE_VERSION = 3;
 
 // Build a brand-new game from a scenario (data/scenarios/*.json).
 //   seed — any whole number; it drives every dice roll (js/engine/rng.js)
@@ -50,6 +50,7 @@ export function newGame(scenario, seed, data = {}, options = {}) {
     attackedBoxes: [],        // boxes attacked this turn (they don't dig in)
     lostThisTurn: {},         // steps lost this turn per nation
     battles: [],              // the battle record (js/engine/battles.js)
+    orders: [],               // orders queued this phase, not yet committed (js/engine/orders.js)
     log: [],
   };
   if (data.nations) {
@@ -135,6 +136,10 @@ export function migrateState(saved, scenario, data) {
     fresh.units = fresh.units.filter((u) => fresh.boxes[u.box].owner === sideOf(u.nation));
     fresh.migratedFrom = 1;
     state = fresh;
+  }
+  if (version < 3) {
+    // Version 3 added queued orders (orders, then commit).
+    state.orders = [];
   }
   state.version = STATE_VERSION;
   return state;
