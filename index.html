@@ -65,10 +65,12 @@
     </header>
     <section id="map-area" class="map-area" aria-label="Map">
       <div class="map-holder" id="map-holder"></div>
+      <!-- The locator: the whole map, small, with the part on screen outlined. Tap it to jump there. -->
+      <button id="locator" class="locator" type="button" aria-label="Locator map: tap to jump to that part of the map"></button>
       <div class="zoom-buttons" role="group" aria-label="Zoom">
         <button id="btn-zoom-in" class="btn btn-zoom" type="button" aria-label="Zoom in">+</button>
         <button id="btn-zoom-out" class="btn btn-zoom" type="button" aria-label="Zoom out">−</button>
-        <button id="btn-zoom-fit" class="btn btn-zoom btn-zoom-fit" type="button" aria-label="Show the whole front">Fit</button>
+        <button id="btn-zoom-fit" class="btn btn-zoom btn-zoom-fit" type="button" aria-label="Show the whole front line">Front</button>
       </div>
     </section>
     <section id="panel-sheet" class="panel-sheet" aria-label="Territory details">

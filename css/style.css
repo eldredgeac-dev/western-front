@@ -211,7 +211,29 @@ html, body {
   line-height: 1;
   letter-spacing: 0;
 }
-.btn-zoom-fit { font-size: 0.8rem; letter-spacing: 0.04em; }
+.btn-zoom-fit { font-size: 0.72rem; letter-spacing: 0.04em; }
+/* The locator map (top left of the map): brass hairline on leather, the paper map
+   inside, and the part on screen outlined in front-red. */
+.locator {
+  position: absolute;
+  left: max(10px, env(safe-area-inset-left));
+  top: 10px;
+  width: 112px;
+  padding: 3px;
+  border: 1px solid var(--brass);
+  border-radius: 4px;
+  background: var(--leather-light);
+  line-height: 0;
+  cursor: pointer;
+}
+.locator-svg { display: block; width: 100%; height: auto; pointer-events: none; }
+.locator-svg .sea { fill: var(--paper-dark); }
+.locator-svg .front-wire { display: none; }
+.locator-box { fill: none; stroke: var(--front-red); stroke-width: calc(1.6px * var(--u)); }
+@media (max-width: 699px) {
+  .game-screen.sheet-open .locator { display: none; }
+  .locator { width: 92px; }
+}
 
 /* The panel sheet. */
 .panel-sheet {

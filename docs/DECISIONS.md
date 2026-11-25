@@ -290,6 +290,29 @@ I'll change it.
 67. **Piece sizes on screen:** 26 px zoomed out (the simple version), 32 px at mid zoom,
     40 px fully zoomed in.
 
+68. **The bigger map (part 2).** The map now shows about half as much again in every
+    direction, at the same scale: out to Le Havre and Dover, Amsterdam, Münster and
+    Frankfurt, Stuttgart, Berne and Dijon. That area is scenery: coast, rivers, borders and
+    23 big towns (`sceneryTowns` in `tools/map-extra.json`).
+69. **The territories are exactly as before.** All 72, with the same neighbours, and
+    68 of them have identical outlines; the other 4 moved by a point or two where they
+    meet the old map edge.
+    - Letting rear territories spread into the new scenery changed which territories
+      touched each other, so they stop at the old map edge.
+    - That edge, with its terrain, contours, roads and railways, fades out softly over a
+      short distance instead of stopping in a straight line.
+70. **The map always fills the screen.** You can't zoom out past "fill the screen", and
+    you can zoom in further than before.
+    - It starts zoomed in at mid detail on your most threatened front-line territory, by
+      the same threat score the computer uses (RULES.md §14), or the middle of the front
+      in a two-player game.
+    - **Front** (the old **Fit** button) shows the whole front line.
+    - A flick makes the map glide to a stop (not with Reduce Motion), and arrow keys pan
+      it on a computer.
+71. **The locator map** (top left) is a live mini-map: territories in their owners'
+    colours and the front line, with a red box for the part on screen. Tap it to jump
+    there. On the folded phone it hides while the panel is open.
+
 ## Questions for you (answered)
 1. **Combat table — answered: RULES.md is right.**
    - The balance tests used `tools/t2.py`, which patched the simulator's 1:2 and 1:1
@@ -368,3 +391,13 @@ I'll change it.
         stay clear?
       - Where two or three units share a territory you should see a small tower with a
         brass "×2" or "×3" tab.
+- [ ] **The bigger map.** Start a campaign as the Entente. The map should open zoomed in
+      on the front, not showing the whole map.
+      - Pan around: past the playing area you'll find England, the Netherlands and the
+        Rhine, and the coloured territories fade out softly at their edge.
+      - Flick the map: it should glide a little and stop.
+      - The small locator map (top left) shows where you are. Tap it to jump somewhere
+        else.
+      - **Front** shows the whole front line.
+      - Is it still smooth to pan and pinch on the phone? The map file is a little bigger
+        (1.0 MB, was 0.95 MB).

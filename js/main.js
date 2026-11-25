@@ -5,6 +5,7 @@ import { checkMap, indexBoxes, boxName, trenchMax } from './engine/boxes.js';
 import { newGame, currentMonth, monthLabel } from './engine/state.js';
 import { loadMapSvg, createMapView } from './ui/map.js';
 import { enableZoom } from './ui/zoom.js';
+import { createLocator } from './ui/locator.js';
 import { showPanel } from './ui/panel.js';
 import { battleCounts, bigBattles, scarLevel, shortMonth } from './engine/battles.js';
 import { applyDemo } from './ui/demo.js';
@@ -14,6 +15,8 @@ import { unitsIn, unitType, nationOf } from './engine/units.js';
 import { moveTargets, railTargets, moveUnit, railMove, phaseAllows } from './engine/moves.js';
 import { beginGame, endPhase, phaseOf } from './engine/turn.js';
 import { oddsPreview, resolveAttack, eligibleAttackers, barrageMax } from './engine/combat.js';
+import { frontBoxes } from './engine/ai.js';
+import { threat } from './engine/systems/replacements.js';
 
 // Find the page elements we need once, at start-up.
 const $ = (id) => document.getElementById(id);
@@ -297,6 +300,7 @@ function selectUnit(unitId) {
 function openSheet(open) {
   sheet.classList.toggle('open', open);
   sheetHandle.setAttribute('aria-expanded', String(open));
+  $('game-screen').classList.toggle('sheet-open', open);     // hides the locator when folded
 }
 
 // A tap on the map. If a unit is selected and the tapped territory is lit up,
@@ -471,11 +475,15 @@ function showMap() {
       noteNameFn: (id) => data.boxesById[id].name || data.boxesById[id].anchor.town,
       shortMonthFn: shortMonth,
     });
+    const vb = mapView.svg.viewBox.baseVal;
+    const mapSize = { w: vb.width, h: vb.height };          // the whole map, in map units
     zoom = enableZoom(mapView.svg, {
       onTap: tapBox,
-      onViewChange: (k) => { mapView.declutter(); mapView.layout(k); },
+      onViewChange: (k) => { mapView.declutter(); mapView.layout(k); showLocator(zoom.current()); },
       home: mapView.frontBounds,
+      start: startPoint,
     });
+    showLocator = createLocator($('locator'), mapSize, (x, y) => zoom.centreOn(x, y));
     $('btn-zoom-in').addEventListener('click', () => zoom.zoomIn());
     $('btn-zoom-out').addEventListener('click', () => zoom.zoomOut());
     $('btn-zoom-fit').addEventListener('click', () => zoom.fit());
@@ -485,8 +493,27 @@ function showMap() {
   mapView.showTargets([], []);
   if (demoAttack) mapView.showPlannedAttack(...demoAttack);
   else mapView.clearPlannedAttack();
-  zoom.fit();
+  zoom.startView();
 }
+
+let showLocator = () => {};      // set up in showMap() (js/ui/locator.js)
+
+// Where the map starts: your most threatened front-line territory (RULES.md §14's
+// threat score), or the middle of the front when you play both sides.
+function startPoint() {
+  const humans = Object.entries(state.controllers || {}).filter(([, who]) => who === 'human').map(([side]) => side);
+  if (humans.length === 1) {
+    const boxes = frontBoxes(state, data.engine, humans[0]);
+    if (boxes.length) {
+      const worst = boxes.reduce((a, b) => (threat(state, data.engine, b) > threat(state, data.engine, a) ? b : a));
+      const t = document.getElementById(worst);
+      return [Number(t.dataset.x), Number(t.dataset.y)];
+    }
+  }
+  const b = mapView.frontBounds();
+  return b ? [b[0] + b[2] / 2, b[1] + b[3] / 2] : null;
+}
+
 
 // Repaint the map, the top bar and anything that depends on the game state.
 function redraw() {
