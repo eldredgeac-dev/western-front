@@ -224,6 +224,53 @@ I'll change it.
     Its moves and attacks appear in Dispatches. Animating them is Milestone 6 (Feel and
     sound).
 
+### Item 7: 50 computer-vs-computer wars with the game's own engine
+58. **The JS engine's results are far from docs/BALANCE.md.** I ran 50 complete wars
+    with `node tools/js-sim.mjs 50` (seeds 1–50, Standard vs Standard, ~2.5 seconds per
+    war). I also ran the Python simulator without commanders, because commanders aren't in
+    the JS game yet (Milestone 10).
+
+    | | Germany wins | Entente wins | Draw | Avg turns | Early end | French mutinies |
+    |---|---|---|---|---|---|---|
+    | **JS engine** (no commanders) | 52% | 12% | 36% | 48.0 | 0% | 6% |
+    | wfsim.py, no commanders, 50 games | 34% | 46% | 20% | 47 | 0% | 40% |
+    | BALANCE.md, Standard vs Standard | 48% | 35% | 18% | 47 | ~5% | ~1 in 3 |
+
+    - **Game length is right**: wars run to November 1918, as in BALANCE.md.
+    - **The Entente wins far less often, and France rarely mutinies.** The main
+      difference is that **the Entente attacks about half as often** in the JS game: about
+      17 attacks per war against 33 in the simulator. Germany makes about 28 against 39.
+      Fewer attacks mean fewer losses, so French Will stays high (50 at the end against
+      40), mutinies are rare, and more games end in a draw.
+      Captures fall too: 28 per war against 51.
+    - **I did not change any balance numbers or the AI to close the gap**, as you said.
+59. **What I checked, and what it wasn't:**
+    - The monthly OP, munitions and RP, and the trench maximums, are the same in both.
+    - **Moving twice:** letting AI units move twice, as the simulator does (decision 54),
+      made it *worse* (Germany 80%). That test wasn't kept.
+    - **Rebuilding before repairing**, as the simulator does, barely changed anything
+      (20 wars: Germany 50%, Entente 25%). That test wasn't kept either.
+60. **Likely causes still to look at** (questions for you, below). The JS game follows
+    RULES.md where the simulator took short cuts. The gap is most likely in what counts as
+    a legal or worthwhile attack:
+    - The JS AI only counts a box as **taken if some attackers survive** to move in. The
+      simulator may count a win whenever the defenders are cleared.
+    - JS attacks need **OP to pay the full cost** (coalition and empty-box costs from
+      RULES.md §9). The simulator may charge less in some cases.
+    - **Supply and rail** details differ slightly: JS checks supply each phase.
+    - **Random numbers** come from one seeded stream in JS and several in Python, so single
+      games can't be compared one-to-one; only the averages can.
+
+## Questions for you (open)
+4. **The JS game and the simulator disagree** (decisions 58–60): Germany 52% / Entente
+   12% in the game, against 48% / 35% in BALANCE.md. Which should be the reference?
+   - **My suggestion:** treat RULES.md as right and find out why the JS Entente attacks
+     half as often. Then either change the JS AI to match the simulator (if it's an AI
+     difference) or update the simulator to match the game and re-run the balance tests
+     (if it's a rules difference). I haven't done either, because you said not to change
+     balance numbers to fix this.
+   - You can repeat the check yourself on a computer with `node tools/js-sim.mjs 50`.
+
 ## Questions for you (answered)
 1. **Combat table — answered: RULES.md is right.**
    - The balance tests used `tools/t2.py`, which patched the simulator's 1:2 and 1:1

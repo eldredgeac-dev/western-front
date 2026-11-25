@@ -155,3 +155,9 @@ the balance tests and tell me if anything got lopsided."*
 - Equal skill: each side wins 35–55% and stalemates stay under 25%.
 - Turtle and reckless strategies win under 20%.
 - Each difficulty level clearly steps down from the one before.
+
+## Check with the game's own engine (JavaScript)
+`node tools/js-sim.mjs 50` plays 50 complete computer-vs-computer wars with the real game
+engine (fixed seeds). The first run (no commanders yet) gave Germany 52%, Entente 12%,
+draw 36%, against the simulator's 48 / 35 / 18. The difference is being looked into; see
+docs/DECISIONS.md, decisions 58–60. None of the numbers above were changed.
