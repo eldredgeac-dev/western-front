@@ -211,6 +211,53 @@ disagree, the range is given. Game values derived from them are tagged [balanced
   - The Allies occupied the Rhineland.
   - Germany handed over 5,000 guns, 25,000 machine guns, 1,700 aircraft and its U-boats.
 
+## Drawing the map
+How the campaign map (`img/map-west.svg`) was made, and how accurate each part is.
+- **Coast, countries, rivers:**
+  - From **Natural Earth** (public domain, naturalearthdata.com): 10m countries and land
+    via the `world-atlas` package, and 10m rivers plus the European supplement.
+  - Today's Franco-German border on the Rhine is left out, because in 1914 the border was
+    the 1871 one.
+- **Contour lines:**
+  - From the **Terrarium elevation tiles** on AWS Open Data, made by Mapzen from SRTM,
+    ETOPO1, EU-DEM and other public sources. They ask for attribution, which this line
+    gives.
+  - About 200 m per pixel, so small hills read low (Mont Kemmel comes out at 87 m; it is
+    really 156 m).
+- **Hand-traced** in `tools/map-extra.json`, by Claude, from general reference
+  knowledge and modern maps of the same places. Please check them against a period map
+  before relying on them for rules.
+  - **The front line** is the line as it stood for most of 1915–1917, about ±2 km:
+    Nieuport, the Yser, the Ypres salient, Armentières, La Bassée, Vimy, Arras, Albert,
+    Roye, Noyon, Soissons, the Chemin des Dames, Reims, Champagne, the Argonne, Verdun,
+    St-Mihiel, Pont-à-Mousson, the Vosges, and Pfetterhouse on the Swiss border.
+    - A good public-domain check is the US Military Academy (West Point) atlas maps of
+      the Western Front.
+  - **The 1871–1918 border** (Treaty of Frankfurt) runs from Luxembourg past Thionville
+    and Metz on the German side, then down the Vosges crest to Switzerland. About ±3 km.
+  - **The Yser, Oise and Aisne:** traced through their main towns, about ±2 km.
+  - **Ridges:** crest lines of the high ground fought over (Messines–Passchendaele,
+    Aubers, Lorette, Vimy, Thiepval–Pozières, the Chemin des Dames, the Montagne de
+    Reims, the Monts de Champagne, the Argonne, Mort-Homme and Hill 304, the Heights of
+    the Meuse, the Vosges).
+  - **Railways:**
+    - The main lines of 1914, traced station to station. The stations are right; the
+      track between them is straight-ish and approximate (±3 km).
+    - Natural Earth's railways were not used, because they are today's network.
+    - The German lateral line (Lille–Valenciennes–Hirson–Mézières–Sedan–Metz) was the
+      spine of German supply.
+  - **Roads:** routes that mattered, including the Voie Sacrée (Bar-le-Duc–Verdun), the
+    Menin Road, the Albert–Bapaume road and the Chemin des Dames.
+  - **Villages and landmarks:** positions from modern gazetteers, about ±1 km.
+    - Heights: Mort-Homme 295 m, Hill 304, the Butte de Vauquois about 290 m.
+    - Hill 60 was a 60 m spoil heap near Zillebeke.
+- **Trench colours** follow the British trench maps of 1917, which printed German
+  trenches in red and Allied trenches in blue.
+- **Battle scars and pencil notes** are drawn from the game's own battles, not real
+  history. `js/ui/demo.js` holds a sample war roughly following the real one (Artois and
+  Champagne 1915, Verdun and the Somme 1916, Arras, the Chemin des Dames and
+  Passchendaele 1917).
+
 ## Sources
 - Imperial War Museum, "What was the Battle of the Somme": https://www.iwm.org.uk/history/what-was-the-battle-of-the-somme
 - Britannica, Battle of Verdun: https://www.britannica.com/event/Battle-of-Verdun

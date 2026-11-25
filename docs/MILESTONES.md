@@ -48,18 +48,35 @@ Do one milestone per Claude Code session. For each one:
   - Terrain and national traits (RULES.md §3–4) all work. The averages table in §9.3 is a
     passing test.
   - `tests/tests.html` is all green, including "same seed gives the same result".
+  - Every battle is recorded in the state as `battles` (territory, month, steps lost), so
+    the map can show battle scars and pencil notes (docs/STYLE.md §13). The order screen
+    shows the planned attack as a grease-pencil arrow.
 
-- [ ] **6. Supply, replacements, national will**
+- [ ] **6. Feel and sound**
+  - The animations in docs/STYLE.md §8: barrage, dice, losses, capture, Will change and
+    the end-turn date flip. None is longer than 1 second, every one can be skipped by
+    tapping, and they're all off when the phone's Reduce Motion setting is on. A "fast
+    mode" toggle removes everything except captures.
+  - The sounds in docs/STYLE.md §9 (public domain or CC0, each under 100 KB, sources in
+    `sounds/CREDITS.md`). Sound is on by default with a toggle on the top bar, and it
+    respects the silent switch.
+  - The interface details in docs/STYLE.md §13:
+    - the desk lit by a warm lamp from the top left (a soft vignette);
+    - commander cards sealed with a wax seal in the nation's colour;
+    - drop caps and old-style numbers in the newspaper;
+    - brass map pins marking your selected territory.
+
+- [ ] **7. Supply, replacements, national will**
   - Out-of-supply units can't attack and lose strength.
   - Replacement points rebuild steps. National will changes as RULES.md says, and is
     shown as a bar for each nation.
 
-- [ ] **7. Save, export, import**
+- [ ] **8. Save, export, import**
   - Auto-saves at the end of every turn. Closing and reopening the app resumes the game.
   - Export makes a file (share sheet or download). Import restores it exactly.
   - A bad file shows a friendly error instead of breaking the game.
 
-- [ ] **8. Events and computer opponent**
+- [ ] **9. Events and computer opponent**
   - Dated events from `data/events.json` fire on time (gas, tanks, US entry, Russia
     leaves the war…) and appear in the log as a pop-up.
   - The computer side moves, attacks, repairs units and stops attacking at bad odds.
@@ -69,14 +86,19 @@ Do one milestone per Claude Code session. For each one:
   - The running Armistice Score shows on the main screen. A "Nations" screen lists each
     nation's traits.
 
-- [ ] **9. Commander cards**
+- [ ] **10. Playtest and polish**
+  - You play 3–4 full games (both sides, more than one difficulty).
+  - We list everything that was boring or confusing, then fix it.
+  - Every screen passes the "Is it cheesy?" checklist in docs/STYLE.md §11.
+
+- [ ] **11. Commander cards**
   - Each nation shows its current commander card (silhouette portrait, name, Strength,
     Flaw) on the Nations screen.
   - All the effects in RULES.md §15 work, each with a test.
   - Historical changes ask "Replace X with Y?". Sacking works, with its Will cost. The
     computer follows history.
 
-- [ ] **10. Newspaper, Butcher's Bill and Real Voices**
+- [ ] **12. Newspaper, Butcher's Bill and Real Voices**
   - A newspaper front page appears at the end of every turn: the masthead for your side,
     a generated headline (with `data/headlines.json` templates), propaganda spin, the
     Butcher's Bill line, and 2–3 real headlines from `data/news.json`.
@@ -87,7 +109,7 @@ Do one milestone per Claude Code session. For each one:
   - Styling: aged paper, a serif headline font, a column layout that fits folded and
     unfolded.
 
-- [ ] **11. Home-screen polish**
+- [ ] **13. Home-screen polish**
   - A manifest and icon let it launch full screen from the home screen.
   - A short second scenario (Spring 1918, about 9 turns) added using **only data files**
     — proof the design can grow.
@@ -104,7 +126,7 @@ Gaps in RULES.md found in the first session. Each has a suggested fix that match
 `tools/wfsim.py` where the simulator covers it. **Not agreed yet:** when we reach the
 milestone in brackets, confirm the fix, then update RULES.md and the code together.
 
-4. **[5, 9] Commander bonuses stack.** Haig's "+1 OP from 1916" and Hindenburg &
+4. **[5, 11] Commander bonuses stack.** Haig's "+1 OP from 1916" and Hindenburg &
    Ludendorff's "+1 RP" are added on top of the §6 table (so GBR has 3 OP in 1916–17).
 5. **[5] Mixed stacks and the French 75s.** The trait applies if any French unit is in
    the defending box.
@@ -118,25 +140,30 @@ milestone in brackets, confirm the fix, then update RULES.md and the code togeth
    player picks (the computer picks the first).
 10. **[5] Taking losses.** Automatic in v1, strongest unit first. Choosing by hand is a
     later idea.
-11. **[6] Rebuilt units (2 RP)** come back as the nation's basic infantry (US Infantry for
+11. **[7] Rebuilt units (2 RP)** come back as the nation's basic infantry (US Infantry for
     the USA), Regular quality, in a rear box the player picks. Elite and Stormtrooper
     status is lost.
-12. **[8] Elite is permanent** until the unit is destroyed. That covers the Old
+12. **[9] Elite is permanent** until the unit is destroyed. That covers the Old
     Contemptibles after Sir John French leaves, and the Dominion corps.
-13. **[8] Hindenburg Line.** Units in G1 of lanes 5–8 move to G2 (or to G3 if G2 is
+13. **[9] Hindenburg Line.** Units in G1 of lanes 5–8 move to G2 (or to G3 if G2 is
     full). Those G1 boxes become Entente-owned at trench 0. No Will change.
-14. **[8] Reinforcements** go in a rear box of the player's choice with room (the computer
+14. **[9] Reinforcements** go in a rear box of the player's choice with room (the computer
     picks at random). GBR goes in lanes 1–6 and the USA in lanes 9–12. If there's no room,
     the unit waits a turn.
-15. **[6] Will rounding.** "1 per N steps, rounded down" is worked out each turn and the
+15. **[7] Will rounding.** "1 per N steps, rounded down" is worked out each turn and the
     remainder is dropped. Belgian losses are counted separately against FRA.
-16. **[6] USA Will reaching 0.** Nothing sudden happens, but US units can't attack while
+16. **[7] USA Will reaching 0.** Nothing sudden happens, but US units can't attack while
     US Will is 0.
-17. **[8, 9] Match RULES.md to the simulator.**
+17. **[9, 11] Match RULES.md to the simulator.**
     - The AI stops attacking at "this turn's RP + 2", not next turn's.
     - The Kaiserschlacht gamble (−15) and H&L's "last gamble" (−3 a month) both apply in
       Mar–Jul 1918.
 
 ## Later ideas
 - Let the player choose which unit takes each step loss (see pending fix 10).
+- Let the player choose where their own RP go (repairs and rebuilds) on the Nations
+  screen. For now they're spent automatically, as the computer does (DECISIONS.md 30).
+- Let the player choose where reinforcements arrive, and which units become
+  stormtroopers (DECISIONS.md 47, 50).
+- The Recruit advisor also highlights weak friendly front boxes (RULES.md §13).
 (Claude Code: add ideas here instead of building them.)

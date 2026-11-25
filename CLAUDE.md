@@ -19,6 +19,7 @@ Eastern Front, more nations and the naval blockade, so build it to grow.
 - `docs/HISTORY.md` — the historical facts behind the scenario data, with sources.
 - `docs/MILESTONES.md` — the build plan. We do one milestone at a time.
 - `docs/DATA.md` — what goes in each JSON data file (create it in milestone 2).
+- `docs/STYLE.md` — the art direction: palette, fonts, map look, motion, sound, tone.
 - `docs/BALANCE.md` — results of the balance testing. Numbers tagged [balanced] in
   RULES.md came from `tools/wfsim.py` (a Python simulator of the rules). If a rule
   change touches balance, update the simulator to match and re-run it
@@ -46,7 +47,9 @@ Eastern Front, more nations and the naval blockade, so build it to grow.
 - Layout: map on top and panel below when narrow; side by side at ≥ 700px wide.
   Must re-lay out when I fold/unfold. No hard-coded widths.
 - Every tap target at least 44×44px. No hover-only features.
-- `touch-action: manipulation` on the map to stop double-tap zoom.
+- `touch-action: manipulation` on the map to stop double-tap zoom. (The map itself uses
+  `touch-action: none`, because `js/ui/zoom.js` does its own pinch-zoom; that also stops
+  double-tap zoom.)
 - No service worker (offline mode) until I ask for it.
 
 ## Folder layout
@@ -61,14 +64,17 @@ js/engine/rng.js           seeded RNG (mulberry32)
 js/engine/boxes.js         map checks, box names, trench maximums
 js/engine/ai.js            computer opponent (priority scoring)
 js/engine/systems/         supply.js, will.js (later: economy.js, blockade.js)
-js/ui/map.js  panel.js  log.js
+js/engine/battles.js       the battle record (scars and pencil notes on the map)
+js/ui/map.js  zoom.js  panel.js  log.js  demo.js
 js/storage.js              save / load / export / import
 data/nations.json  unit-types.json  boxes-west.json  terrain.json  events.json  combat-table.json
 data/commanders.json  headlines.json
 data/news.json  quotes.json         (already written: real history, don't change facts without a source)
 data/scenarios/1914-west.json
 tests/tests.html  tests/tests.js  tests/run.mjs
-docs/RULES.md  HISTORY.md  MILESTONES.md  DATA.md
+img/map-west.svg           the campaign map, made by tools/build-map.mjs (+ map-extra.json)
+fonts/                     OFL fonts (fonts/CREDITS.md)
+docs/RULES.md  HISTORY.md  MILESTONES.md  DATA.md  STYLE.md
 ```
 
 ## How to run and test
@@ -78,6 +84,9 @@ docs/RULES.md  HISTORY.md  MILESTONES.md  DATA.md
 - **Add or update a test for every rule you implement.** Tests must use a fixed seed.
 
 ## How to work with me
+Read docs/STYLE.md before building anything the player sees, and check every screen
+against its 'Is it cheesy?' checklist before saying a milestone is done.
+
 1. Work on **one milestone at a time** from `docs/MILESTONES.md`. Show me a short plan
    first and wait for my OK before writing code.
 2. Keep functions small. Add comments a beginner can follow.

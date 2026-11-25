@@ -10,9 +10,12 @@ LANES, COLS = 12, 6           # cols: 0=E3 1=E2 2=E1 | 3=G1 4=G2 5=G3
 COLNAMES = ['1:2', '1:1', '3:2', '2:1', '3:1', '4:1']
 RATIOS = [0.5, 1, 1.5, 2, 3, 4]
 BANDS = [(2, 4), (5, 6), (7, 7), (8, 9), (10, 11), (12, 12)]
+# The combat table, exactly as docs/RULES.md §9.3 [balanced]: TABLE0[column] lists
+# (attacker loss, defender loss, retreat) for each 2d6 band in BANDS.
+# (The 1:2 and 1:1 columns used to be patched in by tools/t2.py; they now live here.)
 TABLE0 = {  # (A, D, R) by column, by band
- 0: [(3,0,0),(3,1,0),(2,1,0),(2,1,0),(2,2,0),(1,2,0)],
- 1: [(3,1,0),(2,1,0),(2,2,0),(2,2,0),(1,2,0),(1,3,1)],
+ 0: [(4,0,0),(3,1,0),(3,1,0),(2,1,0),(2,1,0),(2,2,0)],
+ 1: [(3,1,0),(3,1,0),(2,1,0),(2,2,0),(2,2,0),(1,3,1)],
  2: [(3,1,0),(2,2,0),(2,2,0),(1,2,0),(1,3,1),(1,3,1)],
  3: [(2,1,0),(2,2,0),(1,2,0),(1,3,1),(1,3,1),(0,4,1)],
  4: [(2,2,0),(1,2,0),(1,3,1),(1,3,1),(0,4,1),(0,4,1)],
@@ -45,12 +48,22 @@ def ym(t):  # turn 0 = Dec 1914
 def mkey(t):
     y, m = ym(t); return y*100 + m
 
+# The default settings follow docs/RULES.md. (They used to be passed in by
+# tools/levels.py; levels.py now only adds the difficulty levels on top.)
 DEFAULT = dict(
-  will={'GER':80,'FRA':75,'GBR':85,'USA':90},
-  stack=3, dug_in_level=2, winter_shift=1, mutiny_at=35,
-  blockade1=1, blockade2=2, uboat_gbr=2, paris_loss=25, ports_loss=15,
-  loss_div={'GER':2,'FRA':2,'GBR':2,'USA':2}, end_ger_will=25, end_boxes=3,
-  res_mult={'G':1.0,'E':1.0}, will_bonus={'G':0,'E':0},
+  will={'GER':105,'FRA':75,'GBR':85,'USA':90},            # §11 starting Will
+  stack=3, dug_in_level=2, winter_shift=1, mutiny_at=35,   # §5 stacking, §9.4 dug in, §9.2 winter, §10 mutinies
+  blockade1=1, blockade1_every=2,                          # §10 1916: GER −1 Will every other month
+  blockade2=1,                                             # §10 1917 Turnip Winter: GER −1 every month
+  blockade3=2,                                             # §10 1918 Hunger: GER −2 every month
+  uboat_gbr=2, paris_loss=25, ports_loss=15,               # §10 U-boats, §11 Paris and the Channel Ports
+  loss_div={'GER':3,'FRA':2,'GBR':2,'USA':3},             # §4, §11: 1 Will per 3 (GER, USA) or 2 (FRA, GBR) steps
+  commanders=True,                                         # §15 commander cards
+  fail_mode='futile', futile_pen=3,                        # §9.4 futile attacks cost 3 Will
+  mandate=0, mandate_ger=15,                               # §10 Kaiserschlacht gamble: GER −15 if no attack Apr–Oct 1918
+  score_end=True, avg_score=True, draw_margin=2,           # §11 Armistice Score (GER − FRA/GBR average), ±2 is a draw
+  end_ger_will=25, end_boxes=3,                            # (old ending, unused while score_end is on)
+  res_mult={'G':1.0,'E':1.0}, will_bonus={'G':0,'E':0},    # §13 difficulty (set by levels.py)
 )
 
 def resources(nat, t, cfg, side):

@@ -1,16 +1,46 @@
 /* Western Front 1914–18 — styles.
-   Colours are variables here so they're easy to change in one place. */
+   The look is set by docs/STYLE.md: "a 1916 General Staff map spread on an officer's
+   desk". Only the colours below are allowed (STYLE.md §2). */
+
+/* ---------- Fonts (STYLE.md §3): free OFL fonts kept in fonts/, no CDN. ---------- */
+@font-face { font-family: "Playfair Display"; src: url("../fonts/playfair-display-bold.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+@font-face { font-family: "Playfair Display"; src: url("../fonts/playfair-display-black.woff2") format("woff2"); font-weight: 900; font-display: swap; }
+@font-face { font-family: "IM Fell English"; src: url("../fonts/im-fell-english.woff2") format("woff2"); font-display: swap; }
+@font-face { font-family: "IM Fell English"; src: url("../fonts/im-fell-english-italic.woff2") format("woff2"); font-style: italic; font-display: swap; }
+@font-face { font-family: "IM Fell English SC"; src: url("../fonts/im-fell-english-sc.woff2") format("woff2"); font-display: swap; }
+@font-face { font-family: "Source Serif 4"; src: url("../fonts/source-serif-4.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Source Serif 4"; src: url("../fonts/source-serif-4-semibold.woff2") format("woff2"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "Source Serif 4"; src: url("../fonts/source-serif-4-italic.woff2") format("woff2"); font-style: italic; font-display: swap; }
+@font-face { font-family: "Courier Prime"; src: url("../fonts/courier-prime.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Courier Prime"; src: url("../fonts/courier-prime-bold.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+@font-face { font-family: "Reenie Beanie"; src: url("../fonts/reenie-beanie.woff2") format("woff2"); font-display: swap; }
+
 :root {
-  --bg: #1f1d18;          /* dark trench brown */
-  --bg-raised: #2b2820;
-  --ink: #ece4d0;         /* old paper */
-  --ink-dim: #a99f88;
-  --accent: #8c2f23;      /* dark red */
-  --accent-ink: #fff6e8;
-  --line: #4a4536;
+  /* The map (paper) */
+  --paper: #E8DCC0;
+  --paper-dark: #D6C7A3;
+  --ink: #2B241C;
+  --ink-faded: #6E6253;
+  --river: #5F7F95;
+  --forest: #5E6B45;
+  --ridge: #8A7454;
+  --front-red: #8E1B1B;
+  /* The desk (interface) */
+  --leather: #221D18;
+  --leather-light: #2E2721;
+  --brass: #B08D57;
+  --telegram: #F1E6C8;
+  --stamp-red: #A3241F;
+
+  --font-title: "Playfair Display", Georgia, serif;
+  --font-place: "IM Fell English", Georgia, serif;
+  --font-place-sc: "IM Fell English SC", "IM Fell English", Georgia, serif;
+  --font-ui: "Source Serif 4", Georgia, serif;
+  --font-type: "Courier Prime", "Courier New", monospace;
+
   --tap: 44px;            /* smallest tap target (Apple's guideline) */
   --gap: 12px;
-  --radius: 8px;
+  --radius: 4px;
 }
 
 * { box-sizing: border-box; }
@@ -18,17 +48,18 @@
 html, body {
   margin: 0;
   height: 100%;
-  background: var(--bg);
-  color: var(--ink);
-  font-family: Georgia, "Times New Roman", serif;
+  background: var(--leather);
+  color: var(--telegram);
+  font-family: var(--font-ui);
+  font-size: 16px;                 /* interface text is never under 15px (STYLE.md §3) */
   -webkit-text-size-adjust: 100%;
 }
 
 /* [hidden] must win over the display rules below. */
 [hidden] { display: none !important; }
 
-/* Every screen fills the visible screen (100dvh changes as Safari's bars
-   appear and disappear) and keeps clear of the notch and home bar. */
+/* Screens fill the visible screen (100dvh follows Safari's bars) and keep clear
+   of the notch and home bar. */
 .screen {
   min-height: 100dvh;
   padding:
@@ -38,179 +69,398 @@ html, body {
     max(var(--gap), env(safe-area-inset-left));
 }
 
-/* ---------- Title screen ---------- */
+/* ---------- Buttons (STYLE.md §6): brass plates that press down 1px ---------- */
+.btn {
+  min-height: var(--tap);
+  min-width: var(--tap);
+  padding: 10px 20px;
+  border: 1px solid var(--brass);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--brass);
+  font: 600 1rem/1.2 var(--font-ui);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  touch-action: manipulation;   /* no double-tap zoom on buttons */
+}
+.btn:active { transform: translateY(1px); }
+.btn:focus-visible { outline: 2px solid var(--telegram); outline-offset: 2px; }
+.btn-primary { background: var(--brass); color: var(--leather); }
+.btn:disabled { opacity: 0.45; cursor: default; transform: none; }
+.btn-small { padding: 6px 14px; font-size: 0.95rem; }
+
+.note { margin: 0; font-size: 0.95rem; color: var(--paper-dark); text-align: center; }
+
+/* ---------- Title screen (STYLE.md §12): the folded map on a dark desk ---------- */
 .title-screen {
+  position: relative;
+  overflow: hidden;
   display: grid;
   place-content: center;
   justify-items: center;
-  gap: 40px;
+  gap: 28px;
   text-align: center;
 }
+.title-map {
+  /* the map lies on the desk behind the title, slightly turned and in shadow */
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: min(150vw, 1100px);
+  transform: translate(-50%, -50%) rotate(-4deg);
+  opacity: 0.18;
+  box-shadow: 0 20px 60px var(--leather);
+  pointer-events: none;
+}
+.title-block, .title-quote, .title-setup { position: relative; display: grid; gap: 8px; width: min(420px, 100%); }
+.setup-label { margin: 6px 0 0; color: var(--brass); font-family: var(--font-place); font-size: 1.1rem; }
+.setup-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.setup-levels { grid-template-columns: 1fr 1fr; }
+.setup-pick { padding: 8px 6px; font-size: 0.95rem; letter-spacing: 0.04em; }
+.setup-pick[aria-pressed="true"] { background: var(--brass); color: var(--leather); }
+.title-files { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap); }
+.title-buttons { position: relative; }
 .title-kicker {
   margin: 0;
-  color: var(--ink-dim);
+  color: var(--paper-dark);
   font-style: italic;
 }
 .title-name {
   margin: 8px 0 0;
-  /* clamp: grows with the screen width but stays between 2.4rem and 4.5rem */
-  font-size: clamp(2.4rem, 11vw, 4.5rem);
+  font-family: var(--font-title);
+  font-weight: 900;
+  font-size: clamp(2.6rem, 12vw, 4.8rem);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   line-height: 1;
+  color: var(--telegram);
 }
 .title-dates {
-  margin: 8px 0 0;
-  font-size: clamp(1.4rem, 6vw, 2.2rem);
-  color: var(--ink-dim);
+  margin: 10px 0 0;
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: clamp(1.3rem, 5.5vw, 2rem);
+  letter-spacing: 0.2em;
+  color: var(--brass);
 }
+.title-quote { margin: 0; max-width: 32em; padding: 0 8px; }
+.title-quote blockquote {
+  margin: 0;
+  font-style: italic;
+  font-size: 1.05rem;
+  line-height: 1.45;
+  color: var(--paper);
+}
+.title-quote figcaption { margin-top: 6px; font-size: 0.95rem; color: var(--paper-dark); }
 .title-buttons {
   display: grid;
   gap: var(--gap);
   width: min(320px, 100%);
 }
 
-/* ---------- Buttons ---------- */
-.btn {
-  min-height: var(--tap);
-  min-width: var(--tap);
-  padding: 12px 20px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--bg-raised);
-  color: var(--ink);
-  font: inherit;
-  font-size: 1.1rem;
-  cursor: pointer;
-  touch-action: manipulation;   /* no double-tap zoom on buttons */
-}
-.btn:active { transform: translateY(1px); }
-.btn-primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-ink);
-}
-.btn:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
-.btn-small { padding: 8px 14px; font-size: 1rem; }
-
-.note {
-  margin: 0;
-  font-size: 0.9rem;
-  color: var(--ink-dim);
-}
-
-/* ---------- Game screen ----------
-   Narrow (folded): bar on top, map, then panel below.
-   Wide (unfolded, 700px or more): map and panel side by side. */
+/* ---------- Game screen (STYLE.md §6) ----------
+   Folded: a top bar, then the map fills the screen; the panel is a sheet that
+   slides up from the bottom. Unfolded (700px or more): map 65%, panel 35%. */
 .game-screen {
-  display: grid;
-  gap: var(--gap);
-  grid-template-columns: 1fr;
-  grid-template-rows: auto minmax(0, 3fr) minmax(0, 2fr);
-  grid-template-areas:
-    "bar"
-    "map"
-    "panel";
   height: 100dvh;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas: "bar" "map";
+  padding:
+    env(safe-area-inset-top) env(safe-area-inset-right)
+    0 env(safe-area-inset-left);
 }
 .game-bar {
   grid-area: bar;
   display: flex;
   align-items: center;
   gap: var(--gap);
+  padding: 6px max(var(--gap), env(safe-area-inset-left));
+  border-bottom: 1px solid var(--brass);
+  background: var(--leather);
 }
-.game-bar-title { font-size: 1.1rem; }
-.map-area, .panel-area {
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--bg-raised);
-  padding: var(--gap);
-  overflow: auto;
-  min-width: 0;
+.game-bar-when { display: grid; line-height: 1.15; min-width: 0; }
+.game-bar-phase { font-size: 0.95rem; color: var(--brass); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.btn-end-phase { margin-left: auto; white-space: nowrap; }
+.game-bar-title {
+  font-family: var(--font-place);
+  font-size: 1.25rem;
+  color: var(--telegram);
 }
 .map-area {
   grid-area: map;
-  /* The SVG is sized by js/ui/map.js; if it's taller than the area, it scrolls. */
-  padding: 6px;
-  touch-action: manipulation;   /* stop double-tap zoom on the map */
-  -webkit-tap-highlight-color: transparent;
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--leather);
 }
-.panel-area { grid-area: panel; }
+.map-holder { position: absolute; inset: 0; }
+.zoom-buttons {
+  position: absolute;
+  right: max(10px, env(safe-area-inset-right));
+  bottom: calc(64px + env(safe-area-inset-bottom));
+  display: grid;
+  gap: 8px;
+}
+.btn-zoom {
+  padding: 0;
+  width: var(--tap);
+  background: var(--leather-light);
+  font-size: 1.4rem;
+  line-height: 1;
+  letter-spacing: 0;
+}
+.btn-zoom-fit { font-size: 0.8rem; letter-spacing: 0.04em; }
 
-/* ---------- Map ---------- */
-.map-svg {
-  display: block;
-  margin: 0 auto;
-  user-select: none;
-  -webkit-user-select: none;
+/* The panel sheet. */
+.panel-sheet {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  max-height: 50dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--leather-light);
+  border-top: 1px solid var(--brass);
+  border-radius: var(--radius) var(--radius) 0 0;
+  transform: translateY(calc(100% - 52px - env(safe-area-inset-bottom)));
+  transition: transform 0.3s ease;
+  z-index: 5;
 }
-.box-base {
-  stroke: #1a1812;
-  stroke-width: 1.5;
+.panel-sheet.open { transform: translateY(0); }
+.sheet-handle {
+  flex: none;
+  height: 52px;
+  border: 0;
+  background: transparent;
   cursor: pointer;
-  outline: none;
+  touch-action: none;
 }
-.box-base:focus-visible { stroke: #fff; stroke-width: 4; }
-/* Overlays ignore taps so the box underneath always gets them. */
-.box-deco { pointer-events: none; }
-.box-label, .box-vp, .box-badge {
-  fill: #fff8e6;
-  stroke: #1a1812;
-  stroke-width: 4px;
-  paint-order: stroke;        /* dark outline behind the letters, readable on any colour */
-  font-family: Georgia, "Times New Roman", serif;
+.sheet-grip {
+  display: block;
+  width: 48px; height: 5px;
+  margin: 0 auto;
+  border-radius: 3px;
+  background: var(--brass);
 }
-.box-label { font-size: 19px; font-weight: bold; }
-.box-vp { font-size: 16px; }
-.box-badge { font-size: 22px; fill: #f2e6c4; }
-.map-lane-label, .map-col-label {
-  fill: var(--ink-dim);
-  font-size: 18px;
-  font-family: Georgia, "Times New Roman", serif;
-  pointer-events: none;
+.panel-area {
+  overflow: auto;
+  padding: 0 max(16px, env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
 }
-.map-highlight {
-  fill: none;
-  stroke: #ffd23f;
-  stroke-width: 6;
-  pointer-events: none;
+@media (prefers-reduced-motion: reduce) {
+  .panel-sheet { transition: none; }
 }
 
-/* ---------- Panel ---------- */
-.panel-hint { margin: 0 0 var(--gap); color: var(--ink-dim); }
-.box-title { margin: 0 0 8px; font-size: 1.3rem; }
+@media (min-width: 700px) {
+  .game-screen {
+    grid-template-columns: minmax(0, 65fr) minmax(0, 35fr);
+    grid-template-areas: "bar bar" "map panel";
+  }
+  .panel-sheet {
+    grid-area: panel;
+    position: static;
+    max-height: none;
+    transform: none;
+    border-top: 0;
+    border-left: 1px solid var(--brass);
+    border-radius: 0;
+    padding-top: 12px;
+  }
+  .sheet-handle { display: none; }
+  .zoom-buttons { bottom: calc(16px + env(safe-area-inset-bottom)); }
+}
+
+/* ---------- The info panel ---------- */
+.panel-subtitle { margin: 4px 0 8px; font-family: var(--font-place); font-weight: normal; font-size: 1.1rem; color: var(--brass); }
+.unit-list { margin: 0 0 var(--gap); }
+.unit-row {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  min-height: var(--tap); margin: 0 0 6px; padding: 6px 10px;
+  background: var(--leather); color: var(--telegram);
+  border: 1px solid var(--leather-light); border-radius: var(--radius);
+  font: inherit; text-align: left; cursor: pointer; touch-action: manipulation;
+}
+.unit-row[aria-pressed="true"] { border-color: var(--brass); box-shadow: inset 0 0 0 1px var(--brass); }
+.unit-row:active { transform: translateY(1px); }
+.unit-text { display: grid; gap: 2px; }
+.unit-detail { color: var(--paper-dark); font-size: 0.95rem; }
+.counter-icon { flex: none; }
+.unit-hint { margin: 4px 0 10px; color: var(--paper-dark); font-size: 0.95rem; }
+.panel-error { margin: 0 0 10px; padding: 8px 10px; border-left: 3px solid var(--stamp-red); color: var(--telegram); }
+/* The attack order slip (STYLE.md §6): telegram paper, typed text, red stamp. */
+.order-slip {
+  margin: 0 0 var(--gap); padding: 14px 14px 12px;
+  background: var(--telegram); color: var(--ink);
+  border-radius: 2px; box-shadow: 0 2px 8px var(--leather);
+  font-family: var(--font-type); font-size: 0.95rem;
+}
+.slip-kicker { margin: 0; letter-spacing: 0.2em; font-weight: 700; }
+.slip-title { margin: 4px 0 2px; font: 700 1.05rem var(--font-type); }
+.slip-defenders, .slip-section, .slip-note { margin: 4px 0; }
+.slip-note { color: var(--stamp-red); }
+.slip-warning { margin: 8px 0; padding: 6px 8px; border: 1px dashed var(--stamp-red); color: var(--stamp-red); }
+.slip-unit {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: var(--tap);
+  margin: 0 0 4px; padding: 4px 8px; background: transparent; color: var(--ink);
+  border: 1px dashed var(--ink-faded); border-radius: 2px; font: inherit; text-align: left;
+  cursor: pointer; touch-action: manipulation;
+}
+.slip-unit[aria-pressed="true"] { border: 1px solid var(--ink); background: var(--paper); }
+.slip-munitions { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
+.slip-step { min-width: var(--tap); padding: 6px 0; color: var(--ink); border-color: var(--ink); }
+.slip-mun-text { flex: 1; }
+.slip-lines { margin: 6px 0; }
+.slip-line { display: flex; align-items: baseline; gap: 4px; }
+.slip-dots { flex: 1; border-bottom: 1px dotted var(--ink-faded); transform: translateY(-3px); }
+.slip-value { text-align: right; }
+.slip-label { flex: none; max-width: 65%; }
+.slip-stamp {
+  display: inline-block; margin: 8px 0 4px; padding: 4px 10px;
+  border: 3px double var(--front-red); color: var(--front-red);
+  font: 700 1.2rem var(--font-type); letter-spacing: 0.12em; transform: rotate(-3deg);
+}
+.slip-stamp.failed { border-color: var(--stamp-red); color: var(--stamp-red); }
+.slip-buttons { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+.slip-choice { display: block; width: 100%; margin: 6px 0; text-align: left; text-transform: none; letter-spacing: 0; font: 0.95rem var(--font-type); }
+.order-slip .btn:not(.btn-primary) { color: var(--ink); border-color: var(--ink); }
+
+.situation { border-top: 1px solid var(--brass); padding-top: 8px; }
+.situation-result { margin: 0 0 8px; font-family: var(--font-place); font-size: 1.2rem; color: var(--telegram); }
+
+/* The dispatches log: typed, like a signals message pad. */
+.dispatches { border-top: 1px solid var(--brass); padding-top: 8px; margin-bottom: var(--gap); }
+.dispatch-list { list-style: none; margin: 0; padding: 0; font-family: var(--font-type); font-size: 0.95rem; color: var(--paper); }
+.dispatch-list li { padding: 3px 0; border-bottom: 1px dotted var(--leather-light); }
+.panel-hint { margin: 0 0 var(--gap); color: var(--paper-dark); }
+.box-title {
+  margin: 0 0 8px;
+  font-family: var(--font-place);
+  font-weight: normal;
+  font-size: 1.5rem;
+  color: var(--telegram);
+}
 .box-facts {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 4px 12px;
+  gap: 5px 14px;
   margin: 0 0 var(--gap);
 }
-.box-facts dt { color: var(--ink-dim); }
+.box-facts dt { color: var(--paper-dark); }
 .box-facts dd { margin: 0; }
 .terrain-list { margin: 0; padding-left: 1.1em; }
-.legend { border-top: 1px solid var(--line); padding-top: 8px; }
-.legend-title { margin: 0 0 6px; font-size: 1rem; color: var(--ink-dim); }
+.legend { border-top: 1px solid var(--brass); padding-top: 10px; }
+.legend-title {
+  margin: 0 0 8px;
+  font-family: var(--font-place);
+  font-weight: normal;
+  font-size: 1.1rem;
+  color: var(--brass);
+}
 .legend-list {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 6px 12px;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px 12px;
   font-size: 0.95rem;
 }
 .legend-item { display: flex; align-items: center; gap: 8px; }
-.legend-swatch { width: 28px; height: 20px; flex: none; border: 1px solid #1a1812; }
+.legend-swatch { width: 32px; height: 22px; flex: none; border: 1px solid var(--brass); }
 
-@media (min-width: 700px) {
-  .game-screen {
-    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
-    grid-template-rows: auto minmax(0, 1fr);
-    grid-template-areas:
-      "bar bar"
-      "map panel";
-  }
+/* ---------- The map (STYLE.md §4). The SVG itself is made by tools/build-map.mjs;
+   these rules add what changes during play. --u = map units per screen pixel, set
+   by js/ui/zoom.js, so lines and labels can stay a readable size. ---------- */
+.map-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--leather);   /* the desk shows round the edge of the map */
+  touch-action: none;           /* our own pinch/drag; also stops double-tap zoom */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  --u: 1;
 }
+/* Only territories take taps; everything drawn over them lets taps through. */
+.map-svg #terrain, .map-svg #relief, .map-svg #rivers, .map-svg #edges,
+.map-svg #trenches, .map-svg #front, .map-svg #selection,
+.map-svg #place-names, .map-svg #towns, .map-svg #cartouche, .map-svg #compass,
+.map-svg #scale-bar, .map-svg #countries, .map-svg .coast, .map-svg .border,
+.map-svg .border-1871, .map-svg .sea, .map-svg .sea-hatch, .map-svg .paper-grain,
+.map-svg .fold, .map-svg .vignette { pointer-events: none; }
+
+.map-svg .territory { fill-opacity: 0.3; cursor: pointer; outline: none; }
+.map-svg .territory:focus-visible { stroke: var(--brass); stroke-width: calc(2px * var(--u)); }
+.map-svg .edge { stroke-width: max(0.45px, calc(0.8px * var(--u))); }
+.map-svg .front-bleed { fill: none; stroke: var(--front-red); stroke-opacity: 0.18; stroke-width: max(3.4px, calc(7px * var(--u))); stroke-linecap: round; stroke-linejoin: round; }
+.map-svg .front-line { fill: none; stroke: var(--front-red); stroke-width: max(1.4px, calc(2.8px * var(--u))); stroke-linecap: round; stroke-linejoin: round; }
+.map-svg .front-wire { fill: none; stroke: var(--ink); stroke-width: 0.3; stroke-linecap: round; }
+.map-svg .trench { fill: none; stroke: var(--ink); stroke-width: 0.35; stroke-linejoin: round; opacity: 0.85; }
+.map-svg .selected-outline {
+  fill: none;
+  stroke: var(--brass);
+  stroke-width: max(1.2px, calc(3.5px * var(--u)));
+  stroke-linejoin: round;
+  animation: brass-pulse 1.8s ease-in-out infinite;
+}
+@keyframes brass-pulse { 50% { stroke-opacity: 0.45; } }
+@media (prefers-reduced-motion: reduce) {
+  .map-svg .selected-outline { animation: none; }
+}
+
+/* Detail by zoom (STYLE.md §13). js/ui/zoom.js puts "far", "mid" or "near" on the map;
+   things tagged lod-mid appear from mid zoom, lod-near only fully zoomed in. */
+.map-svg.far .lod-mid, .map-svg.far .lod-near, .map-svg.mid .lod-near { display: none; }
+/* lod-far: only when zoomed out (the coloured region edges). */
+.map-svg.mid .lod-far, .map-svg.near .lod-far { display: none; }
+/* The simple trench zigzags show until you're fully zoomed; then the real network. */
+.map-svg.near .trench-simple, .map-svg:not(.near) .trench-net { display: none; }
+
+/* Labels: grow with the map when zoomed in, never smaller than 11px on screen
+   (STYLE.md §3). */
+.map-svg .map-label { stroke-width: calc(3px * var(--u)); stroke-opacity: 0.8; }
+.map-svg .region-edge { fill: none; stroke-width: calc(5px * var(--u)); stroke-opacity: 0.4; pointer-events: none; }
+.map-svg.near .front-line { stroke-width: calc(2px * var(--u)); stroke-opacity: 0.85; }
+.map-svg .label.city { font-size: clamp(calc(13px * var(--u)), 10px, calc(19px * var(--u))); }
+.map-svg .label.town { font-size: clamp(calc(11px * var(--u)), 6.5px, calc(14px * var(--u))); }
+.map-svg .label.village { font-size: clamp(calc(11px * var(--u)), 4.2px, calc(12px * var(--u))); }
+.map-svg .label.landmark { font-size: clamp(calc(11.5px * var(--u)), 4.6px, calc(13px * var(--u))); }
+.map-svg .road-label { font-size: clamp(calc(11px * var(--u)), 4.5px, calc(12px * var(--u))); }
+.map-svg .river-label { font-size: clamp(calc(11px * var(--u)), 7px, calc(15px * var(--u))); }
+.map-svg .country-label { font-size: max(15px, calc(12px * var(--u))); }
+.map-svg .country-label.small { font-size: max(9px, calc(11px * var(--u))); }
+.map-svg .sea-label { font-size: max(14px, calc(13px * var(--u))); }
+
+/* The trench network at full zoom, coloured like a 1917 British trench map:
+   German trenches red, Allied trenches blue. */
+.map-svg .trench-net { fill: none; stroke-width: 0.3; stroke-linejoin: miter; stroke-linecap: square; }
+.map-svg .trench-net.germany { stroke: var(--front-red); }
+.map-svg .trench-net.entente { stroke: var(--river); }
+.map-svg .trench-net.support { stroke-width: 0.26; opacity: 0.85; }
+.map-svg .trench-net.comms { stroke-width: 0.24; opacity: 0.75; }
+
+/* Units (STYLE.md §5): counters from mid zoom, one marker per box when zoomed out.
+   Taps go straight through them to the territory underneath. */
+.map-svg #units, .map-svg #targets { pointer-events: none; }
+.map-svg.far .stack-scaled, .map-svg:not(.far) .unit-marker { display: none; }
+.map-svg .counter.done { opacity: 0.7; }
+.map-svg .marker-body { stroke: var(--ink); stroke-width: 0.8; }
+.map-svg .marker-count { font: 7px var(--font-ui); font-weight: 600; fill: var(--telegram); text-anchor: middle; }
+.map-svg .target { fill: none; stroke: var(--brass); stroke-width: max(1.4px, calc(2.6px * var(--u))); stroke-linejoin: round; }
+.map-svg .target.rail { stroke-dasharray: calc(5px * var(--u)) calc(3px * var(--u)); stroke-opacity: 0.85; }
+
+/* The living map: battle scars, the staff officer's pencil notes, planned attacks. */
+.map-svg .scar { pointer-events: none; }
+.map-svg .pencil-note {
+  font-family: "Reenie Beanie", cursive;
+  font-size: clamp(calc(14px * var(--u)), 7px, calc(17px * var(--u)));
+  fill: var(--ink-faded);
+}
+.map-svg .pencil-lead { fill: none; stroke: var(--ink-faded); stroke-width: max(0.3px, calc(0.8px * var(--u))); stroke-linecap: round; opacity: 0.8; }
+.map-svg .plan-arrow { fill: none; stroke: var(--front-red); stroke-linecap: round; stroke-linejoin: round; opacity: 0.8; }
+.map-svg .plan-arrow.second { opacity: 0.45; }
+.map-svg #notes, .map-svg #plans, .map-svg #region-edges, .map-svg #scars, .map-svg #villages, .map-svg #landmarks,
+.map-svg #contours, .map-svg #roads, .map-svg #railways, .map-svg #age-marks,
+.map-svg .bleed, .map-svg .coast-ink, .map-svg .border-ink, .map-svg .season-snow,
+.map-svg .season-spring { pointer-events: none; }

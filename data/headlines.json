@@ -1,0 +1,98 @@
+{
+  "_about": "Newspaper headline templates (RULES.md §17), 2–3 versions of each so they don't repeat. The paper picks the highest-priority type that happened this month. 'ours' is used when the news is good for the reader's side, 'theirs' when it's bad: your own paper spins it (victories GLORIOUS, defeats STRATEGIC READJUSTMENTS). Each template has a 'head' (the big headline) and a 'deck' (the line under it). Placeholders are listed in 'placeholders'. See docs/DATA.md.",
+  "placeholders": {
+    "{box}": "the territory's name, e.g. AMIENS",
+    "{lane}": "the lane's name, e.g. the Somme",
+    "{side}": "the reader's side, e.g. the Allies / our armies",
+    "{enemy}": "the other side, e.g. the Hun / the enemy",
+    "{nation}": "a nation's name, e.g. France",
+    "{old}": "the outgoing commander",
+    "{new}": "the new commander"
+  },
+  "types": [
+    {"id": "game-over", "priority": 1, "variants": {
+      "armistice-won": [
+        {"head": "ARMISTICE!", "deck": "The guns fall silent at the eleventh hour — {enemy} accepts terms"},
+        {"head": "VICTORY — THE WAR IS WON", "deck": "Cease-fire on all fronts this morning"},
+        {"head": "PEACE ON OUR TERMS", "deck": "{enemy} signs; bells ring across the land"}],
+      "armistice-lost": [
+        {"head": "ARMISTICE SIGNED", "deck": "An honourable peace; our armies stand unbroken in the field"},
+        {"head": "THE GUNS FALL SILENT", "deck": "Negotiations to settle the terms"}],
+      "stalemate": [
+        {"head": "PEACE AT LAST", "deck": "Neither side yields; the lines stand where they stood"},
+        {"head": "ARMISTICE — A PEACE OF EXHAUSTION", "deck": "Diplomats meet to settle the frontiers"}],
+      "paris-falls-ours": [
+        {"head": "PARIS FALLS!", "deck": "Our columns enter the French capital"},
+        {"head": "THE CAPITAL IS OURS", "deck": "France asks for terms"}],
+      "paris-falls-theirs": [
+        {"head": "GOVERNMENT LEAVES PARIS", "deck": "The struggle continues from new positions"},
+        {"head": "PARIS GIVEN UP TO SPARE THE CITY", "deck": "A strategic readjustment of the gravest kind"}],
+      "enemy-collapse": [
+        {"head": "{enemy} SUES FOR PEACE", "deck": "The home front breaks; envoys cross the lines"},
+        {"head": "COLLAPSE BEHIND THE ENEMY LINES", "deck": "{enemy} can fight no more"}],
+      "our-collapse": [
+        {"head": "TALKS OPEN WITH THE ENEMY", "deck": "The nation has given all it can"},
+        {"head": "A PEACE IS SOUGHT", "deck": "Ministers meet through the night"}]
+    }},
+    {"id": "named-box-captured", "priority": 2, "variants": {
+      "ours": [
+        {"head": "{box} TAKEN!", "deck": "{side} drive forward — a glorious day"},
+        {"head": "GLORIOUS CAPTURE OF {box}", "deck": "The enemy flees before our advance"},
+        {"head": "{box} IS OURS", "deck": "Church bells ring for the victory at {lane}"}],
+      "theirs": [
+        {"head": "LINE SHORTENED NEAR {box}", "deck": "A strategic readjustment; our troops in excellent spirits"},
+        {"head": "{box} EVACUATED IN GOOD ORDER", "deck": "Enemy pays dearly for every yard"},
+        {"head": "NEW POSITIONS BEFORE {box}", "deck": "The line holds firm behind the town"}]
+    }},
+    {"id": "big-event", "priority": 3, "variants": {
+      "mutiny-ours": [
+        {"head": "ARMY RESTED AND REORGANISED", "deck": "New leave arrangements announced for the troops"},
+        {"head": "REST FOR OUR GALLANT TROOPS", "deck": "A pause to prepare the next blow"}],
+      "mutiny-theirs": [
+        {"head": "UNREST IN THE ENEMY'S RANKS", "deck": "Reports of whole regiments refusing to attack"},
+        {"head": "ENEMY ARMY WAVERS", "deck": "Prisoners speak of mutiny"}],
+      "us-entry-ours": [
+        {"head": "AMERICA JOINS THE WAR", "deck": "Washington declares war; a new army will cross the Atlantic"},
+        {"head": "THE NEW WORLD COMES IN", "deck": "Fresh millions to the cause"}],
+      "us-entry-theirs": [
+        {"head": "AMERICA DECLARES WAR", "deck": "\"They cannot arrive in time,\" say our experts"},
+        {"head": "WASHINGTON ENTERS THE WAR", "deck": "The U-boats will see to the convoys"}],
+      "russia-leaves-ours": [
+        {"head": "PEACE IN THE EAST!", "deck": "Russia leaves the war; our divisions turn west"},
+        {"head": "THE EASTERN FRONT IS CLOSED", "deck": "Every man and gun for the decisive blow"}],
+      "russia-leaves-theirs": [
+        {"head": "RUSSIA MAKES A SEPARATE PEACE", "deck": "Enemy free to bring his armies west"},
+        {"head": "BETRAYAL IN THE EAST", "deck": "The Allies must stand alone until the Americans come"}],
+      "new-commander": [
+        {"head": "{old} OUT — {new} TAKES COMMAND", "deck": "A fresh hand for the coming battles"},
+        {"head": "{new} TO COMMAND", "deck": "{old} stands down after long service"},
+        {"head": "CHANGE AT THE TOP: {new}", "deck": "The nation looks to its new chief"}]
+    }},
+    {"id": "box-captured", "priority": 4, "variants": {
+      "ours": [
+        {"head": "GAINS AT {lane}", "deck": "Enemy line broken; prisoners taken"},
+        {"head": "ADVANCE AT {lane}", "deck": "Our troops press forward with great dash"},
+        {"head": "ENEMY LINE PIERCED AT {lane}", "deck": "Fierce fighting; all objectives taken"}],
+      "theirs": [
+        {"head": "LINE ADJUSTED AT {lane}", "deck": "Strong new positions occupied according to plan"},
+        {"head": "ENEMY GAINS A LITTLE GROUND AT {lane}", "deck": "At ruinous cost to himself"},
+        {"head": "{lane}: FIGHTING CONTINUES", "deck": "Our reserves are coming up"}]
+    }},
+    {"id": "biggest-battle", "priority": 5, "variants": {
+      "we-held": [
+        {"head": "BLOODY REPULSE AT {lane}", "deck": "Enemy attack breaks on our wire"},
+        {"head": "{lane} HOLDS", "deck": "Waves of attackers thrown back with heavy loss"},
+        {"head": "ENEMY SHATTERED AT {lane}", "deck": "Not a yard given"}],
+      "we-were-held": [
+        {"head": "HEROIC ASSAULT AT {lane}", "deck": "Our men show the greatest gallantry; losses light"},
+        {"head": "GREAT BATTLE AT {lane}", "deck": "Enemy losses enormous; operations proceeding"},
+        {"head": "LOCAL ACTIONS AT {lane}", "deck": "Valuable ground observed; the enemy is worn down"}]
+    }},
+    {"id": "quiet", "priority": 6, "variants": {
+      "any": [
+        {"head": "QUIET ON THE FRONT", "deck": "Nothing to report"},
+        {"head": "ALL QUIET IN THE WEST", "deck": "Patrols and artillery only"},
+        {"head": "A QUIET MONTH IN THE LINE", "deck": "Raids and wiring parties; the trenches deepen"}]
+    }}
+  ]
+}

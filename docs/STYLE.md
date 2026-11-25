@@ -68,6 +68,7 @@ them with `@font-face`. Don't load from a CDN, so the game works offline later.
 | Map place names, commander cards, the rules book | **IM Fell English** (and IM Fell English SC for small caps) | A real 17th–19th century typeface, so it looks hand-set |
 | Interface text, buttons, panels | **Source Serif 4** | Readable at small sizes on a phone |
 | Dispatches, telegrams, combat reports, the Butcher's Bill | **Courier Prime** | Typewriter |
+| Pencil notes on the map (§13) | **Reenie Beanie** | A staff officer's handwriting. Only for annotations on the map |
 
 **Rules:**
 - Interface text is at least 15px on the phone.
@@ -118,7 +119,8 @@ The map is the most important thing in the game. Spend effort here.
       OPERATIONS — WESTERN FRONT" and the date.
     - Add a simple compass rose and a scale bar in km and miles.
 11. **Zoom:**
-    - Pinch to zoom from about 1× to 3×, and pan by dragging.
+    - Pinch to zoom from about 1× to 6×, and pan by dragging. (Front-line territories
+      are only 5–15 km wide, so they need about 6× to be big enough to tap.)
     - Labels and counters stay crisp; that's why it's SVG.
 
 ## 5. Unit counters
@@ -262,3 +264,45 @@ means fix it.
 8. **Nations ledger** (§6).
 9. **End-of-war report card:** a typed War Office report with the Butcher's Bill
    against history, stamped "ARMISTICE" or "PEACE NEGOTIATED" or "DEFEAT".
+
+## 13. Detail pass
+The map should reward a closer look. It shows more as you zoom in, it records the war as
+it's played, and it looks drawn by hand.
+
+### Map: detail by zoom level
+| Zoom | What you see |
+|---|---|
+| **Zoomed out** | Regions (territories), the front line, VP cities, rivers, country names |
+| **Mid zoom** | Plus towns, **railways** (black-and-white tick lines; they matter for rail moves), main roads, river names |
+| **Fully zoomed** | Plus villages, famous landmarks as small ink symbols with labels, contour lines, and the trench network drawn as real zigzag lines along the front |
+
+- **Landmarks:** Fort Douaumont, Mort Homme, Hill 304, Vimy Ridge, Hill 60, Delville
+  Wood, Messines Ridge, Chemin des Dames, Butte de Vauquois.
+- **Railways** are the lines of 1914, not today's network.
+- **Trenches** follow the 1917 British trench-map convention: German trenches in
+  front-red, Allied trenches in river-blue.
+
+### Map: a living map that records the war
+- **Battle scars:**
+  - Each time a territory is fought over, it gets more shell-crater stipple.
+  - So the Somme and Verdun visibly churn up as the war goes on.
+- **Pencil annotations:**
+  - When a big battle happens (6 or more steps lost in a territory), a staff officer's
+    pencil note appears in the margin by that spot, e.g. "Verdun — Feb 1916".
+  - It's in a handwritten font (Reenie Beanie).
+- **Seasons:**
+  - A faint snow wash in December–February.
+  - The mud wash in Flanders in September–November.
+  - A faint green tint in spring.
+- **Planned attacks** show as grease-pencil arrows before you confirm the order.
+
+### Map: hand-made feel
+- **Paper:** paper grain texture, slight ink bleed on lines, a coffee ring and some
+  foxing (age spots) near one corner, and the map's fold creases.
+- **Lines:** borders and the front line are slightly hand-wobbled, not perfect vectors.
+
+### Interface (built in the "Feel and sound" milestone)
+- The desk is lit by a warm lamp from the top left: a soft vignette.
+- Commander cards are sealed with a wax seal in the nation's colour.
+- Drop caps and old-style numbers in the newspaper.
+- Brass map pins mark your selected territory.

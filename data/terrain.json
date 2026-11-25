@@ -1,30 +1,43 @@
 {
-  "_about": "Terrain types (RULES.md §3) and trench maximums (RULES.md §9.5). 'draw' says how the map shows each type: 'fill' paints the whole box (only one fill per box, highest 'priority' wins), 'pattern' is drawn on top, 'badge' adds a mark and a heavy border. Column shifts and other effects will be read from here by the combat code in Milestone 5. See docs/DATA.md.",
-  "plainFill": "#7d7a52",
+  "_about": "Terrain types (RULES.md §3) and trench maximums (RULES.md §9.5). 'draw' says how the map shows each type, in docs/STYLE.md colours: 'ground' tints the whole territory (opacity 'groundOpacity'; if a box has two, the higher 'priority' wins), 'texture' is a pattern drawn on top in 'color' ('season': 'autumn' = only Sep–Nov), 'plain' means plain paper, 'badge' marks a fortress. Changing 'draw' means re-running tools/build-map.mjs. Column shifts will be read from here by the combat code in Milestone 5. See docs/DATA.md.",
+  "plainGround": "#E8DCC0",
   "types": [
-    {"id": "flooded", "name": "Flooded", "effect": "−2 columns for attacks into this box.",
-     "draw": {"kind": "fill", "color": "#4f7391", "priority": 3}},
-    {"id": "ridge", "name": "Ridge / high ground", "effect": "−1 column. The defender sees everything coming.",
-     "draw": {"kind": "pattern", "pattern": "hatch", "color": "#2a2418"}},
-    {"id": "mud", "name": "Flanders mud", "effect": "−1 column in Sep, Oct and Nov. Trenches can't go deeper than level 2.",
-     "draw": {"kind": "fill", "color": "#7a5a3a", "priority": 1}},
-    {"id": "chalk", "name": "Chalk", "effect": "Deep dugouts: trenches can reach level 3 from June 1915.",
-     "draw": {"kind": "fill", "color": "#c9bf98", "priority": 1}},
-    {"id": "open", "name": "Open rolling ground", "effect": "Tanks give +2 columns instead of +1.",
-     "draw": {"kind": "pattern", "pattern": "waves", "color": "#5b6b2e"}},
-    {"id": "forest", "name": "Forest", "effect": "−1 column. Tanks give no bonus.",
-     "draw": {"kind": "fill", "color": "#3f5a33", "priority": 1}},
-    {"id": "mountains", "name": "Mountains", "effect": "−1 column. Tanks give no bonus.",
-     "draw": {"kind": "fill", "color": "#8a8478", "priority": 1}},
-    {"id": "fortress", "name": "Fortress", "effect": "−1 column.",
-     "draw": {"kind": "badge", "symbol": "★", "color": "#f2e6c4"}}
+    {"id": "flooded", "name": "Flooded", "effect": "−2 columns for attacks into this box.", "draw": {"texture": "diagonal", "color": "#5F7F95"}, "combat": {"shift": -2}},
+    {"id": "ridge", "name": "Ridge / high ground", "effect": "−1 column. The defender sees everything coming.", "draw": {"texture": "hachure", "color": "#8A7454"}, "combat": {"shift": -1}},
+    {"id": "mud", "name": "Flanders mud", "effect": "−1 column in Sep, Oct and Nov. Trenches can't go deeper than level 2.", "draw": {"texture": "blotch", "color": "#6E6253", "season": "autumn"}, "combat": {"shift": -1, "months": [9, 10, 11]}},
+    {"id": "chalk", "name": "Chalk", "effect": "Deep dugouts: trenches can reach level 3 from June 1915.", "draw": {"ground": "#F1E6C8", "groundOpacity": 0.55, "priority": 2, "color": "#F1E6C8"}, "combat": {"shift": 0}},
+    {"id": "open", "name": "Open rolling ground", "effect": "Tanks give +2 columns instead of +1.", "draw": {"plain": true, "color": "#E8DCC0"}, "combat": {"shift": 0, "tankShift": 2}},
+    {"id": "forest", "name": "Forest", "effect": "−1 column. Tanks give no bonus.", "draw": {"texture": "trees", "color": "#5E6B45"}, "combat": {"shift": -1, "tankShift": 0}},
+    {"id": "mountains", "name": "Mountains", "effect": "−1 column. Tanks give no bonus.", "draw": {"texture": "hills", "color": "#8A7454"}, "combat": {"shift": -1, "tankShift": 0}},
+    {"id": "fortress", "name": "Fortress", "effect": "−1 column.", "draw": {"badge": "star-fort", "color": "#2B241C"}, "combat": {"shift": -1}}
   ],
   "trenchMax": {
     "_about": "Each period runs from 'from' (YYYY-MM) until the next one. 'normal' is the limit for most boxes; 'byTerrain' overrides it for boxes with that terrain (if a box had two, the lower limit wins).",
     "periods": [
-      {"from": "1914-12", "normal": 1, "byTerrain": {"chalk": 1, "mud": 1}},
-      {"from": "1915-06", "normal": 2, "byTerrain": {"chalk": 3, "mud": 2}},
-      {"from": "1916-06", "normal": 3, "byTerrain": {"chalk": 3, "mud": 2}}
+      {
+        "from": "1914-12",
+        "normal": 1,
+        "byTerrain": {
+          "chalk": 1,
+          "mud": 1
+        }
+      },
+      {
+        "from": "1915-06",
+        "normal": 2,
+        "byTerrain": {
+          "chalk": 3,
+          "mud": 2
+        }
+      },
+      {
+        "from": "1916-06",
+        "normal": 3,
+        "byTerrain": {
+          "chalk": 3,
+          "mud": 2
+        }
+      }
     ]
   }
 }

@@ -5,33 +5,78 @@
   <!-- viewport-fit=cover lets the page use the whole screen, including round corners;
        the CSS then pads away from the notch and home bar with env(safe-area-inset-*). -->
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#1f1d18">
+  <meta name="theme-color" content="#221D18">
   <title>Western Front 1914–18</title>
   <link rel="stylesheet" href="./css/style.css">
 </head>
 <body>
-  <!-- Title screen: shown when the app opens. -->
+  <!-- Title screen: a dark desk with the folded map on it (docs/STYLE.md §12). -->
   <main id="title-screen" class="screen title-screen">
+    <img class="title-map" src="./img/map-west.svg" alt="" aria-hidden="true">
     <div class="title-block">
       <p class="title-kicker">A strategy game of the Great War</p>
       <h1 class="title-name">Western Front</h1>
-      <p class="title-dates">1914–18</p>
+      <p class="title-dates">1914–1918</p>
     </div>
+    <figure id="title-quote" class="title-quote" hidden>
+      <blockquote id="title-quote-text"></blockquote>
+      <figcaption id="title-quote-who"></figcaption>
+    </figure>
+    <section id="setup" class="title-setup" hidden aria-label="New campaign">
+      <p class="setup-label">Your side</p>
+      <div class="setup-row" role="group" aria-label="Your side">
+        <button class="btn setup-pick" type="button" data-side="entente" aria-pressed="true">Entente</button>
+        <button class="btn setup-pick" type="button" data-side="germany" aria-pressed="false">Germany</button>
+        <button class="btn setup-pick" type="button" data-side="both" aria-pressed="false">Two players</button>
+      </div>
+      <p class="setup-label">Difficulty</p>
+      <div class="setup-row setup-levels" role="group" aria-label="Difficulty">
+        <button class="btn setup-pick" type="button" data-level="recruit" aria-pressed="false">Recruit</button>
+        <button class="btn setup-pick" type="button" data-level="regular" aria-pressed="true">Regular</button>
+        <button class="btn setup-pick" type="button" data-level="veteran" aria-pressed="false">Veteran</button>
+        <button class="btn setup-pick" type="button" data-level="field-marshal" aria-pressed="false">Field Marshal</button>
+      </div>
+      <p id="setup-note" class="note"></p>
+      <button id="btn-begin" class="btn btn-primary" type="button">Begin the campaign</button>
+    </section>
     <nav class="title-buttons" aria-label="Main menu">
-      <button id="btn-new-game" class="btn btn-primary" type="button">New Game</button>
+      <button id="btn-new-game" class="btn btn-primary" type="button">New Campaign</button>
       <button id="btn-continue" class="btn" type="button" disabled>Continue</button>
-      <p id="continue-note" class="note">No saved game yet.</p>
+      <div class="title-files">
+        <button id="btn-export" class="btn btn-small" type="button" disabled>Export save</button>
+        <button id="btn-import" class="btn btn-small" type="button">Import save</button>
+        <input id="import-file" type="file" accept=".json,application/json" hidden>
+      </div>
+      <p id="continue-note" class="note">No saved campaign yet.</p>
     </nav>
   </main>
 
-  <!-- Game screen: the map (drawn by js/ui/map.js) and the info panel (js/ui/panel.js). -->
-  <main id="game-screen" class="screen game-screen" hidden>
+  <!-- Game screen: the map (js/ui/map.js + zoom.js) and the info panel (js/ui/panel.js).
+       Folded: the map fills the screen and the panel slides up from the bottom.
+       Unfolded (700px or wider): the panel sits beside the map. -->
+  <main id="game-screen" class="game-screen" hidden>
     <header class="game-bar">
-      <button id="btn-back" class="btn btn-small" type="button">‹ Back</button>
-      <span id="game-title" class="game-bar-title">December 1914</span>
+      <button id="btn-back" class="btn btn-small" type="button" aria-label="Back to the title screen">‹ Back</button>
+      <span class="game-bar-when">
+        <span id="game-title" class="game-bar-title">December 1914</span>
+        <span id="phase-label" class="game-bar-phase"></span>
+      </span>
+      <button id="btn-end-phase" class="btn btn-primary btn-small btn-end-phase" type="button">End Phase</button>
     </header>
-    <section id="map-area" class="map-area" aria-label="Map"></section>
-    <section id="panel-area" class="panel-area" aria-label="Box details" aria-live="polite"></section>
+    <section id="map-area" class="map-area" aria-label="Map">
+      <div class="map-holder" id="map-holder"></div>
+      <div class="zoom-buttons" role="group" aria-label="Zoom">
+        <button id="btn-zoom-in" class="btn btn-zoom" type="button" aria-label="Zoom in">+</button>
+        <button id="btn-zoom-out" class="btn btn-zoom" type="button" aria-label="Zoom out">−</button>
+        <button id="btn-zoom-fit" class="btn btn-zoom btn-zoom-fit" type="button" aria-label="Show the whole front">Fit</button>
+      </div>
+    </section>
+    <section id="panel-sheet" class="panel-sheet" aria-label="Territory details">
+      <button id="sheet-handle" class="sheet-handle" type="button" aria-label="Show or hide the details" aria-expanded="false">
+        <span class="sheet-grip" aria-hidden="true"></span>
+      </button>
+      <div id="panel-area" class="panel-area" aria-live="polite"></div>
+    </section>
   </main>
 
   <!-- type="module" lets main.js use import/export. -->

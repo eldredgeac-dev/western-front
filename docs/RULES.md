@@ -369,7 +369,8 @@ The AI uses the same rules and the same order format as the player.
 
 ## 15. Commander cards [balanced]
 Each nation has one commander at a time, shown as a card with a portrait area, their
-name, dates, a **Strength** and a **Flaw**. Draw the portrait as a simple silhouette or
+name (and a nickname only if they really had one, like "Papa Joffre" or "Black Jack"),
+dates, a **Strength** and a **Flaw**. Draw the portrait as a simple silhouette or
 monogram, not a photograph. Commanders change on historical dates, but the player gets
 a say (§15.2). The computer always follows history.
 
@@ -377,9 +378,9 @@ a say (§15.2). The computer always follows history.
 | Card | Nation | Historical dates | Strength | Flaw |
 |---|---|---|---|---|
 | **Joffre** "Papa Joffre" | FRA | Dec 1914 – Nov 1916 | **Offensive drive:** FRA +1 OP every Mar–Oct | **Attaque à outrance:** in any Mar–Oct month with no French attack, FRA −2 Will |
-| **Nivelle** "I have the formula" | FRA | Dec 1916 – Apr 1917 | **The Nivelle Method:** FRA +1 munition per turn. Once, one French attack gets +2 columns (player chooses which). | **Broken promise:** if that +2 attack fails to take its box, the **French mutinies start immediately** |
-| **Pétain** "The healer" | FRA | from May 1917 | **Care for the men:** FRA loses 1 Will per **3** steps instead of 2. Mutinies last 2 turns instead of 3, then FRA +15 Will. | **"Wait for the tanks and the Americans":** FRA OP max 1 per turn |
-| **Foch** Generalissimo | All Entente | from Apr 1918 (added alongside the national cards) | **Unified command:** coalition attacks cost no extra OP. FRA and GBR +1 rail move each. | — |
+| **Nivelle** | FRA | Dec 1916 – Apr 1917 | **The Nivelle Method:** FRA +1 munition per turn. Once, one French attack gets +2 columns (player chooses which). | **Broken promise:** if that +2 attack fails to take its box, the **French mutinies start immediately** |
+| **Pétain** | FRA | from May 1917 | **Care for the men:** FRA loses 1 Will per **3** steps instead of 2. Mutinies last 2 turns instead of 3, then FRA +15 Will. | **"Wait for the tanks and the Americans":** FRA OP max 1 per turn |
+| **Foch** | All Entente (Allied Generalissimo) | from Apr 1918 (added alongside the national cards) | **Unified command:** coalition attacks cost no extra OP. FRA and GBR +1 rail move each. | — |
 | **Sir John French** | GBR | Dec 1914 – Nov 1915 | **Old Contemptibles:** the 2 starting British units are Elite | **Prickly ally:** GBR units can't join coalition attacks with France |
 | **Haig** | GBR | from Dec 1915 | **The Big Push:** GBR +1 OP from 1916 | **Lloyd George's distrust:** GBR RP −1 in Jan–Apr 1918 (reserves held back in Britain) |
 | **Falkenhayn** | GER | Dec 1914 – Aug 1916 | **"Bleed France white":** French steps lost defending Verdun cost FRA an extra 1 Will per 4 steps | **Penny-packets:** GER max 2 rail moves per turn |

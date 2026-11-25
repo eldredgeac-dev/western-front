@@ -1,0 +1,15 @@
+{
+  "name": "western-front-tools",
+  "private": true,
+  "description": "Build-time tools only (the map builder). The game itself uses none of these packages.",
+  "type": "module",
+  "scripts": {
+    "build-map": "node build-map.mjs"
+  },
+  "devDependencies": {
+    "d3-geo": "^3.1.2",
+    "polygon-clipping": "^0.15.7",
+    "topojson-client": "^3.1.0",
+    "world-atlas": "^2.0.2"
+  }
+}

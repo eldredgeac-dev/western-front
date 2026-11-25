@@ -1,0 +1,15 @@
+{
+  "_about": "Unit types and qualities (RULES.md §4–§5). 1 unit ≈ 5 infantry divisions; attack and defence strength both equal current steps. 'symbol' is how the counter is drawn (docs/STYLE.md §5). See docs/DATA.md.",
+  "stackLimit": 3,
+  "types": [
+    {"id": "infantry", "name": "Infantry", "maxSteps": 4, "symbol": "infantry", "rebuild": true},
+    {"id": "us-infantry", "name": "US Infantry", "maxSteps": 5, "symbol": "us-infantry", "rebuild": true, "greenTurns": 3},
+    {"id": "tanks", "name": "Tanks", "maxSteps": 2, "symbol": "tank", "rebuild": false, "attackShift": 1, "cannotHoldAlone": true},
+    {"id": "stormtroopers", "name": "Stormtroopers", "maxSteps": 4, "symbol": "stormtroopers", "rebuild": true, "cancelsTrenchShift": 1}
+  ],
+  "qualities": [
+    {"id": "green", "name": "Green", "effect": "If more than half the attacking steps are Green: −1 column.", "attackShiftIfMajority": -1},
+    {"id": "regular", "name": "Regular", "effect": "No effect."},
+    {"id": "elite", "name": "Elite", "effect": "If any Elite unit attacks: +1 column.", "attackShiftIfAny": 1}
+  ]
+}
