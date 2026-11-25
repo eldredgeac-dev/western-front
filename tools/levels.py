@@ -1,7 +1,8 @@
 import sys; import os; sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import t2
 from sweep import *
-BASE=dict(commanders=True, loss_div={'GER':3,'FRA':2,'GBR':2,'USA':3}, blockade1=1, blockade1_every=2, blockade2=1, blockade3=2, score_end=True, draw_margin=2, fail_mode='futile', futile_pen=3, mandate=0, mandate_ger=15, avg_score=True, will={'GER':105,'FRA':75,'GBR':85,'USA':90})
+# wfsim.DEFAULT already follows docs/RULES.md (table, Will, blockade, ending…), so the
+# difficulty levels below only add their own bonuses on top.
+BASE=dict()
 LEVELS={ # player will bonus, ai will bonus, ai resource mult, ai skill
  'Recruit':      (15, 0, 0.8,'standard'),
  'Regular':      (0, 0, 1.0, 'standard'),

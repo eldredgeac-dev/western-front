@@ -863,6 +863,13 @@ test('commanders: all nine cards from RULES.md §15, with Strength, Flaw and his
   check(r.keepOldCommanderWill === -3 && r.sackWill === -5 && r.noSackingFirstTurns === 3, 'choice costs');
 });
 
+test('commanders: only real historical nicknames (Papa Joffre, Black Jack); the rest have none', () => {
+  const nick = Object.fromEntries(data.commanders.cards.map((c) => [c.id, c.nickname]));
+  check(nick.joffre === 'Papa Joffre' && nick.pershing === 'Black Jack', 'Joffre and Pershing');
+  const others = Object.entries(nick).filter(([id]) => !['joffre', 'pershing'].includes(id));
+  for (const [id, n] of others) check(n === null, `${id} should have no nickname, has "${n}"`);
+});
+
 test('headlines: every RULES.md §17 type, in priority order, 2–3 versions each', () => {
   const types = data.headlines.types;
   check(types.map((t) => t.priority).join() === '1,2,3,4,5,6', 'priorities 1–6');

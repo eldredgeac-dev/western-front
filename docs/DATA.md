@@ -119,7 +119,7 @@ doing something.
 |---|---|
 | `rules` | The cost of keeping the old commander (−3 Will, asked again every 3 turns), sacking (−5 Will, not in the first 3 turns) |
 | `succession` | Each nation's cards in order |
-| `cards[]` | `id`, `name`, `nickname`, `nation` (or `"entente"` for Foch), `from`/`to` (historical dates; Pershing's `from` is `"usa-entry"`), `next` (who can follow) |
+| `cards[]` | `id`, `name`, `nickname` (a real historical nickname, like "Papa Joffre", or `null`), `title` *(optional, a real title such as "Allied Generalissimo")*, `nation` (or `"entente"` for Foch), `from`/`to` (historical dates; Pershing's `from` is `"usa-entry"`), `next` (who can follow) |
 | `cards[].strength`, `cards[].flaw` | `name`, `text` (for the card) and `effects`: a list of `{kind, nation, value, …}` that the Milestone 11 code will read (`op`, `munitions`, `rp`, `rail`, `rail-max`, `op-max`, `will-if-no-attack`, `steps-per-will`, …) |
 | `cards[].history` | A short note from docs/HISTORY.md for the full-screen card |
 

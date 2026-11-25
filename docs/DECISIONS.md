@@ -6,7 +6,7 @@
 - The combat engine of Milestone 5 is built, with no screens yet.
 - So are `data/commanders.json` and `data/headlines.json`.
 - 82 tests pass. The combat table test reproduces the RULES.md §9.3 averages exactly.
-- The three questions for you are under **Questions for you**. The things to try on the
+- The three questions are answered (see **Questions for you (answered)**). The things to try on the
   phone are in **Check on my phone** at the end.
 
 While you were away I worked through Milestones 3 and 4 and the combat engine of
@@ -110,19 +110,24 @@ I'll change it.
     - All the wording is in English, including for the German paper (DIE KRIEGSZEITUNG),
       because the game is in English.
 
-## Questions for you
-1. **The simulator's combat table is different from RULES.md.** `tools/wfsim.py`
-   (`TABLE0`) doesn't match RULES.md §9.3. For example, at 1:2 on a roll of 2–4 the
-   simulator has A3 D0 where RULES.md has A4 D0, and its 1:2 averages come out at about
-   2.39 / 1.00 instead of 2.75 / 0.86. RULES.md's own averages match its own table, so I
-   built the game to RULES.md. **Which one was the balance testing done with?** If it was
-   the simulator's, the [balanced] numbers may need re-checking against the real table.
-2. **The simulator's starting German Will is 80** (`DEFAULT['will']`), but RULES.md §11
-   says 105. I used 105. Perhaps `levels.py` overrides it; worth a look when the balance is
-   re-run.
-3. **Commander and headline wording.** I wrote the headline templates and the card
-   nicknames ("The healer", "Black Jack"…) myself, in a 1916 newspaper tone. Do they fit
-   what you had in mind?
+## Questions for you (answered)
+1. **Combat table — answered: RULES.md is right.**
+   - The balance tests used `tools/t2.py`, which patched the simulator's 1:2 and 1:1
+     columns to match RULES.md. Those columns now sit directly in `wfsim.py`, and `t2.py`
+     is deleted.
+2. **German starting Will — answered: 105 is right.**
+   - `levels.py` used to pass it, and the other RULES.md settings, into the simulator.
+     They're now `wfsim.py`'s defaults, and `levels.py` only adds the difficulty levels.
+   - A fixed-seed check gave identical results before and after, so the balance numbers
+     still stand. The balance tests were not re-run, as you said.
+3. **Headlines and nicknames — answered: the headlines are fine; commanders get only
+   real nicknames.**
+   - Joffre ("Papa Joffre") and Pershing ("Black Jack") keep theirs; the others have
+     none.
+   - Nivelle's "I have the formula" moved into his history note, as a boast.
+   - Foch and Hindenburg & Ludendorff keep their real titles ("Allied Generalissimo",
+     "The Third Supreme Command") as a separate `title`.
+   - RULES.md §15 was updated to match.
 
 ## Check on my phone
 - [ ] **Counters.** Start a New Campaign and zoom in with **+** three times. Each front

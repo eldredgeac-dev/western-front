@@ -143,6 +143,11 @@ On the Mac, in the repo folder:
 cd tools
 python3 levels.py        # difficulty table (~5–10 minutes)
 ```
+The simulator's defaults (`DEFAULT` and `TABLE0` in `tools/wfsim.py`) are the tuned values
+above, matching RULES.md directly. Earlier, `tools/t2.py` patched in the harsher 1:2 and
+1:1 columns and `levels.py` passed in the rest; both were folded into `wfsim.py`, and a
+fixed-seed check gave identical results before and after.
+
 Or ask Claude Code: *"I changed rule X in RULES.md. Update tools/wfsim.py to match, re-run
 the balance tests and tell me if anything got lopsided."*
 

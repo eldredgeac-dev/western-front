@@ -1,5 +1,5 @@
 {
-  "_about": "Commander cards (RULES.md §15) [balanced]. Each card has its dates, a Strength and a Flaw (with 'effects' written as data the game code will read in Milestone 11), and a short history note from docs/HISTORY.md. Months are 'YYYY-MM'; 'months' lists months of the year (3 = March). Don't change the effects without changing RULES.md. See docs/DATA.md.",
+  "_about": "Commander cards (RULES.md §15) [balanced]. Each card has its dates, a nickname only if the commander really had one (otherwise null), a Strength and a Flaw (with 'effects' written as data the game code will read in Milestone 11), and a short history note from docs/HISTORY.md. Months are 'YYYY-MM'; 'months' lists months of the year (3 = March). Don't change the effects without changing RULES.md. See docs/DATA.md.",
   "rules": {
     "keepOldCommanderWill": -3,
     "askAgainEveryTurns": 3,
@@ -25,16 +25,16 @@
       "history": "The victor of the Marne, Joffre believed in constant offensives: Artois and Champagne in 1915. He lost the government's confidence after Verdun and was moved aside, and made a Marshal, in December 1916."
     },
     {
-      "id": "nivelle", "name": "Nivelle", "nickname": "I have the formula", "nation": "fra",
+      "id": "nivelle", "name": "Nivelle", "nickname": null, "nation": "fra",
       "from": "1916-12", "to": "1917-04", "onlyBetween": ["1916-12", "1917-04"], "next": ["petain"],
       "strength": {"name": "The Nivelle Method", "text": "France gets +1 munition per turn. Once, one French attack gets +2 columns (you choose which).",
         "effects": [{"kind": "munitions", "nation": "fra", "value": 1}, {"kind": "once-attack-shift", "nation": "fra", "value": 2}]},
       "flaw": {"name": "Broken promise", "text": "If that +2 attack fails to take its box, the French mutinies start immediately.",
         "effects": [{"kind": "mutiny-if-once-attack-fails", "nation": "fra"}]},
-      "history": "Nivelle rose through successful counter-attacks at Verdun and promised a quick breakthrough on the Chemin des Dames. Its failure in April 1917 set off the mutinies, and Pétain replaced him."
+      "history": "Nivelle rose through successful counter-attacks at Verdun and claimed to have \"the formula\" for a quick breakthrough on the Chemin des Dames. Its failure in April 1917 set off the mutinies, and Pétain replaced him."
     },
     {
-      "id": "petain", "name": "Pétain", "nickname": "The healer", "nation": "fra",
+      "id": "petain", "name": "Pétain", "nickname": null, "nation": "fra",
       "from": "1917-05", "to": null, "alsoAvailableFrom": "1916-12", "next": [],
       "strength": {"name": "Care for the men", "text": "France loses 1 Will per 3 steps instead of 2. Mutinies last 2 turns instead of 3, then France gets +15 Will.",
         "effects": [{"kind": "steps-per-will", "nation": "fra", "value": 3}, {"kind": "mutiny-length", "nation": "fra", "value": 2}, {"kind": "mutiny-end-will", "nation": "fra", "value": 15}]},
@@ -43,7 +43,7 @@
       "history": "The defender of Verdun (\"Courage! On les aura!\", 10 April 1916). Pétain became chief of the General Staff on 29 April 1917, then commander-in-chief, and restored the army with leave, better food and limited attacks."
     },
     {
-      "id": "foch", "name": "Foch", "nickname": "Generalissimo", "nation": "entente", "addedAlongside": true,
+      "id": "foch", "name": "Foch", "nickname": null, "title": "Allied Generalissimo", "nation": "entente", "addedAlongside": true,
       "from": "1918-04", "to": null, "next": [], "cannotBeSacked": true,
       "strength": {"name": "Unified command", "text": "Coalition attacks cost no extra OP. France and Britain get +1 rail move each.",
         "effects": [{"kind": "coalition-op-cost", "side": "entente", "value": 1}, {"kind": "rail", "nation": "fra", "value": 1}, {"kind": "rail", "nation": "gbr", "value": 1}]},
@@ -78,7 +78,7 @@
       "history": "Falkenhayn planned Verdun to wear down the French army. He was replaced after Romania entered the war."
     },
     {
-      "id": "hindenburg-ludendorff", "name": "Hindenburg & Ludendorff", "nickname": "The Third Supreme Command", "nation": "ger",
+      "id": "hindenburg-ludendorff", "name": "Hindenburg & Ludendorff", "nickname": null, "title": "The Third Supreme Command", "nation": "ger",
       "from": "1916-09", "to": null, "next": [],
       "strength": {"name": "Hindenburg Programme", "text": "Germany gets +1 RP per turn.",
         "effects": [{"kind": "rp", "nation": "ger", "value": 1}]},
