@@ -6,7 +6,7 @@ rules for how it's built, and how to work with me.
 ## What this is
 A single-player, turn-based strategy game about the WWI Western Front, played on my
 iPhone (foldable — works folded and unfolded) in Safari and added to the home screen.
-1 turn = 1 month, August 1914 to November 1918 (52 turns). I play Germany or the
+1 turn = 1 month, December 1914 to November 1918 (48 turns). I play Germany or the
 Entente; the computer plays the other side.
 
 It's a hobby project. I'm **not an experienced programmer** — I'm learning by building
@@ -28,7 +28,7 @@ Eastern Front, more nations and the naval blockade, so build it to grow.
 - Plain HTML, CSS and JavaScript (ES modules). **No build step, no frameworks, no npm
   runtime libraries.** It must run by being served as static files.
 - Hosted on GitHub Pages from this public repo. **Never commit secrets or API keys.**
-- Map is drawn in **SVG** (each sector is a tappable `<path>` with an id). Panels,
+- Map is drawn in **SVG** (each box is a tappable `<path>` with an id). Panels,
   buttons and the log are normal HTML laid out with CSS grid.
 - **Game logic is separate from the screen.** Everything in `js/engine/` takes a state
   and returns a new state. It never touches the page (no `document`, no `window`).
@@ -62,7 +62,7 @@ js/engine/ai.js            computer opponent (priority scoring)
 js/engine/systems/         supply.js, will.js (later: economy.js, blockade.js)
 js/ui/map.js  panel.js  log.js
 js/storage.js              save / load / export / import
-data/nations.json  unit-types.json  sectors-west.json  events.json  combat-table.json
+data/nations.json  unit-types.json  boxes-west.json  events.json  combat-table.json
 data/commanders.json  headlines.json
 data/news.json  quotes.json         (already written: real history, don't change facts without a source)
 data/scenarios/1914-west.json
