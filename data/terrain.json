@@ -1,15 +1,15 @@
 {
-  "_about": "Terrain types (RULES.md §3) and trench maximums (RULES.md §9.5). 'draw' says how the map shows each type: 'ground' colours the whole territory (if a box has two, the higher 'priority' wins), 'texture' is a pattern painted on top in 'color', and 'badge' marks a fortress. Changing 'draw' means re-running tools/build-map.mjs. Column shifts and other effects will be read from here by the combat code in Milestone 5. See docs/DATA.md.",
-  "plainGround": "#e3d8b6",
+  "_about": "Terrain types (RULES.md §3) and trench maximums (RULES.md §9.5). 'draw' says how the map shows each type, in docs/STYLE.md colours: 'ground' tints the whole territory (opacity 'groundOpacity'; if a box has two, the higher 'priority' wins), 'texture' is a pattern drawn on top in 'color' ('season': 'autumn' = only Sep–Nov), 'plain' means plain paper, 'badge' marks a fortress. Changing 'draw' means re-running tools/build-map.mjs. Column shifts will be read from here by the combat code in Milestone 5. See docs/DATA.md.",
+  "plainGround": "#E8DCC0",
   "types": [
-    {"id": "flooded", "name": "Flooded", "effect": "−2 columns for attacks into this box.", "draw": {"ground": "#a9c3c9", "priority": 3, "texture": "water", "color": "#3f6a88"}},
-    {"id": "ridge", "name": "Ridge / high ground", "effect": "−1 column. The defender sees everything coming.", "draw": {"texture": "hachure", "color": "#5a4630"}},
-    {"id": "mud", "name": "Flanders mud", "effect": "−1 column in Sep, Oct and Nov. Trenches can't go deeper than level 2.", "draw": {"ground": "#cbb38c", "priority": 1, "texture": "dabs", "color": "#6b4f30"}},
-    {"id": "chalk", "name": "Chalk", "effect": "Deep dugouts: trenches can reach level 3 from June 1915.", "draw": {"ground": "#ece5c9", "priority": 2, "texture": "stipple", "color": "#9a8f74"}},
-    {"id": "open", "name": "Open rolling ground", "effect": "Tanks give +2 columns instead of +1.", "draw": {"texture": "grass", "color": "#6c7a37"}},
-    {"id": "forest", "name": "Forest", "effect": "−1 column. Tanks give no bonus.", "draw": {"ground": "#b3c29a", "priority": 1, "texture": "trees", "color": "#4a6a3c"}},
-    {"id": "mountains", "name": "Mountains", "effect": "−1 column. Tanks give no bonus.", "draw": {"ground": "#cfc6b2", "priority": 1, "texture": "peaks", "color": "#6e6452"}},
-    {"id": "fortress", "name": "Fortress", "effect": "−1 column.", "draw": {"badge": "★", "color": "#f2e6c4"}}
+    {"id": "flooded", "name": "Flooded", "effect": "−2 columns for attacks into this box.", "draw": {"texture": "diagonal", "color": "#5F7F95"}},
+    {"id": "ridge", "name": "Ridge / high ground", "effect": "−1 column. The defender sees everything coming.", "draw": {"texture": "hachure", "color": "#8A7454"}},
+    {"id": "mud", "name": "Flanders mud", "effect": "−1 column in Sep, Oct and Nov. Trenches can't go deeper than level 2.", "draw": {"texture": "blotch", "color": "#6E6253", "season": "autumn"}},
+    {"id": "chalk", "name": "Chalk", "effect": "Deep dugouts: trenches can reach level 3 from June 1915.", "draw": {"ground": "#F1E6C8", "groundOpacity": 0.55, "priority": 2, "color": "#F1E6C8"}},
+    {"id": "open", "name": "Open rolling ground", "effect": "Tanks give +2 columns instead of +1.", "draw": {"plain": true, "color": "#E8DCC0"}},
+    {"id": "forest", "name": "Forest", "effect": "−1 column. Tanks give no bonus.", "draw": {"texture": "trees", "color": "#5E6B45"}},
+    {"id": "mountains", "name": "Mountains", "effect": "−1 column. Tanks give no bonus.", "draw": {"texture": "hills", "color": "#8A7454"}},
+    {"id": "fortress", "name": "Fortress", "effect": "−1 column.", "draw": {"badge": "star-fort", "color": "#2B241C"}}
   ],
   "trenchMax": {
     "_about": "Each period runs from 'from' (YYYY-MM) until the next one. 'normal' is the limit for most boxes; 'byTerrain' overrides it for boxes with that terrain (if a box had two, the lower limit wins).",

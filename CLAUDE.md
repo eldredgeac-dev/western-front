@@ -19,6 +19,7 @@ Eastern Front, more nations and the naval blockade, so build it to grow.
 - `docs/HISTORY.md` — the historical facts behind the scenario data, with sources.
 - `docs/MILESTONES.md` — the build plan. We do one milestone at a time.
 - `docs/DATA.md` — what goes in each JSON data file (create it in milestone 2).
+- `docs/STYLE.md` — the art direction: palette, fonts, map look, motion, sound, tone.
 - `docs/BALANCE.md` — results of the balance testing. Numbers tagged [balanced] in
   RULES.md came from `tools/wfsim.py` (a Python simulator of the rules). If a rule
   change touches balance, update the simulator to match and re-run it
@@ -78,6 +79,9 @@ docs/RULES.md  HISTORY.md  MILESTONES.md  DATA.md
 - **Add or update a test for every rule you implement.** Tests must use a fixed seed.
 
 ## How to work with me
+Read docs/STYLE.md before building anything the player sees, and check every screen
+against its 'Is it cheesy?' checklist before saying a milestone is done.
+
 1. Work on **one milestone at a time** from `docs/MILESTONES.md`. Show me a short plan
    first and wait for my OK before writing code.
 2. Keep functions small. Add comments a beginner can follow.

@@ -22,7 +22,8 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { geoConicConformal } from 'd3-geo';
-import { feature } from 'topojson-client';
+import { feature, mesh } from 'topojson-client';
+import { deflateSync } from 'node:zlib';
 import polygonClipping from 'polygon-clipping';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -748,27 +749,46 @@ function thin(pts, tol) {
   return out;
 }
 
-// ---------------------------------------------------------------- terrain textures
-// One <pattern> per texture name used in terrain.json. Drawn in map units.
-const TEXTURES = {
-  water: (c) => `<path d="M0,4 q2,-2 4,0 t4,0 M4,10 q2,-2 4,0 t4,0" fill="none" stroke="${c}" stroke-width="0.9" stroke-linecap="round"/>`,
-  hachure: (c) => `<path d="M-1,1 l2,-2 M0,8 l8,-8 M7,9 l2,-2" stroke="${c}" stroke-width="0.9" opacity="0.7"/>`,
-  dabs: (c) => `<path d="M1.5,2.5 h2.5 M6,6.5 h2.5 M2,10 h2" stroke="${c}" stroke-width="1" stroke-linecap="round" opacity="0.55"/>`,
-  stipple: (c) => `<circle cx="2" cy="2" r="0.55" fill="${c}"/><circle cx="7" cy="5" r="0.5" fill="${c}"/><circle cx="4" cy="9" r="0.55" fill="${c}"/><circle cx="10" cy="10" r="0.45" fill="${c}"/>`,
-  grass: (c) => `<path d="M3,8 l1,-2 l1,2 M9,3 l1,-2 l1,2" fill="none" stroke="${c}" stroke-width="0.7" stroke-linejoin="round" opacity="0.8"/>`,
-  trees: (c) => `<g fill="${c}" opacity="0.55"><circle cx="3" cy="3.5" r="2"/><circle cx="9" cy="9" r="2.2"/><rect x="2.6" y="5" width="0.8" height="1.6"/><rect x="8.6" y="10.8" width="0.8" height="1.6"/></g>`,
-  peaks: (c) => `<path d="M1,6 l3,-4 l3,4 M6,11 l3,-4 l3,4" fill="none" stroke="${c}" stroke-width="0.8" stroke-linejoin="round" opacity="0.6"/>`,
+// ---------------------------------------------------------------- the look (docs/STYLE.md)
+// Palette, STYLE.md §2. The map uses only these colours.
+const C = {
+  paper: '#E8DCC0', paperDark: '#D6C7A3', ink: '#2B241C', inkFaded: '#6E6253',
+  river: '#5F7F95', forest: '#5E6B45', ridge: '#8A7454', frontRed: '#8E1B1B',
+  leather: '#221D18', telegram: '#F1E6C8', brass: '#B08D57',
 };
-const TEX_SIZE = { water: 12, hachure: 8, dabs: 12, stipple: 12, grass: 12, trees: 12, peaks: 12 };
+const FONT = {
+  place: "'IM Fell English SC', 'IM Fell English', Georgia, serif",
+  fell: "'IM Fell English', Georgia, serif",
+  title: "'Playfair Display', Georgia, serif",
+};
+
+// Terrain textures (STYLE.md §4.4), one <pattern> per texture name in terrain.json.
+const TEXTURES = {
+  // flooded: blue diagonal hatch
+  diagonal: (c) => `<path d="M-1,1 l2,-2 M0,6 l6,-6 M5,7 l2,-2" stroke="${c}" stroke-width="0.7"/>`,
+  // ridge: short hachure strokes
+  hachure: (c) => `<path d="M1,2 v2.6 M4.5,5.5 v2.6 M8,1.5 v2.6 M2.5,9 v2.6 M9.5,8.5 v2.6" stroke="${c}" stroke-width="0.55" stroke-linecap="round" opacity="0.8"/>`,
+  // mud: a darker, blotchy wash (only shown in autumn)
+  blotch: (c) => `<g fill="${c}" opacity="0.22"><ellipse cx="4" cy="4" rx="4" ry="2.6"/><ellipse cx="13" cy="10" rx="3.2" ry="2.2"/><ellipse cx="6" cy="14.5" rx="2.6" ry="1.6"/><ellipse cx="16" cy="2.5" rx="1.8" ry="1.2"/></g>`,
+  // forest: stippled tree dots
+  trees: (c) => `<g fill="${c}"><circle cx="1.5" cy="1.8" r="0.75"/><circle cx="4.6" cy="3.6" r="0.6"/><circle cx="2.6" cy="5.4" r="0.7"/><circle cx="6.2" cy="0.9" r="0.55"/><circle cx="5.6" cy="6.3" r="0.5"/></g>`,
+  // mountains: little hill strokes
+  hills: (c) => `<path d="M1,6 q2.5,-3.2 5,0 M7,12 q2.5,-3.2 5,0" fill="none" stroke="${c}" stroke-width="0.6" stroke-linecap="round"/>`,
+};
+const TEX_SIZE = { diagonal: 6, hachure: 12, blotch: 18, trees: 7, hills: 12 };
 function patternDefs() {
   const out = [];
   for (const t of terrainData.types) {
     const tex = t.draw.texture;
     if (!tex) continue;
     if (!TEXTURES[tex]) throw new Error(`terrain.json: unknown texture "${tex}" for ${t.id}`);
-    const s = TEX_SIZE[tex];
-    out.push(`<pattern id="pat-${t.id}" patternUnits="userSpaceOnUse" width="${s}" height="${s}">${TEXTURES[tex](t.draw.color)}</pattern>`);
+    const sz = TEX_SIZE[tex];
+    out.push(`<pattern id="pat-${t.id}" patternUnits="userSpaceOnUse" width="${sz}" height="${sz}">${TEXTURES[tex](t.draw.color)}</pattern>`);
   }
+  // The sea: old-map horizontal hatch.
+  out.push(`<pattern id="pat-sea" patternUnits="userSpaceOnUse" width="8" height="2.6"><path d="M0,1.3 h8" stroke="${C.river}" stroke-width="0.45" opacity="0.7"/></pattern>`);
+  // No-man's land: crater stipple (map.js draws it along the front line).
+  out.push(`<pattern id="pat-craters" patternUnits="userSpaceOnUse" width="9" height="9"><g fill="none" stroke="${C.inkFaded}" stroke-width="0.35"><circle cx="2" cy="2.2" r="0.9"/><circle cx="6.5" cy="4" r="1.2"/><circle cx="3.4" cy="7" r="0.7"/><circle cx="8" cy="8" r="0.5"/></g><g fill="${C.inkFaded}"><circle cx="5" cy="1" r="0.3"/><circle cx="1" cy="5" r="0.3"/><circle cx="7.4" cy="6.6" r="0.25"/></g></pattern>`);
   return out.join('\n');
 }
 const terrainType = (id) => terrainData.types.find((t) => t.id === id);
@@ -778,10 +798,80 @@ function groundFor(box) {
     const t = terrainType(id);
     if (t.draw.ground && (!best || t.draw.priority > best.draw.priority)) best = t;
   }
-  return best ? best.draw.ground : terrainData.plainGround;
+  return best ? best.draw : null;
 }
 
-// ---------------------------------------------------------------- rivers
+// Paper grain: a small seamless tile of soft noise, written as a PNG inside the SVG.
+function crc32(buf) {
+  let c; const table = [];
+  for (let n = 0; n < 256; n++) { c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; table[n] = c >>> 0; }
+  let crc = 0xFFFFFFFF;
+  for (const b of buf) crc = table[(crc ^ b) & 0xFF] ^ (crc >>> 8);
+  return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+function pngChunk(type, data) {
+  const len = Buffer.alloc(4); len.writeUInt32BE(data.length);
+  const td = Buffer.concat([Buffer.from(type), data]);
+  const crc = Buffer.alloc(4); crc.writeUInt32BE(crc32(td));
+  return Buffer.concat([len, td, crc]);
+}
+function paperGrainPng(size) {
+  const rnd = rngFrom('paper');
+  // periodic value noise at a few scales, so the tile repeats without seams
+  const octave = (cells) => {
+    const g = Array.from({ length: cells * cells }, () => rnd());
+    return (x, y) => {
+      const fx = (x / size) * cells; const fy = (y / size) * cells;
+      const ix = Math.floor(fx); const iy = Math.floor(fy); const tx = fx - ix; const ty = fy - iy;
+      const at = (i, j) => g[((j % cells) * cells) + (i % cells)];
+      const e = (t) => t * t * (3 - 2 * t);
+      const a = at(ix, iy) * (1 - e(tx)) + at(ix + 1, iy) * e(tx);
+      const b = at(ix, iy + 1) * (1 - e(tx)) + at(ix + 1, iy + 1) * e(tx);
+      return a * (1 - e(ty)) + b * e(ty);
+    };
+  };
+  const oct = [octave(4), octave(16), octave(64)];
+  const rows = [];
+  for (let y = 0; y < size; y++) {
+    const row = Buffer.alloc(1 + size * 2);   // filter byte, then grey + alpha per pixel
+    for (let x = 0; x < size; x++) {
+      const n = 0.5 * oct[0](x, y) + 0.3 * oct[1](x, y) + 0.2 * oct[2](x, y) + (rnd() - 0.5) * 0.12;
+      row[1 + x * 2] = 0x6E;                                        // ink-faded grey
+      row[2 + x * 2] = Math.max(0, Math.min(255, Math.round((n - 0.35) * 70)));
+    }
+    rows.push(row);
+  }
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(size, 0); ihdr.writeUInt32BE(size, 4); ihdr[8] = 8; ihdr[9] = 4; // grey+alpha
+  const png = Buffer.concat([
+    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), pngChunk('IHDR', ihdr),
+    pngChunk('IDAT', deflateSync(Buffer.concat(rows), { level: 9 })), pngChunk('IEND', Buffer.alloc(0)),
+  ]);
+  return 'data:image/png;base64,' + png.toString('base64');
+}
+
+// ---------------------------------------------------------------- coast, borders, rivers
+const land = readJson(join(here, 'node_modules/world-atlas/land-10m.json'));
+const inFrame = ([lon, lat]) => lon > west - 0.5 && lon < east + 0.5 && lat > south - 0.5 && lat < north + 0.5;
+// Keep only the runs of a line that are on (or near) the map.
+function framedLines(lines) {
+  const out = [];
+  for (const line of lines) {
+    let run = [];
+    for (const pt of line) {
+      if (inFrame(pt)) run.push(projection(pt));
+      else { if (run.length > 1) out.push(run); run = []; }
+    }
+    if (run.length > 1) out.push(run);
+  }
+  return out;
+}
+const coastLines = framedLines(mesh(land, land.objects.land).coordinates);
+// International borders, except today's Franco-German border on the Rhine: in 1914
+// the border was the 1871 frontier, drawn separately from map-extra.json.
+const borderLines = framedLines(mesh(countries, countries.objects.countries, (a, b) =>
+  a !== b && !((a.id === COUNTRY.fra && b.id === COUNTRY.deu) || (a.id === COUNTRY.deu && b.id === COUNTRY.fra))).coordinates);
+
 async function riverLines() {
   const out = [];
   const keep = extra.riverNames;
@@ -816,51 +906,157 @@ function riverLabels(rivers) {
     if (ang > 90) ang -= 180;
     if (ang < -90) ang += 180;
     const at = pts[i];
-    out.push(`<text class="river-label" transform="translate(${f(at[0])},${f(at[1])}) rotate(${f(ang)})" dy="-2.5">${esc(name)}</text>`);
+    out.push(`<text class="river-label map-label" transform="translate(${f(at[0])},${f(at[1])}) rotate(${f(ang)})" dy="-2">${esc(name)}</text>`);
   }
   return out;
 }
+
+// ---------------------------------------------------------------- relief (STYLE.md §4.3)
+// Ridge crests from map-extra.json: a soft hillshade band plus hachure strokes
+// running down both slopes, like a 1916 staff map.
+function reliefSvg() {
+  const out = [];
+  for (const ridge of extra.ridges.list) {
+    const pts = ridge.points.map(P);
+    out.push(`<path class="hillshade" d="${lineD(pts)}" stroke-width="${ridge.width || 12}"/>`);
+    // walk along the crest and draw a tick to each side every 1.6 units
+    const ticks = [];
+    const half = (ridge.width || 12) * 0.38;
+    let carry = 0;
+    for (let i = 1; i < pts.length; i++) {
+      const a = pts[i - 1]; const b = pts[i]; const L = dist(a, b);
+      const u = mul(sub(b, a), 1 / L); const nrm = [-u[1], u[0]];
+      for (let t = carry; t < L; t += 1.6) {
+        const c = add(a, mul(u, t));
+        const k = 0.55 + 0.45 * Math.abs(Math.sin((i * 7 + t) * 1.7));   // uneven lengths
+        for (const side of [1, -1]) {
+          const p1 = add(c, mul(nrm, side * 0.9)); const p2 = add(c, mul(nrm, side * half * k));
+          ticks.push(`M${f(p1[0])},${f(p1[1])}L${f(p2[0])},${f(p2[1])}`);
+        }
+        carry = t + 1.6 - L;
+      }
+    }
+    out.push(`<path class="hachures" d="${ticks.join('')}"/>`);
+  }
+  return out.join('\n');
+}
+
+// ---------------------------------------------------------------- map furniture (STYLE.md §4.10)
+function cartouche() {
+  const x = WIDTH - 262; const y = 14; const w = 248; const h = 76;
+  return `<g id="cartouche">
+<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${C.paper}" stroke="${C.ink}" stroke-width="1.4"/>
+<rect x="${x + 4}" y="${y + 4}" width="${w - 8}" height="${h - 8}" fill="none" stroke="${C.ink}" stroke-width="0.5"/>
+<path d="M${x + 4},${y + 14} l10,-10 M${x + w - 4},${y + 14} l-10,-10 M${x + 4},${y + h - 14} l10,10 M${x + w - 4},${y + h - 14} l-10,10" stroke="${C.ink}" stroke-width="0.5"/>
+<text class="cartouche-small" x="${x + w / 2}" y="${y + 24}">THEATRE OF OPERATIONS</text>
+<text class="cartouche-title" x="${x + w / 2}" y="${y + 46}">WESTERN FRONT</text>
+<path d="M${x + 60},${y + 53} h${w - 120}" stroke="${C.ink}" stroke-width="0.5"/>
+<text id="map-date" class="cartouche-date" x="${x + w / 2}" y="${y + 66}">December 1914</text>
+</g>`;
+}
+function compassRose(cx, cy, r) {
+  const pt = (ang, rad) => [cx + Math.sin(ang) * rad, cy - Math.cos(ang) * rad];
+  const star = [];
+  for (let i = 0; i < 8; i++) {
+    const a = (i * Math.PI) / 4; const big = i % 2 === 0;
+    const tip = pt(a, big ? r : r * 0.6);
+    const l = pt(a - Math.PI / 8, r * 0.17); const rr = pt(a + Math.PI / 8, r * 0.17);
+    star.push(`<path d="M${f(cx)},${f(cy)}L${f(l[0])},${f(l[1])}L${f(tip[0])},${f(tip[1])}Z" fill="${C.ink}"/>`,
+      `<path d="M${f(cx)},${f(cy)}L${f(rr[0])},${f(rr[1])}L${f(tip[0])},${f(tip[1])}Z" fill="${C.paper}" stroke="${C.ink}" stroke-width="0.4"/>`);
+  }
+  const n = pt(0, r + 7);
+  return `<g id="compass"><circle cx="${f(cx)}" cy="${f(cy)}" r="${f(r * 0.78)}" fill="none" stroke="${C.ink}" stroke-width="0.5"/>${star.join('')}<text class="compass-n" x="${f(n[0])}" y="${f(n[1])}">N</text></g>`;
+}
+function scaleBar(x, y) {
+  // How many map units is 1 km here? Measure 0.5° of latitude (55.6 km) at the map's middle.
+  const a = P([49.2, 4.5]); const b = P([49.7, 4.5]);
+  const perKm = dist(a, b) / 55.6;
+  const km = 50; const miles = 30; const wKm = km * perKm; const wMi = miles * 1.609 * perKm;
+  const segs = [];
+  for (let i = 0; i < 5; i++) segs.push(`<rect x="${f(x + (i * wKm) / 5)}" y="${y}" width="${f(wKm / 5)}" height="2.4" fill="${i % 2 ? C.paper : C.ink}" stroke="${C.ink}" stroke-width="0.4"/>`);
+  for (let i = 0; i < 3; i++) segs.push(`<rect x="${f(x + (i * wMi) / 3)}" y="${y + 2.4}" width="${f(wMi / 3)}" height="2.4" fill="${i % 2 ? C.ink : C.paper}" stroke="${C.ink}" stroke-width="0.4"/>`);
+  return `<g id="scale-bar">${segs.join('')}
+<text class="scale-text" x="${x}" y="${y - 2.5}">0</text><text class="scale-text" x="${f(x + wKm)}" y="${y - 2.5}">${km} km</text>
+<text class="scale-text" x="${f(x + wMi)}" y="${y + 11}">${miles} miles</text></g>`;
+}
+
+// City symbols (STYLE.md §4.9): a church for a VP town, a bigger star for the capital
+// (the box with the most VP), a star-fort outline for fortresses.
+function churchSymbol(x, y) {
+  return `<path class="sym" d="M${f(x)},${f(y - 2.2)}v-3.2M${f(x - 1.2)},${f(y - 4.4)}h2.4"/><circle class="sym-fill" cx="${f(x)}" cy="${f(y)}" r="1.9"/>`;
+}
+function starPath(x, y, r1, r2, points) {
+  const p = [];
+  for (let i = 0; i < points * 2; i++) {
+    const a = (i * Math.PI) / points - Math.PI / 2; const r = i % 2 ? r2 : r1;
+    p.push(`${f(x + Math.cos(a) * r)},${f(y + Math.sin(a) * r)}`);
+  }
+  return 'M' + p.join('L') + 'Z';
+}
+const capitalVp = Math.max(...map.boxes.map((b) => b.vp));
 
 // ---------------------------------------------------------------- write the SVG
 const rivers = await riverLines();
 const out = [];
 out.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${WIDTH} ${HEIGHT}" width="${WIDTH}" height="${HEIGHT}" class="map-svg">`);
 out.push('<!-- Made by tools/build-map.mjs. Do not edit by hand: change the data and re-run it. -->');
-out.push('<!-- Geography: Natural Earth (public domain), plus lines hand-traced in tools/map-extra.json. -->');
+out.push('<!-- Geography: Natural Earth (public domain), plus lines hand-traced in tools/map-extra.json. Look: docs/STYLE.md. -->');
 out.push(`<defs>
 <style>
-.sea{fill:#a9c0c4}
-.land{fill:#d9cfb1;stroke:#8f8366;stroke-width:0.7}
-.land.neutral{fill:#cfc9b5}
-.land.england{fill:#d4ccb0}
-.ground{stroke:none}
-.texture{pointer-events:none}
-.river{fill:none;stroke:#4d7d9a;stroke-width:1.3;stroke-linecap:round;stroke-linejoin:round}
-.river-label{font:italic 7.5px Georgia,serif;fill:#2e5d7a;text-anchor:middle;paint-order:stroke;stroke:#e9e2cc;stroke-width:2px;stroke-opacity:.7}
-.border-1871{fill:none;stroke:#6e1e14;stroke-width:1.6;stroke-dasharray:5 2 1.5 2;opacity:.85}
+.sea{fill:${C.paper}}
+.sea-hatch{fill:url(#pat-sea)}
+.land{fill:${C.paper}}
+.land.neutral{fill:${C.paperDark}}
+.coast{fill:none;stroke:${C.river};stroke-width:0.8;stroke-linejoin:round}
+.border{fill:none;stroke:${C.inkFaded};stroke-width:0.8;stroke-dasharray:5 1.6 1 1.6}
+.border-1871{fill:none;stroke:${C.ink};stroke-width:1.1;stroke-dasharray:6 1.8 1.2 1.8}
+.texture,.ground,.hillshade,.hachures,.paper-grain,.fold,.vignette{pointer-events:none}
+.hillshade{fill:none;stroke:${C.ridge};stroke-opacity:.16;stroke-linecap:round;stroke-linejoin:round}
+.hachures{fill:none;stroke:${C.ridge};stroke-width:0.45;stroke-linecap:round;opacity:.85}
+.river{fill:none;stroke:${C.river};stroke-width:0.9;stroke-linecap:round;stroke-linejoin:round}
+.river-label{font-family:${FONT.fell};font-style:italic;font-size:7px;fill:${C.river};text-anchor:middle;letter-spacing:.06em}
 .territory{fill:transparent;stroke:none}
-.edge{fill:none;stroke:#3b3426;stroke-width:0.7;stroke-opacity:.55;stroke-linejoin:round;pointer-events:none}
-.country-label{font:600 13px Georgia,serif;letter-spacing:3px;fill:#6b604a;text-anchor:middle;opacity:.75}
-.country-label.small{font-size:9px;letter-spacing:2px}
-.sea-label{font:italic 13px Georgia,serif;letter-spacing:3px;fill:#557280;text-anchor:middle}
-.city-icon{fill:#2a2418;stroke:#f4ecd4;stroke-width:1}
-.fort-icon{fill:#f2e6c4;stroke:#2a2418;stroke-width:1}
-.town-dot{fill:#2a2418}
-.label{font-family:Georgia,serif;fill:#1d1910;paint-order:stroke;stroke:#f4ecd4;stroke-width:2.6px;stroke-linejoin:round;text-anchor:middle;pointer-events:none}
-.label.city{font-size:10.5px;font-weight:bold}
-.label.vp{font-size:7.5px;font-weight:normal;fill:#6e1e14}
+.edge{fill:none;stroke:${C.ink};stroke-width:0.45;stroke-dasharray:2.2 1.4;stroke-opacity:.75;pointer-events:none}
+.country-label{font-family:${FONT.place};font-size:15px;letter-spacing:.32em;fill:${C.inkFaded};text-anchor:middle}
+.country-label.small{font-size:9px;letter-spacing:.24em}
+.sea-label{font-family:${FONT.fell};font-style:italic;font-size:14px;letter-spacing:.3em;fill:${C.river};text-anchor:middle}
+.sym{fill:none;stroke:${C.ink};stroke-width:0.7;stroke-linecap:round}
+.sym-fill{fill:${C.ink}}
+.fort{fill:${C.paper};stroke:${C.ink};stroke-width:0.8}
+.capital{fill:${C.ink};stroke:${C.paper};stroke-width:0.5}
+.town-dot{fill:${C.ink}}
+.town-dot.other{fill:${C.inkFaded}}
+.map-label{pointer-events:none;paint-order:stroke;stroke:${C.paper};stroke-width:2.2px;stroke-linejoin:round;stroke-opacity:.85}
+.label{font-family:${FONT.place};fill:${C.ink};text-anchor:middle;letter-spacing:.08em}
+.label.city{font-size:10px}
 .label.town{font-size:6.5px}
-.label.town.other{font-style:italic;fill:#4a4232}
-.town-dot.other{fill:#4a4232}
+.label.town.other{fill:${C.inkFaded}}
+.vp-ring{fill:${C.paper};stroke:${C.ink};stroke-width:0.6}
+.vp-text{font-family:${FONT.fell};font-size:5px;fill:${C.ink};text-anchor:middle;pointer-events:none}
+.cartouche-small{font-family:${FONT.place};font-size:9px;letter-spacing:.3em;fill:${C.ink};text-anchor:middle}
+.cartouche-title{font-family:${FONT.place};font-size:20px;letter-spacing:.2em;fill:${C.ink};text-anchor:middle}
+.cartouche-date{font-family:${FONT.fell};font-style:italic;font-size:9.5px;fill:${C.ink};text-anchor:middle}
+.compass-n{font-family:${FONT.place};font-size:9px;fill:${C.ink};text-anchor:middle}
+.scale-text{font-family:${FONT.fell};font-size:6px;fill:${C.ink};text-anchor:middle}
+.mud-wash{opacity:0;transition:opacity .6s}
+.map-svg.autumn .mud-wash{opacity:1}
 </style>
+<linearGradient id="fold-v" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="${C.paperDark}" stop-opacity="0"/><stop offset=".48" stop-color="${C.paperDark}" stop-opacity=".55"/><stop offset=".5" stop-color="${C.telegram}" stop-opacity=".7"/><stop offset="1" stop-color="${C.telegram}" stop-opacity="0"/></linearGradient>
+<linearGradient id="fold-h" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="${C.paperDark}" stop-opacity="0"/><stop offset=".48" stop-color="${C.paperDark}" stop-opacity=".5"/><stop offset=".5" stop-color="${C.telegram}" stop-opacity=".6"/><stop offset="1" stop-color="${C.telegram}" stop-opacity="0"/></linearGradient>
+<radialGradient id="vignette" cx=".5" cy=".5" r=".72"><stop offset=".62" stop-color="${C.leather}" stop-opacity="0"/><stop offset="1" stop-color="${C.leather}" stop-opacity=".42"/></radialGradient>
+<pattern id="pat-paper" patternUnits="userSpaceOnUse" width="96" height="96"><image href="${paperGrainPng(160)}" width="96" height="96"/></pattern>
 ${patternDefs()}
+<clipPath id="map-frame"><rect x="0" y="0" width="${WIDTH}" height="${HEIGHT}"/></clipPath>
 </defs>`);
+// Everything is drawn on one sheet of paper: nothing spills past its edge.
+out.push('<g id="sheet" clip-path="url(#map-frame)">');
 
-// Sea, then every country.
+// The sheet of paper: sea hatch, then the land.
 out.push(`<rect class="sea" x="0" y="0" width="${WIDTH}" height="${HEIGHT}"/>`);
+out.push(`<rect class="sea-hatch" x="0" y="0" width="${WIDTH}" height="${HEIGHT}"/>`);
 out.push('<g id="countries">');
 for (const [k, shape] of Object.entries(countryShapes)) {
-  const cls = k === 'gbr' ? 'land england' : (k === 'nld' || k === 'che') ? 'land neutral' : 'land';
+  const cls = (k === 'nld' || k === 'che') ? 'land neutral' : 'land';
   out.push(`<path class="${cls}" data-country="${k}" d="${multiD(shape)}"/>`);
 }
 out.push('</g>');
@@ -870,74 +1066,100 @@ out.push('<defs id="shapes">');
 for (const box of map.boxes) out.push(`<path id="shape-${box.id}" d="${polyD(shapes[box.id])}"/>`);
 out.push('</defs>');
 
-// Each territory's ground colour and terrain textures (static).
+// Terrain (static): ground tones, then textures. Mud only shows in autumn (map.js
+// adds the "autumn" class in September–November).
 out.push('<g id="terrain">');
 for (const box of map.boxes) {
-  out.push(`<use class="ground" href="#shape-${box.id}" fill="${groundFor(box)}"/>`);
+  const g = groundFor(box);
+  if (g) out.push(`<use class="ground" href="#shape-${box.id}" fill="${g.ground}" fill-opacity="${g.groundOpacity ?? 1}"/>`);
   for (const id of box.terrain) {
-    if (terrainType(id).draw.texture) out.push(`<use class="texture" href="#shape-${box.id}" fill="url(#pat-${id})"/>`);
+    const t = terrainType(id);
+    if (!t.draw.texture) continue;
+    const cls = t.draw.season === 'autumn' ? 'texture mud-wash' : 'texture';
+    out.push(`<use class="${cls}" href="#shape-${box.id}" fill="url(#pat-${id})"/>`);
   }
 }
 out.push('</g>');
 
-// Rivers.
+// Relief, coast, rivers, borders.
+out.push('<g id="relief">', reliefSvg(), '</g>');
+out.push(`<path class="coast" d="${coastLines.map((l) => lineD(thin(l, 0.6))).join('')}"/>`);
 out.push('<g id="rivers">');
 for (const r of rivers) out.push(`<path class="river" data-river="${esc(r.name)}" d="${lineD(thin(r.pts, 0.8))}"/>`);
-out.push(...riverLabels(rivers));
 out.push('</g>');
+out.push(`<path class="border" d="${borderLines.map((l) => lineD(thin(l, 0.6))).join('')}"/>`);
+out.push(`<path class="border-1871" d="${lineD(extra.border1871.points.map(P))}"/>`);
 
-// Territories: the tap targets. map.js tints them by owner.
+// Territories: the tap targets. map.js tints them by owner (30%, STYLE.md §4.5).
 out.push('<g id="territories">');
 for (const box of map.boxes) {
   out.push(`<use ${attrs({ id: box.id, class: 'territory', 'data-box': box.id, href: '#shape-' + box.id })}/>`);
 }
 out.push('</g>');
 
-// Shared borders between neighbours. map.js makes the ones between enemies the front line.
+// Shared borders between neighbours (thin dashed ink). map.js draws the front line
+// along the ones between enemies.
 out.push('<g id="edges">');
 for (const key of [...wanted].sort()) {
   const [a, b] = key.split('|');
-  const d = chain(shared.get(key)).map(lineD).join('');
-  out.push(`<path ${attrs({ class: 'edge', 'data-a': a, 'data-b': b, d })}/>`);
+  const lines = chain(shared.get(key));
+  const d = lines.map(lineD).join('');
+  // Which box lies on the LEFT of the line as drawn? (map.js uses it to draw trench
+  // zigzags on the inside of a box.) Test a point just left of the longest segment.
+  let best = null;
+  for (const line of lines) for (let i = 1; i < line.length; i++) {
+    if (!best || dist(line[i - 1], line[i]) > dist(best[0], best[1])) best = [line[i - 1], line[i]];
+  }
+  const u = mul(sub(best[1], best[0]), 1 / dist(best[0], best[1]));
+  const probe = add(avg(best), mul([u[1], -u[0]], 0.3));
+  const left = pointInPolygon(probe, shapes[a]) ? a : b;
+  out.push(`<path ${attrs({ class: 'edge', 'data-a': a, 'data-b': b, 'data-left': left, d })}/>`);
 }
 out.push('</g>');
+// map.js fills these: no-man's land, trenches, the front line, the selection.
+out.push('<g id="nomansland"></g><g id="trenches"></g><g id="front"></g><g id="selection"></g>');
 
-// The 1871–1918 Franco-German frontier.
-out.push(`<path class="border-1871" d="${lineD(extra.border1871.points.map(P))}"/>`);
-
-// Country and sea names.
+// Names of seas, countries and rivers.
 out.push('<g id="place-names">');
 for (const l of extra.placeNames.list) {
   const [x, y] = P(l.at);
   out.push(`<text class="${l.cls}" x="${f(x)}" y="${f(y)}">${esc(l.text)}</text>`);
 }
+out.push(...riverLabels(rivers));
 out.push('</g>');
 
-// Towns: city icons for named (victory point) boxes, a dot for every other anchor.
+// Towns: symbols and names. Named boxes get a VP number in a small circle.
 out.push('<g id="towns">');
-for (const box of map.boxes) {
-  const [x, y] = P([box.anchor.lat, box.anchor.lon]);
-  const fortress = box.terrain.includes('fortress');
-  if (box.name) {
-    const r = 2.2 + Math.sqrt(box.vp) * 0.7;
-    if (fortress) {
-      out.push(`<path class="fort-icon" d="M${f(x)},${f(y - r - 1)} l${f(r + 1)},${f(r * 0.75)} l${f(-r * 0.4)},${f(r * 1.25)} h${f(-r * 1.2)} l${f(-r * 0.4)},${f(-r * 1.25)} Z"/>`);
-    } else {
-      out.push(`<rect class="city-icon" x="${f(x - r)}" y="${f(y - r)}" width="${f(2 * r)}" height="${f(2 * r)}" transform="rotate(45 ${f(x)} ${f(y)})"/>`);
-    }
-    out.push(`<text class="label city" data-box="${box.id}" x="${f(x)}" y="${f(y - r - 3.5)}">${esc(box.short && box.name.length > 14 ? box.short : box.name)}</text>`);
-    out.push(`<text class="label vp" x="${f(x)}" y="${f(y + r + 8)}">${box.vp} VP</text>`);
-  } else {
-    out.push(`<circle class="town-dot" cx="${f(x)}" cy="${f(y)}" r="1.2"/>`);
-    out.push(`<text class="label town" data-box="${box.id}" x="${f(x)}" y="${f(y - 3)}">${esc(box.anchor.town)}</text>`);
-  }
-}
-// Other towns, just for orientation (not part of the game).
 for (const t of extra.otherTowns.list) {
   const [x, y] = P(t.at);
-  out.push(`<circle class="town-dot other" cx="${f(x)}" cy="${f(y)}" r="1"/>`);
-  out.push(`<text class="label town other" x="${f(x)}" y="${f(y - 2.6)}">${esc(t.name)}</text>`);
+  out.push(`<circle class="town-dot other" cx="${f(x)}" cy="${f(y)}" r="0.9"/>`);
+  out.push(`<text class="label town other map-label" x="${f(x)}" y="${f(y - 2.4)}">${esc(t.name)}</text>`);
 }
+for (const box of map.boxes) {
+  const [x, y] = P([box.anchor.lat, box.anchor.lon]);
+  if (box.name) {
+    if (box.terrain.includes('fortress')) out.push(`<path class="fort" d="${starPath(x, y, 4.2, 2.6, 8)}"/>`);
+    else if (box.vp === capitalVp) out.push(`<path class="capital" d="${starPath(x, y, 6, 2.6, 5)}"/>`);
+    else out.push(churchSymbol(x, y));
+    const name = box.short && box.name.length > 14 ? box.short : box.name;
+    out.push(`<g class="city-label" data-box="${box.id}" transform="translate(${f(x)},${f(y)})">` +
+      `<text class="label city map-label" y="-7">${esc(name)}</text>` +
+      `<circle class="vp-ring" cx="0" cy="8.5" r="3.4"/><text class="vp-text" y="10.2">${box.vp}</text></g>`);
+  } else {
+    out.push(`<circle class="town-dot" cx="${f(x)}" cy="${f(y)}" r="1"/>`);
+    out.push(`<text class="label town map-label" data-box="${box.id}" x="${f(x)}" y="${f(y - 2.6)}">${esc(box.anchor.town)}</text>`);
+  }
+}
+out.push('</g>');
+
+// Furniture and the paper itself, on top: grain, two fold creases, vignette.
+out.push(compassRose(46, HEIGHT - 70, 24));
+out.push(scaleBar(86, HEIGHT - 30));
+out.push(cartouche());
+out.push(`<rect class="paper-grain" x="0" y="0" width="${WIDTH}" height="${HEIGHT}" fill="url(#pat-paper)"/>`);
+out.push(`<rect class="fold" x="${WIDTH / 2 - 7}" y="0" width="14" height="${HEIGHT}" fill="url(#fold-v)"/>`);
+out.push(`<rect class="fold" x="0" y="${HEIGHT / 2 - 7}" width="${WIDTH}" height="14" fill="url(#fold-h)"/>`);
+out.push(`<rect class="vignette" x="0" y="0" width="${WIDTH}" height="${HEIGHT}" fill="url(#vignette)"/>`);
 out.push('</g>');
 out.push('</svg>');
 

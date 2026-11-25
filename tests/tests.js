@@ -145,16 +145,27 @@ test('map: terrain matches RULES.md §3', () => {
   }
 });
 
-test('map: every terrain type has a way to be drawn, with colours', () => {
+// The colours docs/STYLE.md §2 allows (map, nations and desk).
+export const PALETTE = ['#E8DCC0', '#D6C7A3', '#2B241C', '#6E6253', '#5F7F95', '#5E6B45', '#8A7454',
+  '#8E1B1B', '#6F8FAF', '#9C8A5A', '#6B6E63', '#5E5B33', '#B58B3A', '#221D18', '#2E2721', '#B08D57',
+  '#F1E6C8', '#A3241F'];
+const inPalette = (c) => PALETTE.includes(String(c).toUpperCase());
+
+test('map: every terrain type has a way to be drawn, in palette colours', () => {
   check(data.terrain.types.length === 8, 'RULES.md §3 lists 8 terrain types');
-  const hex = (c) => /^#[0-9a-f]{6}$/i.test(c);
-  check(hex(data.terrain.plainGround), 'terrain.json needs a plainGround colour');
+  check(inPalette(data.terrain.plainGround), 'plainGround must be a STYLE.md palette colour');
   for (const t of data.terrain.types) {
-    check(t.draw.texture || t.draw.badge, t.id + ' needs a texture or a badge');
-    check(hex(t.draw.color), t.id + ' needs a colour');
-    if (t.draw.ground) check(hex(t.draw.ground) && typeof t.draw.priority === 'number', t.id + ' ground needs a colour and priority');
+    const d = t.draw;
+    check(d.ground || d.texture || d.badge || d.plain, t.id + ' needs a ground, texture, badge or plain');
+    check(inPalette(d.color), t.id + ' colour must be in the STYLE.md palette');
+    if (d.ground) check(inPalette(d.ground) && typeof d.priority === 'number', t.id + ' ground needs a palette colour and priority');
     check(t.effect && t.name, t.id + ' needs a name and effect');
   }
+});
+
+test('nations: side and nation colours are STYLE.md palette colours', () => {
+  for (const s of data.nations.sides) check(inPalette(s.color), s.id + ' colour');
+  for (const n of data.nations.nations) check(inPalette(n.color), n.id + ' colour');
 });
 
 test('boxName: named box uses its name, others use lane + column', () => {

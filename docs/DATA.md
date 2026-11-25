@@ -8,7 +8,7 @@ mean editing data. Every file starts with an `"_about"` line saying what it is f
 `tests/tests.js` check that the map and scenario match `docs/RULES.md`.
 
 Planned files that don't exist yet: `unit-types.json` (milestone 3), `combat-table.json`
-(5), `events.json` (8), `commanders.json` (9) and `headlines.json` (10). Describe each one
+(5), `events.json` (9), `commanders.json` (11) and `headlines.json` (12). Describe each one
 here when it is added.
 
 ---

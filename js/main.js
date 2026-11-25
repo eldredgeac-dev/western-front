@@ -3,26 +3,30 @@
 import { hasSave } from './storage.js';
 import { checkMap, indexBoxes, boxName, trenchMax } from './engine/boxes.js';
 import { newGame, currentMonth, monthLabel } from './engine/state.js';
-import { drawMap } from './ui/map.js';
+import { loadMapSvg, createMapView } from './ui/map.js';
+import { enableZoom } from './ui/zoom.js';
 import { showPanel } from './ui/panel.js';
 
 // Find the page elements we need once, at start-up.
-const titleScreen = document.getElementById('title-screen');
-const gameScreen = document.getElementById('game-screen');
-const newGameButton = document.getElementById('btn-new-game');
-const continueButton = document.getElementById('btn-continue');
-const continueNote = document.getElementById('continue-note');
-const backButton = document.getElementById('btn-back');
-const gameTitle = document.getElementById('game-title');
-const mapArea = document.getElementById('map-area');
-const panelArea = document.getElementById('panel-area');
+const $ = (id) => document.getElementById(id);
+const titleScreen = $('title-screen');
+const gameScreen = $('game-screen');
+const newGameButton = $('btn-new-game');
+const continueButton = $('btn-continue');
+const continueNote = $('continue-note');
+const gameTitle = $('game-title');
+const mapHolder = $('map-holder');
+const panelArea = $('panel-area');
+const sheet = $('panel-sheet');
+const sheetHandle = $('sheet-handle');
 
-// Everything loaded from data/*.json, filled in by loadData().
+// Everything loaded from data/*.json (and the map picture), filled in by loadData().
 let data = null;
-// The game being played (null until New Game is tapped).
+// The game being played (null until New Campaign is tapped).
 let state = null;
-// Lets us highlight a box on the drawn map.
+// The drawn map and its zoom controls (made once, on the first New Campaign).
 let mapView = null;
+let zoom = null;
 
 // Get localStorage safely: just reading `window.localStorage` can throw
 // when storage is blocked.
@@ -52,15 +56,17 @@ async function loadJson(path) {
 
 // Load all the data files the game needs, and check the map makes sense.
 async function loadData() {
-  const [map, terrainData, nations, scenario] = await Promise.all([
+  const [map, terrainData, nations, scenario, quotes] = await Promise.all([
     loadJson('./data/boxes-west.json'),
     loadJson('./data/terrain.json'),
     loadJson('./data/nations.json'),
     loadJson('./data/scenarios/1914-west.json'),
+    loadJson('./data/quotes.json'),
   ]);
   const problems = checkMap(map, terrainData);
   if (problems.length > 0) throw new Error('The map data has problems: ' + problems.join('; '));
-  return { map, terrainData, nations, scenario, boxesById: indexBoxes(map) };
+  const mapSvg = await loadMapSvg(map.mapSvg);
+  return { map, terrainData, nations, scenario, quotes, mapSvg, boxesById: indexBoxes(map) };
 }
 
 // Show one screen and hide the other.
@@ -77,7 +83,16 @@ function updateContinueButton() {
   continueNote.hidden = saved;
 }
 
-// Gather everything the panel shows about one box.
+// The title screen shows Sir Edward Grey's words from data/quotes.json.
+function showTitleQuote() {
+  const quote = data.quotes.quotes.find((q) => q.trigger === 'game_start');
+  if (!quote) return;
+  $('title-quote-text').textContent = `“${quote.text}”`;
+  $('title-quote-who').textContent = `— ${quote.who}, ${quote.when}`;
+  $('title-quote').hidden = false;
+}
+
+// Gather everything the panel shows about one territory.
 function boxInfo(boxId) {
   const { map, terrainData, nations } = data;
   const box = data.boxesById[boxId];
@@ -88,6 +103,7 @@ function boxInfo(boxId) {
   const month = currentMonth(state);
   return {
     name: boxName(map, box),
+    town: box.anchor.town,
     laneNumber: lane.number,
     laneName: lane.name,
     columnLabel: column.label,
@@ -101,13 +117,40 @@ function boxInfo(boxId) {
   };
 }
 
-// Called when a box is tapped: highlight it and show its details.
+// Folded phone: the panel is a sheet that slides up from the bottom.
+function openSheet(open) {
+  sheet.classList.toggle('open', open);
+  sheetHandle.setAttribute('aria-expanded', String(open));
+}
+
+// Called when a territory is tapped: highlight it and show its details.
 function selectBox(boxId) {
   mapView.select(boxId);
   showPanel(panelArea, boxInfo(boxId), data.terrainData);
+  openSheet(true);
 }
 
-// Start a new game and draw the map.
+// Draw the map the first time; afterwards just repaint it for the new state.
+function showMap() {
+  if (!mapView) {
+    mapView = createMapView(mapHolder, data.mapSvg, {
+      nations: data.nations,
+      boxNameFn: (id) => boxName(data.map, data.boxesById[id]),
+    });
+    zoom = enableZoom(mapView.svg, {
+      onTap: selectBox, onViewChange: mapView.declutter, home: mapView.frontBounds,
+    });
+    $('btn-zoom-in').addEventListener('click', () => zoom.zoomIn());
+    $('btn-zoom-out').addEventListener('click', () => zoom.zoomOut());
+    $('btn-zoom-fit').addEventListener('click', () => zoom.fit());
+  }
+  const month = currentMonth(state);
+  mapView.update(state, month, monthLabel(month));
+  mapView.select(null);
+  zoom.fit();
+}
+
+// Start a new game and show the map.
 function startGame() {
   if (!data) return;
   // The seed only has to be different each game; every roll then goes
@@ -115,15 +158,9 @@ function startGame() {
   state = newGame(data.scenario, Date.now() % 2147483647);
   showScreen(gameScreen);
   gameTitle.textContent = monthLabel(currentMonth(state));
-  mapView = drawMap(mapArea, {
-    map: data.map,
-    terrainData: data.terrainData,
-    nations: data.nations,
-    state,
-    boxNameFn: (box) => boxName(data.map, box),
-    onSelect: selectBox,
-  });
+  showMap();
   showPanel(panelArea, null, data.terrainData);
+  openSheet(false);
 }
 
 // If the data can't load, say so on the title screen instead of breaking.
@@ -134,17 +171,36 @@ function showLoadError(err) {
     ' Try reloading the page.';
 }
 
+// The sheet handle: tap to open or close, or swipe it up or down.
+function wireSheet() {
+  let startY = null;
+  let swiped = false;   // a swipe also fires a click; ignore that click
+  sheetHandle.addEventListener('click', () => {
+    if (swiped) { swiped = false; return; }
+    openSheet(!sheet.classList.contains('open'));
+  });
+  sheetHandle.addEventListener('pointerdown', (e) => { startY = e.clientY; });
+  sheetHandle.addEventListener('pointerup', (e) => {
+    if (startY === null) return;
+    const moved = e.clientY - startY;
+    if (Math.abs(moved) > 30) { swiped = true; openSheet(moved < 0); }
+    startY = null;
+  });
+}
+
 async function boot() {
   updateContinueButton();
   newGameButton.addEventListener('click', startGame);
-  // Saved games arrive in Milestone 7; until then Continue starts a fresh game.
+  // Saved games arrive in Milestone 8; until then Continue starts a fresh game.
   continueButton.addEventListener('click', startGame);
-  backButton.addEventListener('click', () => showScreen(titleScreen));
+  $('btn-back').addEventListener('click', () => showScreen(titleScreen));
+  wireSheet();
 
   newGameButton.disabled = true;   // until the data has loaded
   try {
     data = await loadData();
     newGameButton.disabled = false;
+    showTitleQuote();
   } catch (err) {
     showLoadError(err);
   }

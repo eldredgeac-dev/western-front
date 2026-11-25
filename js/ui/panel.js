@@ -1,5 +1,7 @@
-// panel.js — the information panel next to (or under) the map:
-// details of the tapped box, and the terrain legend.
+// panel.js — the information panel beside (or sliding up under) the map:
+// details of the tapped territory, and the terrain legend.
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
 
 // Make an HTML element with optional class and text.
 function el(tag, className, text) {
@@ -9,24 +11,30 @@ function el(tag, className, text) {
   return e;
 }
 
-// A small coloured square showing how a terrain type looks on the map.
-// It reuses the map's patterns (url(#pat-ridge) etc.), so they always match.
+// A small square showing how a terrain type looks on the map. It reuses the map's
+// own textures (url(#pat-forest) etc.), so the legend always matches the map.
 function swatch(t, terrainData) {
-  const ns = 'http://www.w3.org/2000/svg';
-  const svg = document.createElementNS(ns, 'svg');
-  svg.setAttribute('viewBox', '0 0 28 20');
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 32 22');
   svg.setAttribute('class', 'legend-swatch');
   svg.setAttribute('aria-hidden', 'true');
-  const add = (attrs) => {
-    const r = document.createElementNS(ns, 'rect');
-    for (const [k, v] of Object.entries({ x: 0, y: 0, width: 28, height: 20, ...attrs })) r.setAttribute(k, v);
-    svg.appendChild(r);
+  const add = (tag, attrs) => {
+    const e = document.createElementNS(SVG_NS, tag);
+    for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+    svg.appendChild(e);
   };
-  if (t.draw.kind === 'fill') add({ fill: t.draw.color });
-  else add({ fill: terrainData.plainFill });
-  if (t.draw.kind === 'pattern') add({ fill: `url(#pat-${t.id})` });
-  if (t.draw.kind === 'badge') {
-    add({ x: 2, y: 2, width: 24, height: 16, fill: 'none', stroke: t.draw.color, 'stroke-width': 2 });
+  const rect = { x: 0, y: 0, width: 32, height: 22 };
+  add('rect', { ...rect, fill: terrainData.plainGround });
+  if (t.draw.ground) add('rect', { ...rect, fill: t.draw.ground, 'fill-opacity': t.draw.groundOpacity ?? 1 });
+  if (t.draw.texture) add('rect', { ...rect, fill: `url(#pat-${t.id})` });
+  if (t.draw.badge) {
+    // the star-fort symbol used for fortresses on the map
+    const pts = [];
+    for (let i = 0; i < 16; i++) {
+      const a = (i * Math.PI) / 8 - Math.PI / 2; const r = i % 2 ? 4.3 : 7;
+      pts.push(`${16 + Math.cos(a) * r},${11 + Math.sin(a) * r}`);
+    }
+    add('path', { d: 'M' + pts.join('L') + 'Z', fill: terrainData.plainGround, stroke: t.draw.color, 'stroke-width': 1.2 });
   }
   return svg;
 }
@@ -39,18 +47,15 @@ function legend(terrainData) {
   for (const t of terrainData.types) {
     const li = el('li', 'legend-item');
     li.appendChild(swatch(t, terrainData));
-    li.appendChild(el('span', '', t.name + (t.draw.kind === 'badge' ? ' ' + t.draw.symbol : '')));
+    const note = t.draw.season === 'autumn' ? ' (shown Sep–Nov)' : '';
+    li.appendChild(el('span', '', t.name + note));
     list.appendChild(li);
   }
-  const plain = el('li', 'legend-item');
-  plain.appendChild(swatch({ id: 'plain', draw: { kind: 'fill', color: terrainData.plainFill } }, terrainData));
-  plain.appendChild(el('span', '', 'Plain (no terrain effect)'));
-  list.appendChild(plain);
   box.appendChild(list);
   return box;
 }
 
-// One "label: value" row in the box details.
+// One "label: value" row in the territory details.
 function row(list, label, value) {
   list.appendChild(el('dt', '', label));
   const dd = el('dd');
@@ -60,14 +65,15 @@ function row(list, label, value) {
 }
 
 // Show the panel. `info` is null when nothing is selected, or an object with
-// everything about the tapped box, already worked out by main.js.
+// everything about the tapped territory, already worked out by main.js.
 export function showPanel(container, info, terrainData) {
   const parts = [];
   if (!info) {
-    parts.push(el('p', 'panel-hint', 'Tap a box on the map to see its details.'));
+    parts.push(el('p', 'panel-hint', 'Tap a territory on the map to see its details. Pinch to zoom.'));
   } else {
     parts.push(el('h2', 'box-title', info.name));
     const dl = el('dl', 'box-facts');
+    row(dl, 'Near', info.town);
     row(dl, 'Lane', `${info.laneNumber} · ${info.laneName}`);
     row(dl, 'Line', `${info.columnLabel} – ${info.columnName}`);
     row(dl, 'Owner', info.ownerName);

@@ -1,6 +1,6 @@
 // storage.js — saving and loading games.
 // Milestone 1 only needs to know whether a saved game exists, so the title
-// screen can grey out "Continue". Full save/load/export comes in Milestone 7.
+// screen can grey out "Continue". Full save/load/export comes in Milestone 8.
 
 // The localStorage key the game will save under.
 export const SAVE_KEY = 'western-front-save';

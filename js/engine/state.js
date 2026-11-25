@@ -3,7 +3,7 @@
 // needs who owns each box and its trench level; units arrive in Milestone 3.
 
 // Bump this whenever the shape of the state changes, so old saves can be
-// recognised and upgraded (Milestone 7).
+// recognised and upgraded (Milestone 8).
 export const STATE_VERSION = 1;
 
 // Build a brand-new game from a scenario (data/scenarios/*.json).
