@@ -7,6 +7,7 @@ import { currentMonth, addMonths } from './state.js';
 import { resourcesFor, applyDifficulty } from './resources.js';
 import { armisticeScore } from './systems/will.js';
 import { eventDue } from './events.js';
+import { hasEconomy, manpower, industry, cityEffects, researchProgress, expectedMonth } from './systems/economy.js';
 
 const sum = (list) => list.reduce((a, b) => a + b, 0);
 // Total steps of a nation's units on the map.
@@ -23,6 +24,9 @@ export function recordMonth(state, data) {
     will: { ...state.will },
     steps: Object.fromEntries(nations.map((n) => [n, stepsOf(state, n)])),
     lost: { ...state.lostThisTurn },
+    // the war economy (RULES.md §19.6): this month's Manpower and Industry
+    manpower: Object.fromEntries(Object.entries(state.budget || {}).map(([n, b]) => [n, b.manpower])),
+    industry: Object.fromEntries(Object.entries(state.budget || {}).map(([n, b]) => [n, b.industry])),
   });
   for (const [n, lost] of Object.entries(state.lostThisTurn)) state.lossesTotal[n] = (state.lossesTotal[n] || 0) + lost;
 }
@@ -39,6 +43,29 @@ export function casualties(data, steps) {
 function commanderOf(data, nation, month) {
   const cards = (data.commanders && data.commanders.cards) || [];
   return cards.find((c) => c.nation === nation && c.from <= month && month <= c.to) || null;
+}
+
+// A nation's war economy for the War Office (RULES.md §19.6): Manpower and Industry
+// this month and their change since last month, the stockpile, and research.
+function economyOf(state, data, nationId, last) {
+  const b = (state.budget || {})[nationId];
+  const mp = b && b.month === currentMonth(state) ? b.manpower : manpower(state, data, nationId);
+  const ip = b && b.month === currentMonth(state) ? b.industry : industry(state, data, nationId);
+  const before = (key) => (last && last[key] && last[key][nationId] !== undefined ? last[key][nationId] : null);
+  const research = data.economy.techs.filter((t) => t.nations.includes(nationId) && researchProgress(state, t.id) > 0 &&
+    !(state.techs || []).includes(t.id) && !(t.historical && currentMonth(state) >= t.historical))
+    .map((t) => {
+      const rate = b && b.tech === t.id ? b.research : 0;
+      return { id: t.id, name: t.name, progress: researchProgress(state, t.id), cost: t.cost, expected: expectedMonth(state, data, t.id, rate) };
+    });
+  return {
+    manpower: mp, manpowerChange: before('manpower') === null ? null : mp - before('manpower'),
+    industry: ip, industryChange: before('industry') === null ? null : ip - before('industry'),
+    stock: (state.resources[nationId] || {}).munitions || 0, stockCap: data.economy.stockCap,
+    research,
+    researched: (state.techs || []).filter((id) => data.economy.techs.find((t) => t.id === id).nations.includes(nationId))
+      .map((id) => data.economy.techs.find((t) => t.id === id).name),
+  };
 }
 
 // Months from `month` until `later` (both 'YYYY-MM').
@@ -63,12 +90,14 @@ export function ledger(state, data) {
       will: state.will[n.id],
       willStart: n.startWill + ((state.willBonus || {})[n.side] || 0),
       willChange: last && last.will[n.id] !== undefined ? state.will[n.id] - last.will[n.id] : null,
-      resources: ['op', 'munitions', 'rp', 'rail'].map((k) => ({ key: k, left: (state.resources[n.id] || {})[k] || 0, of: (full[n.id] || {})[k] || 0 })),
+      resources: ['op', 'munitions', 'rp', 'rail'].map((k) => ({ key: k, left: (state.resources[n.id] || {})[k] || 0,
+        of: k === 'munitions' && hasEconomy(data) ? data.economy.stockCap : (full[n.id] || {})[k] || 0 })),
       units: state.units.filter((u) => u.nation === n.id).length,
       steps: stepsOf(state, n.id),
       bill: { month: casualties(data, lostMonth), total: casualties(data, lostTotal) },
       commander: card ? { name: card.name, nickname: card.nickname || null, title: card.title || null } : null,
       cannotAttack: (state.cannotAttack || {})[n.id] || null,
+      economy: hasEconomy(data) ? economyOf(state, data, n.id, last) : null,
     };
   });
 
@@ -111,5 +140,8 @@ export function ledger(state, data) {
   const series = (state.history || []).map((h) => point(h.month, h.steps));
   series.push(point(month, Object.fromEntries(data.nations.nations.map((n) => [n.id, stepsOf(state, n.id)]))));
 
-  return { month, score: armisticeScore(state, data), margin: data.victory.armistice.margin, nations, sides, events, ongoing, shifts, mutinies, countdowns, series };
+  // industrial cities held and lost, with their effect on Industry (RULES.md §19.3, §19.6)
+  const industrialCities = cityEffects(state, data);
+
+  return { month, score: armisticeScore(state, data), margin: data.victory.armistice.margin, nations, sides, events, ongoing, shifts, mutinies, countdowns, series, industrialCities };
 }

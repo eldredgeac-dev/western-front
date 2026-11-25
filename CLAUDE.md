@@ -19,6 +19,7 @@ Eastern Front, more nations and the naval blockade, so build it to grow.
 - `docs/HISTORY.md` — the historical facts behind the scenario data, with sources.
 - `docs/MILESTONES.md` — the build plan. We do one milestone at a time.
 - `docs/DATA.md` — what goes in each JSON data file (create it in milestone 2).
+- `docs/ECONOMY.md` — the design record for the war economy (merged into RULES.md §19).
 - `docs/STYLE.md` — the art direction: palette, fonts, map look, motion, sound, tone.
 - `docs/BALANCE.md` — results of the balance testing. Numbers tagged [balanced] in
   RULES.md came from `tools/wfsim.py` (a Python simulator of the rules). If a rule
@@ -67,12 +68,12 @@ js/engine/combat.js        combat table, odds preview
 js/engine/rng.js           seeded RNG (mulberry32)
 js/engine/boxes.js         map checks, box names, trench maximums
 js/engine/ai.js            computer opponent (priority scoring)
-js/engine/systems/         supply.js, will.js (later: economy.js, blockade.js)
+js/engine/systems/         supply.js, will.js, economy.js (later: blockade.js)
 js/engine/battles.js       the battle record (scars and pencil notes on the map)
-js/ui/map.js  zoom.js  panel.js  log.js  demo.js
+js/ui/map.js  zoom.js  panel.js  log.js  demo.js  ledger.js  budget.js
 js/storage.js              save / load / export / import
 data/nations.json  unit-types.json  boxes-west.json  terrain.json  events.json  combat-table.json
-data/commanders.json  headlines.json
+data/commanders.json  headlines.json  economy.json
 data/news.json  quotes.json         (already written: real history, don't change facts without a source)
 data/scenarios/1914-west.json
 tests/tests.html  tests/tests.js  tests/run.mjs

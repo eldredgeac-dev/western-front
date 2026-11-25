@@ -108,6 +108,17 @@ Do one milestone per Claude Code session. For each one:
      commander; plus the Armistice Score, active events, countdowns and a small
      strength-over-time chart.
 
+- [x] **10b. The war economy** (RULES.md §19, Version 1.3, from docs/ECONOMY.md)
+  - Manpower goes to replacements; Industry buys munitions (a stockpile of up to 3) or
+    research. Unspent points are lost.
+  - The War Office budget page at the start of each month: brass slider, research picker
+    with progress bars, Auto-allocate (on by default on Recruit).
+  - Research brings 7 techs early (2 that never happened); industrial cities change
+    Industry when captured.
+  - The War Office dashboard shows Manpower and Industry with trends, the stockpile as
+    shells, research in progress with its expected month, and industrial cities.
+  - German starting Will 108. The simulator includes the economy and was re-run.
+
 - [ ] **11. Playtest and polish**
   - You play 3–4 full games (both sides, more than one difficulty).
   - We list everything that was boring or confusing, then fix it.
@@ -139,7 +150,8 @@ Do one milestone per Claude Code session. For each one:
 ---
 
 ## Version 2 and later (don't build yet)
-- V2: Economy — spend production points on new units (Axis & Allies style).
+- V2: Economy, part 2 — spend Industry on new units (Axis & Allies style). Part 1 (Manpower,
+  Industry, munitions stockpile, research, industrial cities) is milestone 10b.
 - V3: Eastern Front and Russia, so Germany fights on two fronts.
 - V4: More nations (Austria-Hungary, Italy, Ottomans), naval blockade and U-boats.
 
@@ -188,4 +200,6 @@ milestone in brackets, confirm the fix, then update RULES.md and the code togeth
 - Let the player choose where reinforcements arrive, and which units become
   stormtroopers (DECISIONS.md 47, 50).
 - The Recruit advisor also highlights weak friendly front boxes (RULES.md §13).
+- A separate Research page reachable from the War Office at any time (for now the
+  research ledger is at the bottom of the budget page, and progress is on the dashboard).
 (Claude Code: add ideas here instead of building them.)

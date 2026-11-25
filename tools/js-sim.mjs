@@ -14,7 +14,7 @@ const json = (f) => JSON.parse(readFileSync(join(root, f), 'utf8'));
 export const data = {
   map: json('data/boxes-west.json'), terrain: json('data/terrain.json'), nations: json('data/nations.json'),
   unitTypes: json('data/unit-types.json'), phases: json('data/phases.json'), combat: json('data/combat-table.json'),
-  victory: json('data/victory.json'), events: json('data/events.json'), ai: json('data/ai.json'),
+  victory: json('data/victory.json'), events: json('data/events.json'), ai: json('data/ai.json'), economy: json('data/economy.json'),
 };
 const scenario = json('data/scenarios/1914-west.json');
 

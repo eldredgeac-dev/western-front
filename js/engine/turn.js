@@ -13,13 +13,20 @@ import { replacementsPhase } from './systems/replacements.js';
 import { willPhase } from './systems/will.js';
 import { runEvents } from './events.js';
 import { recordMonth } from './history.js';
+import { hasEconomy, warOfficePhase, applyBudget } from './systems/economy.js';
 
 // Clear what units did last turn and hand out this month's resources.
+// With the war economy (RULES.md §19) munitions aren't handed out: the stockpile
+// carries over, and the War Office phase adds to it (systems/economy.js).
 function startOfTurn(state, data) {
   for (const u of state.units) { u.moved = false; u.railed = false; u.attacked = false; }
   state.attackedBoxes = [];
   for (const id of Object.keys(state.lostThisTurn)) state.lostThisTurn[id] = 0;
-  state.resources = applyDifficulty(resourcesFor(data, currentMonth(state)), data, state.resourceMult);
+  const fresh = applyDifficulty(resourcesFor(data, currentMonth(state)), data, state.resourceMult);
+  if (hasEconomy(data)) {
+    for (const [id, r] of Object.entries(fresh)) r.munitions = (state.resources[id] || {}).munitions || 0;
+  }
+  state.resources = fresh;
 }
 
 // Dig in (RULES.md §7 step 5): every box with units that was not attacked this turn
@@ -40,6 +47,7 @@ export function digIn(state, data) {
 // the turn until their milestone arrives (see "until" in data/phases.json).
 const AUTO = {
   events: runEvents,
+  'war-office': warOfficePhase,
   supply: supplyPhase,
   'dig-in': digIn,
   replacements: replacementsPhase,
@@ -80,6 +88,7 @@ function settle(state, data, record = null) {
     if (state.over) return state;          // someone won
     state.phase += 1;
     if (state.pendingChoice) return state; // a question for the player waits (events.js)
+    if (state.pendingBudget) return state; // a War Office budget waits (systems/economy.js)
   }
   return state;
 }
@@ -97,7 +106,7 @@ export function beginGame(state, data, options = {}) {
 //   options.record(action, state) — optional, see ai.js (the screen uses it to play
 //   the computer's turn back). Queued orders that weren't committed are dropped.
 export function endPhase(state, data, options = {}) {
-  if (state.over || state.pendingChoice) return state;
+  if (state.over || state.pendingChoice || state.pendingBudget) return state;
   const next = copyState(state);
   next.phase += 1;
   next.orders = [];
@@ -107,4 +116,21 @@ export function endPhase(state, data, options = {}) {
 // The current phase record from data/phases.json.
 export function phaseOf(state, data) {
   return phasesOf(data)[state.phase] || null;
+}
+
+// The player signs a side's War Office budget (RULES.md §19.4). Returns a NEW state,
+// and carries on with the turn (the computer may move next).
+//   budgets — { nationId: { munitions, research, tech } } for each of the side's nations
+//   options.auto — true/false turns Auto-allocate on or off for later months
+//   options.record — as for endPhase
+// Throws an Error if a budget breaks the rules (nothing is changed then).
+export function submitBudget(state, data, sideId, budgets, options = {}) {
+  if (!(state.pendingBudget || []).includes(sideId)) throw new Error('No budget is waiting for this side.');
+  const next = copyState(state);
+  for (const [nationId, budget] of Object.entries(budgets)) applyBudget(next, data, nationId, budget);
+  if (options.auto !== undefined) next.autoAllocate = { ...(next.autoAllocate || {}), [sideId]: Boolean(options.auto) };
+  next.pendingBudget = next.pendingBudget.filter((s) => s !== sideId);
+  if (next.pendingBudget.length) return next;
+  delete next.pendingBudget;
+  return settle(next, data, options.record || null);
 }

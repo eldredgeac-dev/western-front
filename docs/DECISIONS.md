@@ -424,6 +424,45 @@ I'll change it.
     "import map" in `index.html`), the data files and the map. A test checks that no
     script is missed, and CLAUDE.md says to raise the number with every release.
 
+### The war economy (RULES.md §19, from docs/ECONOMY.md)
+86. **ECONOMY.md is merged into RULES.md as §19**, with §4, §6, §7, §9.1, §9.6, §10, §11
+    and §13 updated to match, and German starting Will 108. ECONOMY.md stays as the design
+    record with a note at the top.
+87. **Difficulty multiplies only the base Industry** (you chose this): round(base ×
+    multiplier), then the war-economy bonus, cities and research are added. That's what
+    the simulator did when the numbers were balanced.
+88. **Industry never goes below 0.** The reference simulator could go negative if France
+    lost Paris and Amiens in 1915; I clamped it at 0, in the simulator and the game.
+89. **The computer aims for 3 munitions, not 4.** The reference simulator aimed for 4 in a
+    stockpile that holds 3, so it threw away 1 IP a month whenever its stockpile was
+    full. I followed RULES.md §19.7 instead. Standard vs Standard moved from 49/40/11 to
+    40/43/18 (Germany/Entente/draw), still inside the healthy ranges. Setting
+    `mun_target=4` in `tools/wfsim.py` gives 48/39/14, matching ECONOMY.md. Tell me if
+    you'd rather keep the old numbers.
+90. **The munitions stockpile is the old "munitions" figure.** It now carries over from
+    month to month instead of being refilled, starts the war at 0, and only the War
+    Office budget adds to it. Barrages spend it exactly as before.
+91. **The budget comes in a new "War Office budget" phase**, straight after events and
+    reinforcements, before Germany moves. The computer and Auto-allocate spend at once;
+    otherwise the turn waits for **SIGN THE ESTIMATES** (like an event question).
+92. **Auto-allocate starts ON on Recruit and in two-player games**, OFF on the other
+    levels. The checkbox on the budget page changes it. The player's Auto-allocate has no
+    3 IP research cap (ECONOMY.md only gives the cap to the computer). Old saves load with
+    Auto-allocate on.
+93. **Research progress put into a tech that then arrives historically is spent.** The
+    simulator did the same.
+94. **Commander changes to Manpower and Industry** (Hindenburg & Ludendorff +1 MP,
+    Nivelle +1 IP, Haig −1 MP) wait for milestone 12, since the commander cards aren't in
+    the game yet. The simulator already has them.
+95. **The A7V tank** comes in a German rear territory like any reinforcement. Germany's
+    "No tanks" trait now mentions it.
+96. **The research ledger** (every tech, progress bar, dates, a history note) is at the
+    bottom of the budget page. Research in progress also shows on the War Office
+    dashboard, with its expected month. A separate Research page is in "Later ideas".
+97. **The reference simulator folder** (`tools/tools/econ_reference/`, uploaded one
+    folder deeper than ECONOMY.md said) is deleted now that `tools/wfsim.py` has the
+    economy, as its README asked.
+
 ## Questions for you (answered)
 1. **Combat table — answered: RULES.md is right.**
    - The balance tests used `tools/t2.py`, which patched the simulator's 1:2 and 1:1
@@ -535,3 +574,17 @@ I'll change it.
       - Scroll down for the Armistice Score, the strength chart (tap it to read a month),
         the cities held, this month's events and the countdowns.
       - Tap **‹ The map** to go back.
+- [ ] **The War Office budget (Version 10.2).** Start a New Campaign → Entente → Regular →
+      Begin.
+      - Before anything moves, a ledger page "Estimates for December 1914" appears. France
+        has Industry 2, Britain 1. The brass slider is all the way to Munitions, with 2 and
+        1 shells filled. Nothing can be researched yet.
+      - Tap **SIGN THE ESTIMATES**: Germany's opening moves play, then it's your move.
+      - Play on to January 1916. France can now choose **Creeping barrage** or **Heavy
+        artillery programme**. Drag the slider left: the shells empty and Research goes
+        up. Tap a tech, sign, and check the bar grew in **War Office** → Research.
+      - In **War Office**, check the new rows: Manpower and Industry (with ▲/▼ from last
+        month), the stockpile as shells, Research, and "Industrial cities" further down.
+      - Tick **Auto-allocate** on the budget page: the page stops appearing.
+      - On a narrow folded phone: is the slider easy to drag, and are the shells clear?
+      - Start a Recruit game: the budget page should not appear (Auto-allocate is on).

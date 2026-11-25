@@ -14,13 +14,14 @@ import { armisticeScore } from './engine/systems/will.js';
 import { pendingChoice, chooseOption } from './engine/events.js';
 import { unitsIn, unitType, nationOf } from './engine/units.js';
 import { moveTargets, railTargets, phaseAllows } from './engine/moves.js';
-import { beginGame, endPhase, phaseOf } from './engine/turn.js';
+import { beginGame, endPhase, phaseOf, submitBudget } from './engine/turn.js';
 import { oddsPreview, eligibleAttackers, barrageMax } from './engine/combat.js';
 import { frontBoxes } from './engine/ai.js';
 import { queueCheck, addOrder, cancelOrder, commitOrders, snapshot } from './engine/orders.js';
 import { createPlayback } from './ui/animate.js';
 import { ledger } from './engine/history.js';
 import { showLedger } from './ui/ledger.js';
+import { showBudget } from './ui/budget.js';
 import { threat } from './engine/systems/replacements.js';
 
 // Find the page elements we need once, at start-up.
@@ -98,7 +99,7 @@ async function loadJson(path) {
 
 // Load all the data files the game needs, and check the map makes sense.
 async function loadData() {
-  const [map, terrainData, nations, scenario, quotes, unitTypes, phases, combat, victory, events, ai, commanders] = await Promise.all([
+  const [map, terrainData, nations, scenario, quotes, unitTypes, phases, combat, victory, events, ai, commanders, economy] = await Promise.all([
     loadJson('./data/boxes-west.json'),
     loadJson('./data/terrain.json'),
     loadJson('./data/nations.json'),
@@ -111,12 +112,13 @@ async function loadData() {
     loadJson('./data/events.json'),
     loadJson('./data/ai.json'),
     loadJson('./data/commanders.json'),
+    loadJson('./data/economy.json'),
   ]);
   const problems = checkMap(map, terrainData);
   if (problems.length > 0) throw new Error('The map data has problems: ' + problems.join('; '));
   const mapSvg = await loadMapSvg(`${map.mapSvg}?v=${VERSION}`);
   // `engine` is the bundle of data files the game engine (js/engine/) works with.
-  const engine = { map, terrain: terrainData, nations, unitTypes, phases, combat, victory, events, ai, commanders };
+  const engine = { map, terrain: terrainData, nations, unitTypes, phases, combat, victory, events, ai, commanders, economy };
   return { map, terrainData, nations, scenario, quotes, unitTypes, phases, engine, mapSvg, boxesById: indexBoxes(map) };
 }
 
@@ -451,7 +453,7 @@ function attackSlip() {
   if (payer) {
     const left = pv.resources[payer.id];
     slip.cost = `${plan.opCost} OP from ${payer.name} (${left.op} left)`;
-    slip.munitionsMax = Math.min(barrageMax(data.engine, currentMonth(state)), left.munitions);
+    slip.munitionsMax = Math.min(barrageMax(data.engine, currentMonth(state), state, payer.side), left.munitions);
   }
   return slip;
 }
@@ -625,15 +627,59 @@ function redraw() {
   $('phase-label').textContent = state.over ? 'The war is over' : (phase ? phase.name : '');
   const n = (state.orders || []).length;
   $('commit-count').textContent = n ? String(n) : '';
-  $('btn-end-phase').disabled = state.over || Boolean(state.pendingChoice) || Boolean(playback && playback.isPlaying());
+  $('btn-end-phase').disabled = state.over || Boolean(state.pendingChoice) || Boolean(state.pendingBudget) ||
+    Boolean(playback && playback.isPlaying());
   drawOrderArrows();
   if (state.pendingChoice) openSheet(true);
+  showPendingBudget();
+}
+
+// ---------------------------------------------------------------- the War Office budget
+// Which budget is on screen ("side month"), so a redraw doesn't reset the sliders.
+let budgetShown = null;
+// If a budget waits for you (RULES.md §19.4), show the budget page over the map.
+function showPendingBudget() {
+  const box = $('budget');
+  const side = (state.pendingBudget || [])[0];
+  if (!side || state.over || (playback && playback.isPlaying())) { box.hidden = true; budgetShown = null; return; }
+  const key = `${side} ${state.turn}`;
+  if (budgetShown === key && !box.hidden) return;
+  budgetShown = key;
+  const month = currentMonth(state);
+  showBudget(box, state, data.engine, side, month, {
+    nameOf: (id) => nationOf(data.engine, id).name,
+    shortOf: (id) => nationOf(data.engine, id).short,
+    monthName: monthLabel,
+  }, (budgets, auto) => signBudget(side, budgets, auto));
+  box.hidden = false;
+  box.scrollTop = 0;
+}
+// SIGN THE ESTIMATES: spend the budget and carry on with the turn (the computer's
+// moves that follow are played back, as after COMMIT).
+async function signBudget(side, budgets, auto) {
+  const actions = [];
+  try {
+    state = submitBudget(state, orderData(), side, budgets,
+      { auto, record: (action, s) => actions.push({ ...action, after: snapshot(s) }) });
+  } catch (err) {
+    // the page checks the budget first, so this is rare: say why on the page
+    const note = document.createElement('p');
+    note.className = 'ledger-line ledger-warn';
+    note.textContent = err.message;
+    $('budget').querySelector('.ledger-page').appendChild(note);
+    return;
+  }
+  $('budget').hidden = true;
+  budgetShown = null;
+  persist();
+  if (actions.length) await playTurn(actions);
+  else { redraw(); refreshPanel(); }
 }
 
 // COMMIT ORDERS: carry out the queued orders, run on to the next phase that needs
 // your orders (the computer plays its side on the way), then play it all back.
 async function commit() {
-  if (!state || state.over || state.pendingChoice || (playback && playback.isPlaying())) return;
+  if (!state || state.over || state.pendingChoice || state.pendingBudget || (playback && playback.isPlaying())) return;
   const out = commitOrders(state, orderData());
   const actions = [...out.actions];
   state = endPhase(out.state, orderData(), { record: (action, s) => actions.push({ ...action, after: snapshot(s) }) });
@@ -796,7 +842,7 @@ async function boot() {
   $('btn-export').addEventListener('click', exportSave);
   $('btn-import').addEventListener('click', () => $('import-file').click());
   $('import-file').addEventListener('change', (e) => importSave(e.target));
-  $('btn-back').addEventListener('click', () => { $('war-office').hidden = true; showScreen(titleScreen); updateContinueButton(); });
+  $('btn-back').addEventListener('click', () => { $('war-office').hidden = true; $('budget').hidden = true; budgetShown = null; showScreen(titleScreen); updateContinueButton(); });
   $('btn-end-phase').addEventListener('click', () => { if (state) commit(); });
   $('btn-war-office').addEventListener('click', openWarOffice);
   wireSheet();

@@ -1,9 +1,10 @@
-# Rules — Western Front 1914–18 (Version 1.2)
+# Rules — Western Front 1914–18 (Version 1.3)
 
 These rules are the source of truth. The code must do what this file says.
 
-Version 1.2 adds commander cards, the Butcher's Bill, the monthly newspaper and Real
-Voices (§15–18). It has been **balance-tested**: thousands of simulated computer-vs-computer games
+Version 1.2 added commander cards, the Butcher's Bill, the monthly newspaper and Real
+Voices (§15–18). Version 1.3 adds the war economy: Manpower and Industry, the munitions
+stockpile, research and industrial cities (§19). It has been **balance-tested**: thousands of simulated computer-vs-computer games
 (see `docs/BALANCE.md`). Numbers marked **[balanced]** were tuned by that testing. Change
 them only if playtesting shows a problem, and then re-run `tools/wfsim.py`.
 
@@ -68,39 +69,42 @@ Each army fought differently, and the game reflects that. These traits are shown
 **Germany**
 - **Heavy howitzers (Dec 1914 – Dec 1915):** German attacks get +1 column. In 1914 Germany
   had far more modern heavy field howitzers than France or Britain.
-- **Defence in depth (from Jan 1917):** when Entente units attack a German box with trench
+- **Defence in depth (from Jan 1917, or earlier by research, §19.5):** when Entente units attack a German box with trench
   level 2 or more, the attacker loses +1 extra step. This models the outpost zone, the
   battle zone and the counter-attack divisions.
-- **Stormtroopers (from Jan 1918):** see §5.
+- **Stormtroopers (from Jan 1918, or earlier by research, §19.5):** see §5.
 - **Strength in numbers at home:** Germany loses 1 Will per **3** steps lost; France and
   Britain lose 1 per 2. Germany had about 67 million people, France about 40 million.
 - **Exhaustion (from Aug 1918):** all Entente attacks get +1 column. Germany faced the
   "Black Day" at Amiens, influenza, collapsing morale and the loss of its best troops.
-- **No tanks:** Germany never gets Tank units. It built only about 20.
+- **No tanks:** Germany gets no Tank units. It built only about 20. The one exception is
+  the A7V, which Germany can choose to research (§19.5).
 
 **France**
 - **The 75s (Dec 1914 – Dec 1916):** German attacks on a French-defended box with trench
   level 0–1 get −1 column. France's quick-firing 75 mm field guns shredded attacks in the
   open.
-- **Heavy artillery gap, then production surge:** French munitions per turn are 2 (1915),
-  3 (1916), 4 (1917) and 5 (1918). France ended the war with about 6,000 heavy guns and
+- **Heavy artillery gap, then production surge:** French Industry (§19.2) grows from 2
+  (1915) to 4 (1916), 5 (1917) and 6 (1918). France ended the war with about 6,000 heavy guns and
   supplied the US Army's artillery.
-- **Renault light tanks:** +1 Tank unit in Apr 1917, Jun 1918 and Aug 1918.
+- **Renault light tanks:** +1 Tank unit in Apr 1917, Jun 1918 (sooner by research, §19.5)
+  and Aug 1918.
 - **Bleeding:** French replacements shrink to 2 per turn in 1916–17 and 1 per turn in 1918.
 
 **Britain**
-- **Shell crisis (1915):** only 1 munition per turn in 1915.
+- **Shell crisis (1915):** only 1 Industry per turn in 1915.
 - **Kitchener's New Armies:** British infantry arriving Mar 1915 – Mar 1916 are **Green**
   until Jan 1917.
 - **Dominion corps (from Apr 1917):** two British units become **Elite** (the Canadian
   Corps after Vimy and the Australian Corps).
-- **Tanks first:** Tank units in Sep 1916, Nov 1917 and 2 in Aug 1918.
+- **Tanks first:** Tank units in Sep 1916 (sooner by research, §19.5), Nov 1917 and 2 in
+  Aug 1918.
 - **Supply by sea:** British units trace supply only to the Channel Ports or Hazebrouck.
 
 **United States**
 - **Big divisions:** US Infantry units have 5 steps.
 - **Green on arrival:** each US unit is Green for its first 3 turns in France.
-- **Uses French guns:** 1 munition per turn.
+- **Uses French guns:** 1 Industry per turn.
 
 **Belgium**
 - One unit that holds the flooded Yser. It can't attack.
@@ -126,17 +130,25 @@ Each army fought differently, and the game reflects that. These traits are shown
 | Tanks | 2 | +1 column when attacking (+2 on open ground, 0 in forest or mountains). Can't defend a box alone. |
 | Stormtroopers | 4 | GER may convert up to 4 infantry units in Jan 1918 |
 
-## 6. Resources (per nation, per turn; unused points are lost)
-| Nation | Offensive Points (OP) | Munitions | Replacements (RP) |
+## 6. Resources (per nation, per turn)
+Each month a nation gets **Offensive Points** for attacks, and two economic resources
+set out in **§19**: **Manpower** (it buys replacements) and **Industry** (it buys
+munitions for the stockpile, or research). Unused OP, Manpower and Industry are lost;
+only munitions in the stockpile carry over (max 3).
+
+| Nation | Offensive Points (OP) | Manpower (MP, §19.1) | Industry (IP, §19.2) |
 |---|---|---|---|
-| GER | 2 (1918: 4) | 3 | 3 (1917: 2, from Aug 1918: 1) |
-| FRA | 2 | 2 / 3 / 4 / 5 (1915 / 16 / 17 / 18) | 3 (1916–17: 2, 1918: 1) |
-| GBR | 1 (1916–17: 2, 1918: 3) | 1 (1916: 3, from 1917: 4) | 2 (from 1916: 3) |
-| USA | 1 (from Aug 1918: 2) | 1 | 2 |
+| GER | 2 (1918: 4) | 3 (1917: 2, from Aug 1918: 1) | 4 |
+| FRA | 2 | 3 (1916–17: 2, 1918: 1) | 2 / 4 / 5 / 6 (1915 / 16 / 17 / 18) |
+| GBR | 1 (1916–17: 2, 1918: 3) | 2 (from 1916: 3) | 1 (1916: 3, from 1917: 4) |
+| USA | 1 (from Aug 1918: 2) | 2 | 1 |
 | BEL | 0 | 0 | 0 |
+
+Industry here is before industrial cities (§19.3) and research (§19.5).
 
 ## 7. Turn sequence (each month)
 1. **Events and reinforcements** (§10).
+   - Then the **War Office budget** (§19.4): each nation spends its Industry.
 2. **German turn:** move (§8), then attack (§9).
 3. **Entente turn:** move, then attack.
 4. **Supply:** out-of-supply units lose 1 step.
@@ -161,8 +173,9 @@ Each army fought differently, and the game reflects that. These traits are shown
 2. Choose attacking units in friendly boxes **adjacent** to it. Each unit attacks at most
    once per turn, and must be in supply.
 3. Pay **1 OP**, or **2 OP** if the attackers come from more than one nation.
-4. Optionally spend munitions on a barrage, +1 column each: up to **2**, or up to **3** from
-   June 1916 (creeping barrage).
+4. Optionally spend munitions from the stockpile (§19.4) on a barrage, +1 column each: up
+   to **2**, or up to **3** from June 1916 (creeping barrage; the Entente can research it
+   earlier, §19.5).
 5. **Before the player confirms, show them** the final column, the chance of taking the
    box, the expected losses on each side, and a list of every shift that applied (terrain,
    traits, trench and so on).
@@ -234,6 +247,7 @@ E1 and G1 boxes start at trench 1; all other boxes start at 0.
   column (E3 or G3). GBR units must trace to the Channel Ports or Hazebrouck instead.
   - Out-of-supply units can't attack, and lose 1 step in the supply phase.
 - **Replacements:**
+  - RP = this month's Manpower (§19.1).
   - 1 RP adds +1 step to an in-supply unit.
   - 2 RP rebuild a destroyed unit at 1 step in a rear box.
 
@@ -244,13 +258,13 @@ E1 and G1 boxes start at trench 1; all other boxes start at 0.
 | 1916 | **Blockade** | GER −1 Will every other month. |
 | 1917 | **Turnip Winter** | GER −1 Will every month. |
 | 1918 | **Hunger** | GER −2 Will every month. [balanced] |
-| Jun 1916 | **Creeping barrage** | Max barrage becomes 3. |
+| Jun 1916 | **Creeping barrage** | Max barrage becomes 3 (for the Entente, sooner if researched, §19.5). |
 | Feb 1917 | **U-boat decision** (GER choice) | **Unrestricted:** GBR −2 Will per turn for 6 turns, and the USA declares war in Apr 1917. **Restricted:** the USA declares war in Jan 1918. |
 | Mar 1917 | **Hindenburg Line** (GER choice) | Give up the G1 boxes in lanes 5–8. G2 in those lanes becomes trench 3, and GER gets +2 rail moves this turn. |
 | Apr 1917 | **Vimy / Dominion corps** | 2 GBR units become Elite. |
 | first time FRA Will < 35 | **French mutinies** | French units can't attack for 3 turns, then FRA +10 Will. Happens once. |
 | Dec 1917 | **Russia leaves the war** | GER +10 Will. Eastern transfers begin. |
-| Jan 1918 | **Stormtroopers** | GER converts up to 4 infantry units. |
+| Jan 1918 | **Stormtroopers** | GER converts up to 4 infantry units (unless it already researched them, §19.5). |
 | Apr–Oct 1918 | **Kaiserschlacht gamble** | If Germany makes **no attack** between Apr and Oct 1918, GER −15 Will at the end of Oct. [balanced] Germany must strike before the Americans arrive in force. |
 | Aug 1918 | **German exhaustion** | See §4. |
 | Nov 1918 | **Armistice** | The game ends after this turn (§11). |
@@ -276,7 +290,7 @@ E1 and G1 boxes start at trench 1; all other boxes start at 0.
 
 ## 11. National Will and victory [balanced]
 **Starting Will** (before any difficulty bonus, §13):
-- GER **105**, FRA **75**, GBR **85**
+- GER **108**, FRA **75**, GBR **85** (GER was 105 before the war economy, §19.8)
 - USA **90**, from the turn it enters the war
 - BEL has none; Belgian losses count against FRA
 
@@ -322,7 +336,7 @@ ahead.
 Choose a difficulty and a side on the New Game screen. The computer opponent always
 follows the same rules, so the levels only change the starting conditions shown here.
 
-| Level | Your Will | Computer's Will | Computer's munitions and RP | Computer plays like | Advisor |
+| Level | Your Will | Computer's Will | Computer's Industry and Manpower | Computer plays like | Advisor |
 |---|---|---|---|---|---|
 | **Recruit** | +15 | — | ×0.8 | Standard | On: warns before futile attacks and points out weak boxes |
 | **Regular** | — | — | ×1.0 | Standard | Odds preview only |
@@ -378,7 +392,7 @@ a say (§15.2). The computer always follows history.
 | Card | Nation | Historical dates | Strength | Flaw |
 |---|---|---|---|---|
 | **Joffre** "Papa Joffre" | FRA | Dec 1914 – Nov 1916 | **Offensive drive:** FRA +1 OP every Mar–Oct | **Attaque à outrance:** in any Mar–Oct month with no French attack, FRA −2 Will |
-| **Nivelle** | FRA | Dec 1916 – Apr 1917 | **The Nivelle Method:** FRA +1 munition per turn. Once, one French attack gets +2 columns (player chooses which). | **Broken promise:** if that +2 attack fails to take its box, the **French mutinies start immediately** |
+| **Nivelle** | FRA | Dec 1916 – Apr 1917 | **The Nivelle Method:** FRA +1 Industry per turn (§19.2). Once, one French attack gets +2 columns (player chooses which). | **Broken promise:** if that +2 attack fails to take its box, the **French mutinies start immediately** |
 | **Pétain** | FRA | from May 1917 | **Care for the men:** FRA loses 1 Will per **3** steps instead of 2. Mutinies last 2 turns instead of 3, then FRA +15 Will. | **"Wait for the tanks and the Americans":** FRA OP max 1 per turn |
 | **Foch** | All Entente (Allied Generalissimo) | from Apr 1918 (added alongside the national cards) | **Unified command:** coalition attacks cost no extra OP. FRA and GBR +1 rail move each. | — |
 | **Sir John French** | GBR | Dec 1914 – Nov 1915 | **Old Contemptibles:** the 2 starting British units are Elite | **Prickly ally:** GBR units can't join coalition attacks with France |
@@ -475,3 +489,171 @@ and their triggers are in `data/quotes.json`.
   - the Butcher's Bill passing 5 million (Owen)
   - the German drive of 1918 (Haig)
   - August 1918 (Ludendorff)
+
+## 19. The war economy [balanced]
+Each month every nation receives two separate resources. You decide how to spend them.
+
+| Resource | Represents | Spent on | Can you save it? |
+|---|---|---|---|
+| **Manpower (MP)** | Fresh men from the depots | Replacements (1 MP = +1 step) and rebuilding destroyed units (2 MP) | No. Unspent MP is lost. |
+| **Industry (IP)** | Factories, shells, guns | Munitions, research | Munitions bought go into a **stockpile** (max 3). Unspent IP is otherwise lost. |
+
+Why two resources: France ran out of **men** long before it ran out of **factories**.
+Britain had plenty of men by 1916 but couldn't turn spare men into shells. Merging the
+two let Britain convert unused replacements into artillery, and testing showed that
+broke the balance (see §19.8).
+
+### 19.1 Manpower per month
+Manpower is the old Replacements column from §6, unchanged:
+- **GER:** 3 (1917: 2, from Aug 1918: 1). +1 under Hindenburg & Ludendorff.
+- **FRA:** 3 (1916–17: 2, 1918: 1).
+- **GBR:** 2 (from 1916: 3). −1 in Jan–Apr 1918 under Haig.
+- **USA:** 2.
+
+### 19.2 Industry per month
+Industry = a base (the old Munitions number, kept in `data/nations.json`) + a **war-economy bonus**, then adjusted
+for industrial cities (§19.3):
+
+| Nation | Base (= old munitions) | War-economy bonus |
+|---|---|---|
+| GER | 3 | +1 |
+| FRA | 2 / 3 / 4 / 5 (1915 / 16 / 17 / 18); +1 under Nivelle | +0 in 1915, +1 from 1916 |
+| GBR | 1 (1916: 3, from 1917: 4) | +0 |
+| USA | 1 | +0 |
+
+Difficulty multipliers (§13) apply to both Manpower and Industry. For Industry the
+multiplier applies to the **base** only (rounded to the nearest whole number); the
+war-economy bonus, cities and research are then added unmultiplied. Industry never goes
+below 0.
+
+Commanders (§15) change these once the commander cards are built (milestone 12):
+Hindenburg & Ludendorff +1 MP, Nivelle +1 IP, Haig −1 MP in Jan–Apr 1918.
+
+### 19.3 Industrial cities
+Owning these named territories changes Industry each month:
+
+| City | Effect if captured |
+|---|---|
+| **Paris** | FRA −3 IP |
+| **Amiens** | FRA −1 IP |
+| **Channel Ports** | GBR −2 IP |
+| **Lille** (German-held French industry) | If the Entente retakes it: GER −1 IP, FRA +1 IP |
+| **Metz** (Lorraine iron) | GER −2 IP |
+| **Sedan–Mézières rail** | GER −1 IP |
+
+The blockade does **not** cut German Industry. It already drains German Will (§10).
+Testing showed that doing both collapsed Germany (it won only 8% of games).
+
+### 19.4 Spending: the War Office screen
+At the start of each month, before moving, the player sees a **War Office** budget
+screen (styled per STYLE.md §6 as a ledger with brass sliders):
+- **Manpower:** goes automatically to Replacements. The player assigns steps to units
+  in the Replacements phase, as before.
+- **Industry:** split with sliders between:
+  - **Munitions:** 1 IP each, added to the stockpile, max 3 in stock. This is the
+    "artillery left" number on the dashboard.
+  - **Research:** IP put towards one tech at a time (§19.5). Progress carries over
+    between months.
+- **Auto-allocate** (default ON on Recruit, and when one person plays both sides; a
+  checkbox on the budget screen turns it on or off): tops the stockpile up to 3 first
+  and puts the rest into the cheapest available research. With it off, the budget
+  screen appears every month before you move.
+- Unspent Industry is lost. The stockpile starts the war empty.
+
+Barrages spend munitions from the stockpile. The per-attack maximum is still 2, or 3
+after the creeping barrage.
+
+### 19.5 Research
+Every tech arrives **for free on its historical date** if you haven't researched it.
+Research lets you get it **earlier**, but not before its "earliest" date. Some techs
+never happened historically and can only be researched.
+
+| Tech | Nation | Historical date | Earliest | Cost (IP) | Effect |
+|---|---|---|---|---|---|
+| **Creeping barrage** | Entente (FRA or GBR pays; both get it) | Jun 1916 | Jan 1916 | 8 | Max barrage 3 for the Entente |
+| **Landships** | GBR | Sep 1916 | Mar 1916 | 10 | The first GBR Tank unit arrives when researched |
+| **Renault FT** | FRA | Jun 1918 | Jan 1918 | 8 | That FRA Tank unit arrives when researched |
+| **Heavy artillery programme** | FRA | never | Jan 1916 | 10 | FRA +1 IP every month from then on |
+| **Defence in depth** | GER | Jan 1917 | Jul 1916 | 8 | The §4 trait starts when researched |
+| **Stormtroop tactics** | GER | Jan 1918 | Jul 1917 | 10 | Convert up to 4 infantry units to Stormtroopers when researched |
+| **A7V tanks** | GER | never | Jan 1918 | 12 | GER gains 1 Tank unit. Its only tank, and an alternate-history option. |
+
+- Research a tech by putting IP into it. It completes at the start of the month its
+  total reaches the cost. Progress made by France and Britain on the creeping barrage
+  adds up.
+- If a tech's historical date arrives first, it comes free and any IP put into it is
+  simply spent.
+- A historical event doesn't fire twice: if Landships came early, the September 1916
+  tank doesn't arrive again.
+- Show research as a **ledger page with progress bars** and a one-line history note
+  for each tech.
+
+### 19.6 Dashboard additions
+The War Office dashboard (UI overhaul milestone) also shows, for each nation:
+- Manpower and Industry this month, with arrows comparing them to last month.
+- The munitions stockpile (0–3) as shell icons.
+- Research in progress, as a progress bar and the month it's expected.
+- Industrial cities held and lost, with their IP effect.
+
+### 19.7 The computer opponent's spending
+- **Manpower:** repair the most threatened units first (§14).
+- **Industry:** buy munitions up to 3 in stock, then put up to 3 IP a month into the
+  cheapest available research, then put any rest into munitions.
+- The computer does research. On average it gets the creeping barrage, Defence in
+  depth and Landships a few months early.
+
+### 19.8 Balance results (tools/wfsim.py, 80–200 games per row)
+The tables below are from the reference simulator that designed the economy. When it was
+merged into `tools/wfsim.py`, one quirk was fixed: the reference computer aimed for 4
+munitions in a stockpile that holds 3, so it wasted 1 IP a month. The re-run with the
+rule as written above is in `docs/BALANCE.md` (Standard vs Standard: Germany 40%,
+Entente 43%, draw 18%); every figure stayed inside the healthy ranges.
+**Testing each piece from a clean baseline** (Germany / Entente / Draw, careful vs
+careful):
+
+| Version | GER | ENT | Draw |
+|---|---|---|---|
+| Economy fully off (matches Version 1.2) | 46% | 38% | 16% |
+| + Industrial cities | 44% | 40% | 16% |
+| + Stockpile, max 3 | 39% | 42% | 19% |
+| + Research | 42% | 41% | 17% |
+| + Blockade also cuts German Industry | **8%** | **82%** | 9% → **rejected** |
+| One shared budget instead of separate MP/IP | 22% | 66% | 12% → **rejected** |
+
+**Final economy** (separate MP/IP, stockpile 3, research, industrial cities, bonuses
+as in §19.2, German Will 108):
+
+| Matchup | Germany | Entente | Draw |
+|---|---|---|---|
+| Standard vs Standard | 49% | 40% | 11% |
+| Expert vs Expert | 43% | 44% | 13% |
+| Turtle Germany vs Standard | 21% | 49% | 30% |
+| Standard vs Turtle Entente | 100% | 0% | 0% |
+| Beginner Germany vs Standard | 13% | 70% | 16% |
+| Standard vs Beginner Entente | 44% | 52% | 5% |
+| Reckless Germany vs Standard | 0% | 100% | 0% |
+| Standard vs Reckless Entente | 54% | 45% | 2% |
+
+**Difficulty** (player win %):
+
+| Level | Careful as GER | Careful as ENT | Beginner as GER | Beginner as ENT |
+|---|---|---|---|---|
+| Recruit | 68% | 81% | 64% | 82% |
+| Regular | 45% | 44% | 10% | 46% |
+| Veteran | 36% | 30% | 0% | 39% |
+| Field Marshal | 9% | 11% | 1% | 18% |
+
+**Watch in playtesting:**
+- A passive Germany now wins 21%, just over the 20% target, because its stockpile
+  lets it wait well. If it feels too easy to sit tight as Germany, raise the
+  Kaiserschlacht penalty (§10) from −15 to −20.
+- Recruit is a little harder than before (64–82%). If it feels hard, raise the Recruit
+  Will bonus from +15 to +20.
+
+**Simulator config** (now the defaults in `tools/wfsim.py`):
+```
+economy=True, split=True, blockade_pp=0, industry=True, stock_cap=3,
+mun_target=3, res_cap=3,
+pp_extra={'GER':(1,1), 'FRA':(0,1), 'GBR':(0,0), 'USA':(0,0)},  # (1915, 1916+)
+will GER = 108
+```

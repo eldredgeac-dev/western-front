@@ -14,6 +14,7 @@ import { unitsIn, unitType, nationOf, sideOfUnit, findUnit, destroyUnit } from '
 import { inSupply } from './supply.js';
 import { phaseAllows, addLog, unitLabel } from './moves.js';
 import { scheduleValue } from './resources.js';
+import { techResearched } from './systems/economy.js';
 
 // ---------------------------------------------------------------- the table
 // "A1 D3 R" → { a: 1, d: 3, r: true }
@@ -56,12 +57,23 @@ export function columnAverages(table, column) {
 
 // ---------------------------------------------------------------- helpers
 const monthNumber = (month) => Number(month.slice(5, 7));
-const active = (trait, month) => (!trait.from || trait.from <= month) && (!trait.to || month <= trait.to);
+// Does a trait work this month? Between its 'from' and 'to' dates, or earlier if
+// it comes from a tech the nation has researched (RULES.md §19.5: Defence in depth).
+const active = (trait, month, state = null) => (!trait.to || month <= trait.to) &&
+  (!trait.from || trait.from <= month || Boolean(state && trait.tech && techResearched(state, trait.tech)));
 const boxesOf = (data) => indexBoxes(data.map);
 
-// The most munitions one attack may use this month (RULES.md §9.1).
-export function barrageMax(data, month) {
-  return scheduleValue(data.combat.barrage.map((b) => ({ from: b.from, value: b.max })), month);
+// The most munitions one attack may use this month (RULES.md §9.1). With `state`
+// and the attacking `side`, research counts too: the creeping barrage researched
+// early gives the Entente 3 before June 1916 (§19.5).
+export function barrageMax(data, month, state = null, side = null) {
+  let max = scheduleValue(data.combat.barrage.map((b) => ({ from: b.from, value: b.max })), month);
+  if (state && side && data.economy) {
+    for (const t of data.economy.techs) {
+      if (t.effect.kind === 'barrage-max' && t.effect.side === side && techResearched(state, t.id)) max = Math.max(max, t.effect.max);
+    }
+  }
+  return max;
 }
 
 // Defenders that count: tanks alone can't hold a box (pending rule fix 8), so a box
@@ -118,7 +130,8 @@ export function planAttack(state, data, order) {
   if (payer && state.resources[payer] && state.resources[payer].op < opCost) {
     reasons.push(`Not enough Offensive Points (needs ${opCost}).`);
   }
-  if (munitions > barrageMax(data, month)) reasons.push(`At most ${barrageMax(data, month)} munitions per attack this month.`);
+  const maxBarrage = barrageMax(data, month, state, side);
+  if (munitions > maxBarrage) reasons.push(`At most ${maxBarrage} munitions per attack this month.`);
   if (payer && munitions > (state.resources[payer] ? state.resources[payer].munitions : 0)) {
     reasons.push('Not enough munitions.');
   }
@@ -167,7 +180,7 @@ export function planAttack(state, data, order) {
   const defenderUnits = defenders;
   for (const n of data.nations.nations) {
     for (const t of n.traits || []) {
-      if (!active(t, month)) continue;
+      if (!active(t, month, state)) continue;
       if (t.kind === 'attack-shift' && attackers.some((u) => u.nation === n.id)) add(t.name, t.shift);
       if (t.kind === 'defend-shift' && defenderUnits.some((u) => u.nation === n.id) && n.side !== side &&
         trench <= (t.maxTrench ?? 99)) add(t.name, t.shift);
@@ -203,7 +216,7 @@ function extraAttackerLoss(state, data, plan) {
   let extra = 0;
   for (const n of data.nations.nations) {
     for (const t of n.traits || []) {
-      if (t.kind !== 'defender-extra-attacker-loss' || !active(t, month)) continue;
+      if (t.kind !== 'defender-extra-attacker-loss' || !active(t, month, state)) continue;
       const defends = plan.defenders.some((id) => findUnit(state, id).nation === n.id);
       if (defends && n.side !== plan.side && trench >= t.minTrench) extra += t.loss;
     }

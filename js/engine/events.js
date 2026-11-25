@@ -25,9 +25,23 @@ export function eventDue(event, month) {
   return !event.months || event.months.includes(monthOfYear(month));
 }
 
+// Was this event or reinforcement already brought forward by research (RULES.md
+// §19.5)? Then it doesn't happen a second time. Each tech in data/economy.json can
+// name what it 'replaces': { event: id } or { reinforcement: { month, nation, type } }.
+export function replacedByResearch(state, data, what) {
+  const done = state.techs || [];
+  if (!data.economy || !done.length) return false;
+  return data.economy.techs.some((t) => {
+    if (!done.includes(t.id) || !t.replaces) return false;
+    if (what.event) return t.replaces.event === what.event;
+    const r = t.replaces.reinforcement; const d = what.reinforcement;
+    return Boolean(r) && r.month === d.month && r.nation === d.nation && r.type === d.type;
+  });
+}
+
 // ---------------------------------------------------------------- effects
 // Apply one effect. Each `kind` is described in docs/DATA.md.
-function applyEffect(state, data, effect) {
+export function applyEffect(state, data, effect) {
   const month = currentMonth(state);
   const k = effect.kind;
   if (k === 'will') {
@@ -99,7 +113,7 @@ function withdraw(state, data, effect) {
 // Place one new unit in a rear box of its side with room (pending rule fix 14:
 // limited to some lanes for some nations; the box is picked at random through
 // rng.js). Returns false if there's no room this turn.
-function placeUnit(state, data, nation, type, extra = {}) {
+export function placeUnit(state, data, nation, type, extra = {}) {
   const side = sideOfNation(data, nation);
   const lanes = (data.events.reinforcements.placeLanes || {})[nation];
   const rear = rearColumn(data.map, side);
@@ -122,7 +136,10 @@ function reinforcements(state, data) {
   const month = currentMonth(state);
   const r = data.events.reinforcements;
   const due = [...(state.waiting || [])];
-  for (const d of r.dated) if (d.month === month) for (let i = 0; i < d.count; i++) due.push({ ...d });
+  for (const d of r.dated) {
+    if (d.month !== month || replacedByResearch(state, data, { reinforcement: d })) continue;
+    for (let i = 0; i < d.count; i++) due.push({ ...d });
+  }
   if (state.usaEntry) {
     for (const d of r.afterEntry) {
       if (addMonths(state.usaEntry, d.after) === month) for (let i = 0; i < d.count; i++) due.push({ ...d });
@@ -183,6 +200,7 @@ export function runEvents(state, data) {
   runOngoing(state);
   for (const event of data.events.events) {
     if (!eventDue(event, month) || (state.eventsDone || []).includes(event.id + month)) continue;
+    if (replacedByResearch(state, data, { event: event.id })) continue;
     state.eventsDone = [...(state.eventsDone || []), event.id + month];
     if (event.choice) {
       const who = (state.controllers || {})[event.choice.side] || 'human';
