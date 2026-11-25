@@ -43,7 +43,7 @@ export function enableZoom(svg, { onTap, onViewChange = () => {}, home = null })
     const level = view.k >= NEAR_ZOOM ? 'near' : view.k >= MID_ZOOM ? 'mid' : 'far';
     for (const l of ['far', 'mid', 'near']) svg.classList.toggle(l, l === level);
     // Tell the map once per frame at most (it tidies up the labels).
-    if (!pending) { pending = true; requestAnimationFrame(() => { pending = false; onViewChange(); }); }
+    if (!pending) { pending = true; requestAnimationFrame(() => { pending = false; onViewChange(view.k); }); }
   }
   let pending = false;
   // Zoom by `factor`, keeping the map point under screen point (px, py) still.

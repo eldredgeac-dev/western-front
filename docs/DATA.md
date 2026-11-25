@@ -7,7 +7,7 @@ mean editing data. Every file starts with an `"_about"` line saying what it is f
 `tests/run.mjs` checks that every data file is valid JSON. The tests in
 `tests/tests.js` check that the map and scenario match `docs/RULES.md`.
 
-Planned files that don't exist yet: `unit-types.json` (milestone 3), `combat-table.json`
+Planned files that don't exist yet: `combat-table.json`
 (5), `events.json` (9), `commanders.json` (11) and `headlines.json` (12). Describe each one
 here when it is added.
 
@@ -55,9 +55,15 @@ The column shifts for each terrain will be added here in milestone 5 (combat).
 | Field | Meaning |
 |---|---|
 | `sides` | `id` (`"entente"`, `"germany"`), `name`, `color` (the 30% tint on territories the side owns; a docs/STYLE.md colour) and the list of its `nations` |
-| `nations` | `id` (`"ger"`, `"fra"`…), `name`, `short` (`"GER"`), `side` and `color` (the nation's STYLE.md colour, for counters from milestone 3) |
+| `nations` | `id` (`"ger"`, `"fra"`…), `adjective` (`"German"`), `name`, `short` (`"GER"`), `side` and `color` (the nation's STYLE.md colour, for its counters) |
+| `nations[].startWill` | Starting National Will (RULES.md §11). `null` for Belgium (its losses count against `willCountsAgainst`). `entersLater: true` for the USA. |
+| `nations[].stepsPerWill` | 1 Will lost per this many steps lost (RULES.md §4, §11) |
+| `nations[].railMoves` | Rail moves per turn (RULES.md §8) |
+| `nations[].supplySources` | *(optional)* Boxes this nation must trace supply to instead of its side's rear column (GBR: Channel Ports, Hazebrouck) |
+| `nations[].resources` | `op`, `munitions`, `rp`: each a list of `{ "from": "YYYY-MM", "value" }`; the latest entry that has started applies (RULES.md §6) |
+| `nations[].traits` | National traits (RULES.md §4): `id`, `name`, `text` (for the Nations screen) and `kind`, which says what the engine does with it (see combat below) |
 
-Resources and traits (RULES.md §4 and §6) will be added in later milestones.
+Copy numbers tagged [balanced] in RULES.md exactly; change them in RULES.md first.
 
 ## `scenarios/1914-west.json`: the December 1914 start
 | Field | Meaning |
@@ -68,7 +74,20 @@ Resources and traits (RULES.md §4 and §6) will be added in later milestones.
 | `turns` | How many turns the scenario lasts (48 = Dec 1914 to Nov 1918) |
 | `boxes` | For **every** box id on the map: `owner` (a side id) and `trench` (starting level) |
 
-Starting units are added in milestone 3.
+| `units` | The starting units (RULES.md §12): `id` (`"fra-03"`), `nation`, `type` (from `unit-types.json`), `box` and `quality` (`green`, `regular` or `elite`). They start at full strength unless a `steps` is given. |
+
+## `unit-types.json`: units and qualities (RULES.md §4–§5)
+| Field | Meaning |
+|---|---|
+| `stackLimit` | Most units in one box (3) |
+| `types` | `id`, `name`, `maxSteps`, `symbol` (how the counter is drawn), `rebuild` (false for tanks). Optional: `attackShift` (tanks +1), `cannotHoldAlone` (tanks), `greenTurns` (US infantry), `cancelsTrenchShift` (stormtroopers). |
+| `qualities` | `green` (`attackShiftIfMajority` −1), `regular`, `elite` (`attackShiftIfAny` +1), each with an `effect` text for the panel |
+
+## `phases.json`: the turn (RULES.md §7)
+`phases` lists each phase in order: `id`, `name`, and either `side` + `kind` (`move` or
+`attack`: the phase waits for that side's orders) or `auto: true` (it runs by itself
+when End Phase reaches it). `until` notes the milestone where an automatic phase starts
+doing something.
 
 ## `news.json`: real world news (RULES.md §17)
 An object keyed by month (`"1914-12"` … `"1918-11"`). Each month is a list of

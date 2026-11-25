@@ -392,7 +392,7 @@ function tiltAt(s, side) {
   return t;
 }
 // The back edge of the map (beyond E3 / G3) gets a ragged, hand-drawn look.
-const outerNoise = [noise2d('outer1', 60), noise2d('outer2', 20)];
+const outerNoise = [noise2d('outer1', 90), noise2d('outer2', 35)];
 function classify(s, d, side, x, y) {
   if (d > 6) s -= tiltAt(s, side) * (d - 6);
   const k = laneOf(s);
@@ -401,7 +401,7 @@ function classify(s, d, side, x, y) {
   const lines = side > 0 ? [2, 1, 0] : [4, 5, 6];
   const columns = side > 0 ? [2, 1, 0] : [3, 4, 5];
   for (let n = 0; n < 2; n++) if (d < depthAt(lines[n], s)) return k * NC + columns[n];
-  const rag = 1 + 0.18 * outerNoise[0](x, y) + 0.06 * outerNoise[1](x, y);
+  const rag = 1 + 0.12 * outerNoise[0](x, y) + 0.025 * outerNoise[1](x, y);
   if (d < depthAt(lines[2], s) * rag) return k * NC + columns[2];
   return -1;
   return -1;

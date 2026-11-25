@@ -1,6 +1,8 @@
 // panel.js — the information panel beside (or sliding up under) the map:
 // details of the tapped territory, and the terrain legend.
 
+import { counterIcon } from './counters.js';
+
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 // Make an HTML element with optional class and text.
@@ -64,9 +66,35 @@ function row(list, label, value) {
   list.appendChild(dd);
 }
 
+// The units in the territory: one button each (tap to select and see its moves).
+function unitList(info, onUnit) {
+  const section = el('section', 'unit-list');
+  section.appendChild(el('h3', 'panel-subtitle', info.units.length ? 'Units here' : 'No units here'));
+  for (const u of info.units) {
+    const b = el('button', 'unit-row');
+    b.type = 'button';
+    b.setAttribute('aria-pressed', String(info.selectedUnit === u.id));
+    b.appendChild(counterIcon(u.unit, u.look));
+    const text = el('span', 'unit-text');
+    text.appendChild(el('strong', '', u.title));
+    text.appendChild(el('span', 'unit-detail', `${u.steps} of ${u.maxSteps} steps · ${u.quality}`));
+    b.appendChild(text);
+    b.addEventListener('click', () => onUnit(u.id));
+    section.appendChild(b);
+    if (info.selectedUnit === u.id) {
+      const hint = u.moves || u.rails
+        ? `Can move to ${u.moves} territor${u.moves === 1 ? 'y' : 'ies'} (brass outline) or go by rail to ${u.rails} (dashed).`
+        : 'This unit can\u2019t move now.';
+      section.appendChild(el('p', 'unit-hint', hint));
+    }
+  }
+  return section;
+}
+
 // Show the panel. `info` is null when nothing is selected, or an object with
 // everything about the tapped territory, already worked out by main.js.
-export function showPanel(container, info, terrainData) {
+//   actions.onUnit(id) — a unit in the list was tapped
+export function showPanel(container, info, terrainData, actions = {}) {
   const parts = [];
   if (!info) {
     parts.push(el('p', 'panel-hint', 'Tap a territory on the map to see its details. Pinch to zoom.'));
@@ -88,6 +116,7 @@ export function showPanel(container, info, terrainData) {
       terrainList.appendChild(li);
     }
     row(dl, 'Terrain', terrainList);
+    parts.push(unitList(info, actions.onUnit || (() => {})));
     parts.push(dl);
   }
   parts.push(legend(terrainData));

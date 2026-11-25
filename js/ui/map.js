@@ -6,6 +6,8 @@
 // is the box id (like "l07-e3"), and every border between two neighbours is a
 // <path class="edge" data-a="…" data-b="…">.
 
+import { stackSvg } from './counters.js';
+
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 // Make an SVG element with some attributes.
@@ -347,5 +349,58 @@ export function createMapView(container, svg, { nations, boxNameFn, noteNameFn, 
     return b.width > 0 ? [b.x, b.y, b.width, b.height] : null;
   }
 
-  return { svg, update, select, declutter, frontBounds, showPlannedAttack, clearPlannedAttack };
+  // ---- units (docs/STYLE.md §5)
+  // Counters stand on the territory's town. Zoomed out, each box shows one small
+  // marker instead. Both keep a steady size on screen (see rescale()).
+  const unitsLayer = svgEl('g', { id: 'units' });
+  layer('notes').before(unitsLayer);
+  const targetsLayer = svgEl('g', { id: 'targets' });
+  layer('selection').before(targetsLayer);
+  let counterScale = 0.3; let markerScale = 1;
+
+  //   units      — the game's units
+  //   lookFor(u) — { color, symbol, maxSteps } for a unit (from the data files)
+  function drawUnits(units, lookFor) {
+    unitsLayer.replaceChildren();
+    const byBox = new Map();
+    for (const u of units) {
+      if (!byBox.has(u.box)) byBox.set(u.box, []);
+      byBox.get(u.box).push(u);
+    }
+    for (const [boxId, list] of byBox) {
+      if (!byId[boxId]) continue;
+      const [x, y] = anchor(boxId);
+      const at = svgEl('g', { class: 'unit-spot', transform: `translate(${x},${y + 4})`, 'data-box': boxId });
+      // zoomed in: the stack of counters
+      const stack = stackSvg(list, lookFor);
+      stack.classList.add('stack-scaled');
+      at.appendChild(stack);
+      // zoomed out: one marker in the colour of the top unit, with the number of units
+      const marker = svgEl('g', { class: 'unit-marker' });
+      marker.appendChild(svgEl('rect', { x: -5, y: -5, width: 10, height: 10, rx: 2, fill: lookFor(list[list.length - 1]).color, class: 'marker-body' }));
+      const count = svgEl('text', { x: 0, y: 3.4, class: 'marker-count' });
+      count.textContent = String(list.length);
+      marker.appendChild(count);
+      at.appendChild(marker);
+      unitsLayer.appendChild(at);
+    }
+    rescale();
+  }
+  // Keep counters a steady size on screen: k = screen pixels per map unit.
+  function rescale(k) {
+    if (k) { counterScale = Math.min(1 / k, 0.3); markerScale = 1 / k; }
+    for (const s of unitsLayer.querySelectorAll('.stack-scaled')) s.setAttribute('transform', `scale(${counterScale})`);
+    for (const m of unitsLayer.querySelectorAll('.unit-marker')) m.setAttribute('transform', `scale(${markerScale})`);
+  }
+
+  // Outline where the selected unit can go: brass for a normal move, dashed brass
+  // for rail. Pass empty lists to clear.
+  function showTargets(moveIds, railIds) {
+    targetsLayer.replaceChildren();
+    for (const id of railIds) if (!moveIds.includes(id)) targetsLayer.appendChild(svgEl('use', { href: '#shape-' + id, class: 'target rail' }));
+    for (const id of moveIds) targetsLayer.appendChild(svgEl('use', { href: '#shape-' + id, class: 'target move' }));
+  }
+
+  return { svg, update, select, declutter, frontBounds, showPlannedAttack, clearPlannedAttack,
+    drawUnits, rescale, showTargets };
 }

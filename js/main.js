@@ -8,6 +8,8 @@ import { enableZoom } from './ui/zoom.js';
 import { showPanel } from './ui/panel.js';
 import { battleCounts, bigBattles, scarLevel, shortMonth } from './engine/battles.js';
 import { applyDemo } from './ui/demo.js';
+import { unitsIn, unitType, nationOf } from './engine/units.js';
+import { moveTargets, railTargets } from './engine/moves.js';
 
 // Find the page elements we need once, at start-up.
 const $ = (id) => document.getElementById(id);
@@ -31,6 +33,9 @@ let mapView = null;
 let zoom = null;
 // The planned attack shown in demo mode, or null.
 let demoAttack = null;
+// What the player has picked: a territory, and maybe one of its units.
+let selectedBox = null;
+let selectedUnit = null;
 
 // Get localStorage safely: just reading `window.localStorage` can throw
 // when storage is blocked.
@@ -60,17 +65,21 @@ async function loadJson(path) {
 
 // Load all the data files the game needs, and check the map makes sense.
 async function loadData() {
-  const [map, terrainData, nations, scenario, quotes] = await Promise.all([
+  const [map, terrainData, nations, scenario, quotes, unitTypes, phases] = await Promise.all([
     loadJson('./data/boxes-west.json'),
     loadJson('./data/terrain.json'),
     loadJson('./data/nations.json'),
     loadJson('./data/scenarios/1914-west.json'),
     loadJson('./data/quotes.json'),
+    loadJson('./data/unit-types.json'),
+    loadJson('./data/phases.json'),
   ]);
   const problems = checkMap(map, terrainData);
   if (problems.length > 0) throw new Error('The map data has problems: ' + problems.join('; '));
   const mapSvg = await loadMapSvg(map.mapSvg);
-  return { map, terrainData, nations, scenario, quotes, mapSvg, boxesById: indexBoxes(map) };
+  // `engine` is the bundle of data files the game engine (js/engine/) works with.
+  const engine = { map, terrain: terrainData, nations, unitTypes, phases };
+  return { map, terrainData, nations, scenario, quotes, unitTypes, phases, engine, mapSvg, boxesById: indexBoxes(map) };
 }
 
 // Show one screen and hide the other.
@@ -118,7 +127,50 @@ function boxInfo(boxId) {
     monthLabel: monthLabel(month),
     vp: box.vp,
     terrain: box.terrain.map((id) => terrainData.types.find((t) => t.id === id)),
+    units: unitsIn(state, boxId).map((u) => unitInfo(u)),
+    selectedUnit,
   };
+}
+
+// How a unit looks on a counter: its nation's colour, its symbol and its max steps.
+function lookFor(unit) {
+  const type = unitType(data.engine, unit);
+  return { color: nationOf(data.engine, unit.nation).color, symbol: type.symbol, maxSteps: type.maxSteps };
+}
+
+// Everything the panel shows about one unit.
+function unitInfo(unit) {
+  const type = unitType(data.engine, unit);
+  const quality = data.unitTypes.qualities.find((q) => q.id === unit.quality);
+  return {
+    id: unit.id, unit, look: lookFor(unit),
+    title: `${nationOf(data.engine, unit.nation).adjective} ${type.name.toLowerCase()}`,
+    steps: unit.steps, maxSteps: type.maxSteps, quality: quality ? quality.name : unit.quality,
+    moves: moveTargets(state, orderData(), unit.id).length,
+    rails: railTargets(state, orderData(), unit.id).length,
+  };
+}
+
+// The data the engine needs to check orders. (Milestone 3: no turn phases yet, so
+// any unit may be picked to see where it could go.)
+function orderData() {
+  return { ...data.engine, phases: null };
+}
+
+// Show the panel for the selected territory (and unit).
+function refreshPanel() {
+  showPanel(panelArea, selectedBox ? boxInfo(selectedBox) : null, data.terrainData, { onUnit: selectUnit });
+}
+
+// Tap a unit in the panel: show where it can move (brass) or go by rail (dashed).
+function selectUnit(unitId) {
+  selectedUnit = selectedUnit === unitId ? null : unitId;
+  if (selectedUnit) {
+    mapView.showTargets(moveTargets(state, orderData(), selectedUnit), railTargets(state, orderData(), selectedUnit));
+  } else {
+    mapView.showTargets([], []);
+  }
+  refreshPanel();
 }
 
 // Folded phone: the panel is a sheet that slides up from the bottom.
@@ -129,8 +181,11 @@ function openSheet(open) {
 
 // Called when a territory is tapped: highlight it and show its details.
 function selectBox(boxId) {
+  selectedBox = boxId;
+  selectedUnit = null;
+  mapView.showTargets([], []);
   mapView.select(boxId);
-  showPanel(panelArea, boxInfo(boxId), data.terrainData);
+  refreshPanel();
   openSheet(true);
 }
 
@@ -145,7 +200,9 @@ function showMap() {
       shortMonthFn: shortMonth,
     });
     zoom = enableZoom(mapView.svg, {
-      onTap: selectBox, onViewChange: mapView.declutter, home: mapView.frontBounds,
+      onTap: selectBox,
+      onViewChange: (k) => { mapView.rescale(k); mapView.declutter(); },
+      home: mapView.frontBounds,
     });
     $('btn-zoom-in').addEventListener('click', () => zoom.zoomIn());
     $('btn-zoom-out').addEventListener('click', () => zoom.zoomOut());
@@ -154,7 +211,9 @@ function showMap() {
   const month = currentMonth(state);
   const record = { counts: battleCounts(state), big: bigBattles(state), scarLevel };
   mapView.update(state, month, monthLabel(month), record);
+  mapView.drawUnits(state.units, lookFor);
   mapView.select(null);
+  mapView.showTargets([], []);
   if (demoAttack) mapView.showPlannedAttack(...demoAttack);
   else mapView.clearPlannedAttack();
   zoom.fit();
@@ -165,13 +224,15 @@ function startGame() {
   if (!data) return;
   // The seed only has to be different each game; every roll then goes
   // through the seeded rng.js (from Milestone 5).
-  state = newGame(data.scenario, Date.now() % 2147483647);
+  state = newGame(data.scenario, Date.now() % 2147483647, data.engine);
+  selectedBox = null;
+  selectedUnit = null;
   // "?demo" in the address shows a sample war on the map (js/ui/demo.js).
   demoAttack = new URLSearchParams(window.location.search).has('demo') ? applyDemo(state) : null;
   showScreen(gameScreen);
   gameTitle.textContent = monthLabel(currentMonth(state));
   showMap();
-  showPanel(panelArea, null, data.terrainData);
+  refreshPanel();
   openSheet(false);
 }
 

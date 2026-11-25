@@ -261,6 +261,21 @@ html, body {
 }
 
 /* ---------- The info panel ---------- */
+.panel-subtitle { margin: 4px 0 8px; font-family: var(--font-place); font-weight: normal; font-size: 1.1rem; color: var(--brass); }
+.unit-list { margin: 0 0 var(--gap); }
+.unit-row {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  min-height: var(--tap); margin: 0 0 6px; padding: 6px 10px;
+  background: var(--leather); color: var(--telegram);
+  border: 1px solid var(--leather-light); border-radius: var(--radius);
+  font: inherit; text-align: left; cursor: pointer; touch-action: manipulation;
+}
+.unit-row[aria-pressed="true"] { border-color: var(--brass); box-shadow: inset 0 0 0 1px var(--brass); }
+.unit-row:active { transform: translateY(1px); }
+.unit-text { display: grid; gap: 2px; }
+.unit-detail { color: var(--paper-dark); font-size: 0.95rem; }
+.counter-icon { flex: none; }
+.unit-hint { margin: 4px 0 10px; color: var(--paper-dark); font-size: 0.95rem; }
 .panel-hint { margin: 0 0 var(--gap); color: var(--paper-dark); }
 .box-title {
   margin: 0 0 8px;
@@ -369,6 +384,16 @@ html, body {
 .map-svg .trench-net.entente { stroke: var(--river); }
 .map-svg .trench-net.support { stroke-width: 0.26; opacity: 0.85; }
 .map-svg .trench-net.comms { stroke-width: 0.24; opacity: 0.75; }
+
+/* Units (STYLE.md §5): counters from mid zoom, one marker per box when zoomed out.
+   Taps go straight through them to the territory underneath. */
+.map-svg #units, .map-svg #targets { pointer-events: none; }
+.map-svg.far .stack-scaled, .map-svg:not(.far) .unit-marker { display: none; }
+.map-svg .counter.done { opacity: 0.7; }
+.map-svg .marker-body { stroke: var(--ink); stroke-width: 0.8; }
+.map-svg .marker-count { font: 7px var(--font-ui); font-weight: 600; fill: var(--telegram); text-anchor: middle; }
+.map-svg .target { fill: none; stroke: var(--brass); stroke-width: max(1.4px, calc(2.6px * var(--u))); stroke-linejoin: round; }
+.map-svg .target.rail { stroke-dasharray: calc(5px * var(--u)) calc(3px * var(--u)); stroke-opacity: 0.85; }
 
 /* The living map: battle scars, the staff officer's pencil notes, planned attacks. */
 .map-svg .scar { pointer-events: none; }

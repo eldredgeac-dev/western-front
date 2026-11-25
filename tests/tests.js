@@ -4,6 +4,10 @@ import { hasSave, SAVE_KEY } from '../js/storage.js';
 import { checkMap, indexBoxes, boxName, trenchMax } from '../js/engine/boxes.js';
 import { newGame, currentMonth, monthLabel } from '../js/engine/state.js';
 import { battleCounts, bigBattles, scarLevel, shortMonth } from '../js/engine/battles.js';
+import { unitsIn, stepsIn, stackRoom, unitType } from '../js/engine/units.js';
+import { moveTargets, railTargets, moveUnit, railMove } from '../js/engine/moves.js';
+import { next as rngNext, rollD6, roll2d6 } from '../js/engine/rng.js';
+import { resourcesFor } from '../js/engine/resources.js';
 
 export const tests = [];
 
@@ -212,7 +216,7 @@ test('scenario 1914: E1 and G1 start at trench 1, the rest at 0 (RULES.md §9.5)
 
 test('newGame: copies owners and trenches, starts in December 1914', () => {
   const state = newGame(data.scenario, 12345);
-  check(state.seed === 12345 && state.turn === 1 && state.version === 1);
+  check(state.seed === 12345 && state.turn === 1 && state.version === 2);
   check(state.boxes['l07-e3'].owner === 'entente' && state.boxes['l07-g1'].trench === 1);
   check(currentMonth(state) === '1914-12');
   check(monthLabel(currentMonth(state)) === 'December 1914');
@@ -319,6 +323,109 @@ test('battles: pencil notes only for 6+ steps lost, grouped by territory, oldest
   check(shortMonth('1916-02') === 'Feb 1916', shortMonth('1916-02'));
 });
 
+// ---------------------------------------------------------------- Milestone 3: units
+// The data bundle the engine expects.
+const bundle = () => ({ map: data.map, terrain: data.terrain, nations: data.nations,
+  unitTypes: data.unitTypes, phases: data.phases });
+const game = (seed = 7) => newGame(data.scenario, seed, bundle());
+const phaseIndex = (id) => data.phases.phases.findIndex((p) => p.id === id);
+
+test('units: unit types match RULES.md §5 (steps 4 / 5 / 2 / 4, stacking 3)', () => {
+  const t = Object.fromEntries(data.unitTypes.types.map((x) => [x.id, x]));
+  check(t.infantry.maxSteps === 4 && t['us-infantry'].maxSteps === 5 && t.tanks.maxSteps === 2 &&
+    t.stormtroopers.maxSteps === 4, 'max steps');
+  check(t.tanks.attackShift === 1 && t.tanks.cannotHoldAlone && t.tanks.rebuild === false, 'tank rules');
+  check(data.unitTypes.stackLimit === 3, 'stacking limit 3');
+});
+
+test('scenario 1914: starting units match RULES.md §12', () => {
+  const u = data.scenario.units;
+  const count = (nat) => u.filter((x) => x.nation === nat).length;
+  check(count('ger') === 17 && count('bel') === 1 && count('gbr') === 2 && count('fra') === 18,
+    `GER ${count('ger')} BEL ${count('bel')} GBR ${count('gbr')} FRA ${count('fra')}`);
+  const at = (nat, box) => u.some((x) => x.nation === nat && x.box === box);
+  for (let l = 1; l <= 12; l++) check(at('ger', `l${String(l).padStart(2, '0')}-g1`), `GER in G1 lane ${l}`);
+  for (const l of [2, 6, 7, 8, 11]) check(at('ger', `l${String(l).padStart(2, '0')}-g2`), `GER in G2 lane ${l}`);
+  check(at('bel', 'l01-e1') && at('gbr', 'l02-e1') && at('gbr', 'l03-e1'), 'BEL and GBR places');
+  for (let l = 4; l <= 12; l++) check(at('fra', `l${String(l).padStart(2, '0')}-e1`), `FRA in E1 lane ${l}`);
+  for (const l of [1, 2, 4, 6, 7, 8, 9, 11, 12]) check(at('fra', `l${String(l).padStart(2, '0')}-e2`), `FRA in E2 lane ${l}`);
+  check(new Set(u.map((x) => x.id)).size === u.length, 'unit ids are unique');
+});
+
+test('newGame: units start at full strength, on their own side, within stacking', () => {
+  const s = game();
+  for (const u of s.units) {
+    check(u.steps === unitType(bundle(), u).maxSteps, u.id + ' full strength');
+    const side = data.nations.nations.find((n) => n.id === u.nation).side;
+    check(s.boxes[u.box].owner === side, u.id + ' is in a friendly box');
+  }
+  for (const b of data.map.boxes) check(unitsIn(s, b.id).length <= 3, b.id + ' within stacking');
+  check(stepsIn(s, 'l06-g2') === 4 && stackRoom(s, bundle(), 'l06-g2') === 2, 'steps and room in a box');
+});
+
+test('newGame: starting Will and December 1914 resources match RULES.md §6 and §11', () => {
+  const s = game();
+  check(s.will.ger === 105 && s.will.fra === 75 && s.will.gbr === 85, JSON.stringify(s.will));
+  check(s.will.usa === undefined, 'the USA has no Will until it enters the war');
+  const r = s.resources;
+  check(r.ger.op === 2 && r.ger.munitions === 3 && r.ger.rp === 3 && r.ger.rail === 3, 'GER ' + JSON.stringify(r.ger));
+  check(r.fra.op === 2 && r.fra.munitions === 2 && r.fra.rp === 3 && r.fra.rail === 2, 'FRA ' + JSON.stringify(r.fra));
+  check(r.gbr.op === 1 && r.gbr.munitions === 1 && r.gbr.rp === 2 && r.gbr.rail === 1, 'GBR ' + JSON.stringify(r.gbr));
+});
+
+test('resources: follow the RULES.md §6 table through the war', () => {
+  const r = (m) => resourcesFor(bundle(), m);
+  check(r('1918-01').ger.op === 4 && r('1917-01').ger.rp === 2 && r('1918-08').ger.rp === 1, 'GER');
+  check(r('1915-06').fra.munitions === 2 && r('1916-06').fra.munitions === 3 && r('1917-06').fra.munitions === 4 &&
+    r('1918-06').fra.munitions === 5, 'FRA munitions');
+  check(r('1916-06').fra.rp === 2 && r('1918-06').fra.rp === 1, 'FRA RP');
+  check(r('1915-06').gbr.munitions === 1 && r('1916-06').gbr.munitions === 3 && r('1917-06').gbr.munitions === 4, 'GBR munitions');
+  check(r('1916-06').gbr.op === 2 && r('1918-06').gbr.op === 3 && r('1916-06').gbr.rp === 3, 'GBR OP and RP');
+  check(r('1918-08').usa.op === 2 && r('1918-07').usa.op === 1, 'USA OP');
+  check(r('1916-06').bel.op === 0, 'BEL');
+});
+
+test('selection: a unit can move into adjacent friendly boxes with room', () => {
+  const s = { ...game(), phase: phaseIndex('entente-move') };
+  const targets = moveTargets(s, bundle(), 'fra-01').sort();   // fra-01 is in l04-e1
+  check(JSON.stringify(targets) === JSON.stringify(['l03-e1', 'l04-e2', 'l05-e1']), targets.join());
+  check(!targets.includes('l04-g1'), 'never into an enemy box');
+});
+
+test('selection: a full box (3 units) is not a move target', () => {
+  const s = { ...game(), phase: phaseIndex('entente-move') };
+  for (const id of ['fra-02', 'fra-11']) s.units.find((u) => u.id === id).box = 'l03-e1';  // l03-e1 now holds 3
+  check(!moveTargets(s, bundle(), 'fra-01').includes('l03-e1'), 'full box excluded');
+});
+
+test('selection: rail targets are friendly boxes joined by friendly boxes', () => {
+  const s = { ...game(), phase: phaseIndex('germany-move') };
+  const t = railTargets(s, bundle(), 'ger-06');                    // in l06-g1
+  check(t.includes('l12-g3') && t.includes('l01-g3'), 'can rail the length of the German rear');
+  check(!t.some((id) => id.includes('-e')), 'never into Entente boxes');
+});
+
+test('selection: no orders outside your own move phase', () => {
+  const s = { ...game(), phase: phaseIndex('germany-move') };
+  check(moveTargets(s, bundle(), 'fra-01').length === 0, 'French unit in the German phase');
+  check(moveTargets(s, bundle(), 'ger-06').length > 0, 'German unit in the German phase');
+});
+
+// ---------------------------------------------------------------- the dice
+test('rng: the same seed gives the same rolls; rolls are 1–6 and fair', () => {
+  let a = 42; let b = 42; const counts = [0, 0, 0, 0, 0, 0];
+  for (let i = 0; i < 6000; i++) {
+    const ra = rollD6(a); const rb = rollD6(b);
+    check(ra.roll === rb.roll, 'same seed, same roll');
+    check(ra.roll >= 1 && ra.roll <= 6, 'roll in range');
+    counts[ra.roll - 1]++; a = ra.rng; b = rb.rng;
+  }
+  for (const c of counts) check(c > 850 && c < 1150, 'each face about 1000 times: ' + counts.join());
+  const two = roll2d6(1);
+  check(two.total === two.dice[0] + two.dice[1], '2d6 adds up');
+  check(rngNext(5).value !== rngNext(6).value, 'different seeds differ');
+});
+
 export async function runAll(loadJson, loadText) {
   const results = [];
   try {
@@ -328,6 +435,8 @@ export async function runAll(loadJson, loadText) {
     data.terrain = await loadJson('data/terrain.json');
     data.nations = await loadJson('data/nations.json');
     data.scenario = await loadJson('data/scenarios/1914-west.json');
+    data.unitTypes = await loadJson('data/unit-types.json');
+    data.phases = await loadJson('data/phases.json');
   } catch (err) {
     results.push({ name: 'load data files', ok: false, error: err.message });
     return results;
