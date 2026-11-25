@@ -1,0 +1,17 @@
+{
+  "_about": "How the war is won (RULES.md §11) [balanced]. Checked at the end of every turn (sudden victory) and after the last turn (the Armistice Score). See docs/DATA.md.",
+  "sudden": [
+    {"if": "will-zero", "nation": "fra", "winner": "germany", "reason": "France's will to fight has collapsed."},
+    {"if": "will-zero", "nation": "gbr", "winner": "germany", "reason": "Britain's will to fight has collapsed."},
+    {"if": "owns", "box": "l07-e3", "side": "germany", "winner": "germany", "reason": "Paris has fallen."},
+    {"if": "will-zero", "nation": "ger", "winner": "entente", "reason": "Germany's will to fight has collapsed."}
+  ],
+  "armistice": {
+    "_about": "Score = GER Will − the average of FRA and GBR Will + VP of Entente named boxes Germany owns − VP of German named boxes the Entente owns. Above +margin: German victory; below −margin: Entente victory; otherwise a stalemate peace.",
+    "plus": "ger",
+    "minusAverage": ["fra", "gbr"],
+    "margin": 2,
+    "aboveMargin": "germany",
+    "belowMargin": "entente"
+  }
+}

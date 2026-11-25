@@ -10,6 +10,9 @@ import { next as rngNext, rollD6, roll2d6 } from '../js/engine/rng.js';
 import { resourcesFor } from '../js/engine/resources.js';
 import { beginGame, endPhase, phaseOf, digIn } from '../js/engine/turn.js';
 import { inSupply, rearColumn, supplySources } from '../js/engine/supply.js';
+import { supplyPhase } from '../js/engine/systems/supply.js';
+import { spendReplacements, threat } from '../js/engine/systems/replacements.js';
+import { willPhase, armisticeScore, suddenVictory } from '../js/engine/systems/will.js';
 import { columnAverages, ratioColumn, planAttack, oddsPreview, resolveAttack, applyCombatResult,
   barrageMax, eligibleAttackers } from '../js/engine/combat.js';
 
@@ -332,7 +335,7 @@ test('battles: pencil notes only for 6+ steps lost, grouped by territory, oldest
 const copyOf = (x) => JSON.parse(JSON.stringify(x));
 // The data bundle the engine expects.
 const bundle = () => ({ map: data.map, terrain: data.terrain, nations: data.nations,
-  unitTypes: data.unitTypes, phases: data.phases, combat: data.combat });
+  unitTypes: data.unitTypes, phases: data.phases, combat: data.combat, victory: data.victory });
 const game = (seed = 7) => newGame(data.scenario, seed, bundle());
 const phaseIndex = (id) => data.phases.phases.findIndex((p) => p.id === id);
 
@@ -856,6 +859,91 @@ test('combat: the odds preview — better columns mean better chances', () => {
   check(low.pTake >= 0 && high.pTake <= 1, 'chances between 0 and 1');
 });
 
+// ---------------------------------------------------------------- Milestone 7: supply, replacements, Will
+test('supply phase: a cut-off unit loses 1 step; at 0 it is destroyed', () => {
+  const s = copyOf(started());
+  for (const id of ['l01-e3', 'l02-e3']) s.boxes[id].owner = 'germany';   // cut GBR off from the ports
+  unit(s, 'gbr-02').steps = 1;
+  supplyPhase(s, bundle());
+  check(unit(s, 'gbr-01').steps === 3, 'gbr-01 lost a step');
+  check(!unit(s, 'gbr-02') && s.pool.gbr === 1, 'gbr-02 destroyed');
+  check(s.lostThisTurn.gbr === 2 && unit(s, 'fra-01').steps === 4, 'losses counted; others untouched');
+});
+
+test('replacements: 1 RP = +1 step, weakest in the most threatened box first; 2 RP rebuild', () => {
+  const s = copyOf(started());
+  unit(s, 'fra-01').steps = 2; unit(s, 'fra-12').steps = 3;
+  check(threat(s, bundle(), 'l04-e1') > threat(s, bundle(), 'l04-e2'), 'the front box is more threatened');
+  let used = spendReplacements(s, bundle(), 'fra', 1);
+  check(used === 1 && unit(s, 'fra-01').steps === 3 && unit(s, 'fra-12').steps === 3, 'front unit repaired first');
+  s.pool.fra = 1;
+  used = spendReplacements(s, bundle(), 'fra', 4);
+  const rebuilt = s.units.find((u) => u.id.startsWith('fra-r'));
+  check(unit(s, 'fra-01').steps === 4 && unit(s, 'fra-12').steps === 4, 'all repaired');
+  check(rebuilt && rebuilt.steps === 1 && rebuilt.box.endsWith('-e3') && rebuilt.type === 'infantry' && s.pool.fra === 0,
+    'rebuilt at 1 step in a rear box: ' + JSON.stringify(rebuilt));
+  check(used === 4, 'used 2 to repair and 2 to rebuild: ' + used);
+});
+
+test('Will: 1 per 3 steps (GER) or 2 (FRA, GBR), rounded down; Belgian losses count against France', () => {
+  const s = copyOf(started());
+  s.lostThisTurn = { ger: 7, fra: 5, gbr: 1, bel: 2, usa: 0 };
+  willPhase(s, bundle());
+  check(s.will.ger === 105 - 2 && s.will.gbr === 85, `GER ${s.will.ger} GBR ${s.will.gbr}`);
+  check(s.will.fra === 75 - 2 - 1, `FRA ${s.will.fra} (5 French steps → 2, 2 Belgian → 1)`);
+});
+
+test('mutinies: the first time FRA Will drops below 35 — no attacks for 3 turns, then +10, only once', () => {
+  let s = copyOf(started());
+  s.will.fra = 34;
+  willPhase(s, bundle());
+  check(s.cannotAttack.fra && s.mutinies.fra.left === 3, 'mutiny starts');
+  const at = { ...atWar('1917-05', 'entente'), will: s.will, cannotAttack: s.cannotAttack, mutinies: s.mutinies };
+  check(!planAttack(at, bundle(), { target: 'l06-g1', units: ['fra-03'] }).ok, 'French units can\'t attack');
+  check(eligibleAttackers(at, bundle(), 'l06-g1').length === 0, 'none offered on the order slip');
+  for (let i = 0; i < 3; i++) { s.lostThisTurn = {}; willPhase(s, bundle()); }
+  check(!s.cannotAttack.fra && s.will.fra === 44, 'over after 3 turns, +10: ' + s.will.fra);
+  s.will.fra = 20; willPhase(s, bundle());
+  check(!s.cannotAttack.fra, 'it never happens twice');
+});
+
+test('victory: FRA or GBR Will at 0, or Paris taken — Germany wins; GER Will at 0 — Entente wins', () => {
+  let s = copyOf(started()); s.will.fra = 1; s.lostThisTurn.fra = 2;
+  willPhase(s, bundle());
+  check(s.over && s.result.winner === 'germany', 'FRA collapse');
+  s = copyOf(started()); s.boxes['l07-e3'].owner = 'germany';
+  check(suddenVictory(s, bundle()).winner === 'germany', 'Paris taken');
+  s = copyOf(started()); s.will.ger = 0;
+  willPhase(s, bundle());
+  check(s.result.winner === 'entente', 'GER collapse');
+  check(phaseOf(s, bundle()).id === 'germany-move' && endPhase(s, bundle()) === s, 'the game stops when won');
+});
+
+test('victory: the Armistice Score after November 1918 (RULES.md §11)', () => {
+  const s = copyOf(started());
+  check(armisticeScore(s, bundle()) === 105 - 80, 'start: 105 − (75 + 85) / 2 = 25');
+  s.boxes['l06-e3'].owner = 'germany';   // Amiens (5)
+  s.boxes['l03-g2'].owner = 'entente';   // Lille (3)
+  check(armisticeScore(s, bundle()) === 25 + 5 - 3, 'captured VP count');
+  s.turn = 48; s.will = { ger: 70, fra: 70, gbr: 72 };
+  s.boxes['l06-e3'].owner = 'entente';
+  willPhase(s, bundle());
+  check(s.over && s.result.winner === 'entente' && Math.abs(s.finalScore - (-4)) < 1e-9, 'score −4 is an Entente victory: ' + s.finalScore);
+  const d = copyOf(started());
+  d.turn = 48; d.will = { ger: 72, fra: 70, gbr: 72 };
+  willPhase(d, bundle());
+  check(d.result.winner === 'draw', '−2 to +2 is a stalemate peace: ' + d.finalScore);
+});
+
+test('USA: US units can\'t attack while US Will is 0 (pending rule fix 16)', () => {
+  const s = copyOf(started());
+  s.will.usa = 0; s.cannotAttack = {};
+  willPhase(s, bundle());
+  check(s.cannotAttack.usa, 'US units can\'t attack');
+  s.will.usa = 5; willPhase(s, bundle());
+  check(!s.cannotAttack.usa, 'they can again when Will returns');
+});
+
 // ---------------------------------------------------------------- commanders and headlines
 test('commanders: all nine cards from RULES.md §15, with Strength, Flaw and history', () => {
   const ids = data.commanders.cards.map((c) => c.id).sort();
@@ -907,6 +995,7 @@ export async function runAll(loadJson, loadText) {
     data.phases = await loadJson('data/phases.json');
     data.combat = await loadJson('data/combat-table.json');
     data.commanders = await loadJson('data/commanders.json');
+    data.victory = await loadJson('data/victory.json');
     data.headlines = await loadJson('data/headlines.json');
   } catch (err) {
     results.push({ name: 'load data files', ok: false, error: err.message });

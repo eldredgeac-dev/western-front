@@ -91,6 +91,19 @@ function unitList(info, onUnit) {
   return section;
 }
 
+// The war at a glance: Will, the Armistice Score and any special state.
+function situationSection(sit) {
+  const section = el('section', 'situation');
+  section.appendChild(el('h3', 'panel-subtitle', 'The war'));
+  if (sit.result) section.appendChild(el('p', 'situation-result', sit.result));
+  const dl = el('dl', 'box-facts');
+  for (const [name, will] of sit.will) row(dl, `${name} Will`, String(will));
+  row(dl, 'Armistice Score', sit.score);
+  section.appendChild(dl);
+  for (const n of sit.notes) section.appendChild(el('p', 'unit-hint', n));
+  return section;
+}
+
 // The last few log lines, newest first, typed like dispatches.
 function dispatches(log) {
   const section = el('section', 'dispatches');
@@ -227,6 +240,7 @@ export function showPanel(container, info, terrainData, actions = {}) {
     parts.push(unitList(info, actions.onUnit || (() => {})));
     parts.push(dl);
   }
+  if (actions.situation) parts.push(situationSection(actions.situation));
   if (actions.log && actions.log.length) parts.push(dispatches(actions.log));
   parts.push(legend(terrainData));
   container.replaceChildren(...parts);

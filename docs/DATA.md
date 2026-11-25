@@ -114,6 +114,16 @@ Copy numbers tagged [balanced] in RULES.md exactly; change them in RULES.md firs
 when End Phase reaches it). `until` notes the milestone where an automatic phase starts
 doing something.
 
+## `victory.json`: how the war is won (RULES.md §11) [balanced]
+| Field | Meaning |
+|---|---|
+| `sudden` | Checked at the end of every turn, in order: `will-zero` (that `nation`'s Will is 0 or less) or `owns` (that `side` owns that `box`), with the `winner` and a `reason` for the log |
+| `armistice` | After the last turn: score = Will of `plus` − the average Will of `minusAverage` + captured VP. Above `margin`: `aboveMargin` wins; below −`margin`: `belowMargin` wins; otherwise a stalemate peace |
+
+`nations.json` also has `mutiny` for France: `name`, `belowWill` (35), `turns` (3) and
+`willAfter` (10), and `rebuildType` for nations that don't rebuild as plain infantry (the
+USA).
+
 ## `commanders.json`: commander cards (RULES.md §15) [balanced]
 | Field | Meaning |
 |---|---|

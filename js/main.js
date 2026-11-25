@@ -8,6 +8,7 @@ import { enableZoom } from './ui/zoom.js';
 import { showPanel } from './ui/panel.js';
 import { battleCounts, bigBattles, scarLevel, shortMonth } from './engine/battles.js';
 import { applyDemo } from './ui/demo.js';
+import { armisticeScore } from './engine/systems/will.js';
 import { unitsIn, unitType, nationOf } from './engine/units.js';
 import { moveTargets, railTargets, moveUnit, railMove, phaseAllows } from './engine/moves.js';
 import { beginGame, endPhase, phaseOf } from './engine/turn.js';
@@ -72,7 +73,7 @@ async function loadJson(path) {
 
 // Load all the data files the game needs, and check the map makes sense.
 async function loadData() {
-  const [map, terrainData, nations, scenario, quotes, unitTypes, phases, combat] = await Promise.all([
+  const [map, terrainData, nations, scenario, quotes, unitTypes, phases, combat, victory] = await Promise.all([
     loadJson('./data/boxes-west.json'),
     loadJson('./data/terrain.json'),
     loadJson('./data/nations.json'),
@@ -81,12 +82,13 @@ async function loadData() {
     loadJson('./data/unit-types.json'),
     loadJson('./data/phases.json'),
     loadJson('./data/combat-table.json'),
+    loadJson('./data/victory.json'),
   ]);
   const problems = checkMap(map, terrainData);
   if (problems.length > 0) throw new Error('The map data has problems: ' + problems.join('; '));
   const mapSvg = await loadMapSvg(map.mapSvg);
   // `engine` is the bundle of data files the game engine (js/engine/) works with.
-  const engine = { map, terrain: terrainData, nations, unitTypes, phases, combat };
+  const engine = { map, terrain: terrainData, nations, unitTypes, phases, combat, victory };
   return { map, terrainData, nations, scenario, quotes, unitTypes, phases, engine, mapSvg, boxesById: indexBoxes(map) };
 }
 
@@ -171,6 +173,21 @@ function whyNoOrders(unit) {
   return 'There is nowhere it can go.';
 }
 
+// The state of the war for the panel: each nation's Will, the running Armistice
+// Score (RULES.md §11), mutinies, and the result once it's over.
+function situation() {
+  const score = armisticeScore(state, data.engine);
+  const lead = Math.abs(score) <= data.engine.victory.armistice.margin ? 'too close to call'
+    : score > 0 ? 'Germany ahead' : 'the Entente ahead';
+  const notes = Object.entries(state.cannotAttack || {}).map(([n, why]) => `${nationOf(data.engine, n).name}: no attacks (${why})`);
+  return {
+    will: Object.entries(state.will).map(([n, w]) => [nationOf(data.engine, n).name, w]),
+    score: `${score > 0 ? '+' : ''}${score.toFixed(1)} (${lead})`,
+    notes,
+    result: state.result ? state.result.reason : null,
+  };
+}
+
 // The data the engine needs to check orders.
 function orderData() {
   return data.engine;
@@ -179,7 +196,7 @@ function orderData() {
 // Show the panel for the selected territory (and unit).
 function refreshPanel() {
   showPanel(panelArea, selectedBox ? boxInfo(selectedBox) : null, data.terrainData, {
-    onUnit: selectUnit, log: state.log, error: orderError,
+    onUnit: selectUnit, log: state.log, error: orderError, situation: situation(),
     slip: attack ? attackSlip() : null,
     onToggleUnit: toggleAttacker, onMunitions: changeMunitions, onConfirm: confirmAttack, onCancel: closeAttack,
   });

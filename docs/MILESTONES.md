@@ -161,4 +161,6 @@ milestone in brackets, confirm the fix, then update RULES.md and the code togeth
 
 ## Later ideas
 - Let the player choose which unit takes each step loss (see pending fix 10).
+- Let the player choose where their own RP go (repairs and rebuilds) on the Nations
+  screen. For now they're spent automatically, as the computer does (DECISIONS.md 30).
 (Claude Code: add ideas here instead of building them.)

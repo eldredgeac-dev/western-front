@@ -10,7 +10,7 @@
 import { copyState, currentMonth } from './state.js';
 import { roll2d6 } from './rng.js';
 import { indexBoxes, boxName } from './boxes.js';
-import { unitsIn, unitType, nationOf, sideOfUnit, findUnit } from './units.js';
+import { unitsIn, unitType, nationOf, sideOfUnit, findUnit, destroyUnit } from './units.js';
 import { inSupply } from './supply.js';
 import { phaseAllows, addLog, unitLabel } from './moves.js';
 import { scheduleValue } from './resources.js';
@@ -247,10 +247,7 @@ function takeLosses(state, data, unitIds, n) {
   return lost;
 }
 
-function destroy(state, data, unit) {
-  state.units = state.units.filter((u) => u.id !== unit.id);
-  if (unitType(data, unit).rebuild) state.pool[unit.nation] = (state.pool[unit.nation] || 0) + 1;
-}
+const destroy = destroyUnit;
 
 // How deep a box is for a side: higher = further behind its own front line.
 function depthFor(data, boxId, side) {

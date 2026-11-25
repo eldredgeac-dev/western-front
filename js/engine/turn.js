@@ -7,6 +7,9 @@ import { resourcesFor } from './resources.js';
 import { trenchMax, indexBoxes } from './boxes.js';
 import { unitsIn } from './units.js';
 import { addLog } from './moves.js';
+import { supplyPhase } from './systems/supply.js';
+import { replacementsPhase } from './systems/replacements.js';
+import { willPhase } from './systems/will.js';
 
 // Clear what units did last turn and hand out this month's resources.
 function startOfTurn(state, data) {
@@ -33,7 +36,10 @@ export function digIn(state, data) {
 // What each automatic phase does. Phases not listed here only exist as a step in
 // the turn until their milestone arrives (see "until" in data/phases.json).
 const AUTO = {
+  supply: supplyPhase,
   'dig-in': digIn,
+  replacements: replacementsPhase,
+  will: (state, data) => { if (data.victory) willPhase(state, data); },
 };
 
 const phasesOf = (data) => data.phases.phases;
@@ -46,8 +52,7 @@ function settle(state, data) {
   while (!state.over && guard++ < 1000) {
     if (state.phase >= phases.length) {
       if (state.turn >= state.turns) {
-        state.over = true;
-        addLog(state, 'The armistice: the war is over.');
+        if (!state.over) { state.over = true; addLog(state, 'The armistice: the war is over.'); }
         return state;
       }
       state.turn += 1;
@@ -58,6 +63,7 @@ function settle(state, data) {
     const phase = phases[state.phase];
     if (!phase.auto) return state;          // waits for orders
     if (AUTO[phase.id]) AUTO[phase.id](state, data);
+    if (state.over) return state;          // someone won
     state.phase += 1;
   }
   return state;

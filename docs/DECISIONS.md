@@ -127,6 +127,32 @@ I'll change it.
 29. **No animation yet.** The dice result appears at once, typed on the slip. Dice
     tumbling and the stamp animation are Milestone 6 (Feel and sound).
 
+### Milestone 7: supply, replacements, National Will, mutinies, victory
+30. **Replacements are spent automatically for both sides for now**, the way RULES.md
+    §14 says the computer does it.
+    - Repairs go first: the weakest unit in the most threatened box.
+    - Then 2-RP rebuilds: basic infantry at 1 step in the most threatened rear box with
+      room (pending fix 11).
+    - Letting you choose where your own RP go can come with the Nations ledger screen.
+      It's in Later ideas.
+31. **Rebuilt British units** appear at the Channel Ports or Hazebrouck (their supply
+    sources). Other nations' appear in their rear column (E3 or G3).
+32. **Will from losses** is worked out per turn and rounded down, and Belgian losses are
+    counted separately against France (pending fix 15). Losses from being out of supply
+    count too.
+33. **Mutiny timing.** The first time French Will is below 35 at the Will phase, French
+    units can't attack for the next 3 turns. France then gets +10 Will. It never happens
+    again. Nivelle's and Pétain's changes come with the commander cards (Milestone 11).
+34. **The war ends** as soon as a sudden-victory condition is met at the end of a turn
+    (FRA or GBR Will 0, Germany owns Paris, GER Will 0). Otherwise it ends after
+    November 1918 with the Armistice Score. The result appears in the panel.
+35. **"Entente named boxes Germany owns"** for the Armistice Score means named boxes in E
+    columns (they start Entente) now owned by Germany, and the same the other way round.
+36. **The running Armistice Score** is in a new "The war" section of the panel, with each
+    nation's Will and any mutiny. Positive means Germany is ahead.
+37. **Supply losses happen in the supply phase**, before dig-in. A unit cut off for
+    several turns dies after as many turns as it has steps.
+
 ## Questions for you (answered)
 1. **Combat table — answered: RULES.md is right.**
    - The balance tests used `tools/t2.py`, which patched the simulator's 1:2 and 1:1
@@ -167,6 +193,9 @@ I'll change it.
       - A red grease-pencil arrow should point into Verdun.
       - Tap CONFIRM ORDER: the slip shows the dice and "REPULSED" (or "OBJECTIVE TAKEN").
       - Is it readable on the folded phone?
+- [ ] **"The war" section.** With nothing selected, the panel shows each nation's Will
+      (Germany 105, France 75, Britain 85) and "Armistice Score +25.0 (Germany ahead)".
+      Is it clear what the score means?
 - [ ] **Counter details.** At full zoom: is the German cross pattée (top-left mark) clear
       enough? It's small and dark on field grey. Counters also sit over their own town's
       name. Tell me if you'd rather they sat beside it.

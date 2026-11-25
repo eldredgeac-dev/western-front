@@ -37,3 +37,15 @@ export function stackRoom(state, data, boxId) {
 export function findUnit(state, unitId) {
   return state.units.find((u) => u.id === unitId);
 }
+
+// Take a unit off the map: it was destroyed. It goes to its nation's rebuild pool
+// (RULES.md §9.4), unless its type can't be rebuilt (tanks).
+export function destroyUnit(state, data, unit) {
+  state.units = state.units.filter((u) => u.id !== unit.id);
+  if (unitType(data, unit).rebuild) state.pool[unit.nation] = (state.pool[unit.nation] || 0) + 1;
+}
+
+// Count steps lost this turn (for National Will, RULES.md §11).
+export function recordLoss(state, nationId, steps) {
+  state.lostThisTurn[nationId] = (state.lostThisTurn[nationId] || 0) + steps;
+}

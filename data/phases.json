@@ -6,10 +6,10 @@
     {"id": "germany-attack", "name": "German attack", "side": "germany", "kind": "attack"},
     {"id": "entente-move", "name": "Entente move", "side": "entente", "kind": "move"},
     {"id": "entente-attack", "name": "Entente attack", "side": "entente", "kind": "attack"},
-    {"id": "supply", "name": "Supply", "auto": true, "until": "Milestone 7"},
+    {"id": "supply", "name": "Supply", "auto": true},
     {"id": "dig-in", "name": "Dig in", "auto": true},
-    {"id": "replacements", "name": "Replacements", "auto": true, "until": "Milestone 7"},
-    {"id": "will", "name": "National Will", "auto": true, "until": "Milestone 7"},
+    {"id": "replacements", "name": "Replacements", "auto": true},
+    {"id": "will", "name": "National Will and victory", "auto": true},
     {"id": "newspaper", "name": "Newspaper", "auto": true, "until": "Milestone 12"}
   ]
 }
