@@ -14,7 +14,7 @@ Do one milestone per Claude Code session. For each one:
   - It fits folded and unfolded, and nothing hides under the notch or home bar.
   - The README explains how to turn on GitHub Pages and how to run it locally.
 
-- [ ] **2. Map from data**
+- [x] **2. Map from data**
   - All 72 boxes in `data/boxes-west.json` (12 lanes × 6 depth columns, RULES.md §2)
     are drawn as an SVG map, from the coast in the north to Switzerland in the south.
     Each box has an id like `l07-e3` (lane 7, column E3) and an explicit list of
@@ -27,19 +27,19 @@ Do one milestone per Claude Code session. For each one:
   - `docs/DATA.md` describes every data file. A test checks that box adjacency goes
     both ways and every id exists.
 
-- [ ] **3. Units and selection**
+- [x] **3. Units and selection**
   - The 1914 scenario places all starting units, shown as counters with strength.
   - Tapping a box lists its units. Selecting a unit highlights the boxes it can
     move into.
   - Stacking limit from RULES.md is enforced.
 
-- [ ] **4. Turn loop, movement and rail**
+- [x] **4. Turn loop, movement and rail**
   - You can give move and rail orders, then press "End Phase" to step through the
     phases in RULES.md.
   - The turn number and date (Dec 1914, Jan 1915…, 48 turns to Nov 1918) go up. The log shows what happened.
   - Trenches dig in on boxes that weren't attacked, up to the current maximum.
 
-- [ ] **5. Combat**
+- [x] **5. Combat**
   - Attacks spend offensive points (and munitions for barrages), resolve on the 2d6
     combat table, and change unit strength and box ownership.
   - Before committing an attack, the screen shows the column, the chance of taking the
@@ -53,10 +53,9 @@ Do one milestone per Claude Code session. For each one:
     shows the planned attack as a grease-pencil arrow.
 
 - [ ] **6. Feel and sound**
-  - The animations in docs/STYLE.md §8: barrage, dice, losses, capture, Will change and
-    the end-turn date flip. None is longer than 1 second, every one can be skipped by
-    tapping, and they're all off when the phone's Reduce Motion setting is on. A "fast
-    mode" toggle removes everything except captures.
+  - The animations in docs/STYLE.md §8 that the UI overhaul (milestone 10) doesn't
+    already cover: the Will gauge draining and the end-turn date flip. (Barrage, dice,
+    losses and capture, skipping, fast mode and Reduce Motion are built in milestone 10.)
   - The sounds in docs/STYLE.md §9 (public domain or CC0, each under 100 KB, sources in
     `sounds/CREDITS.md`). Sound is on by default with a toggle on the top bar, and it
     respects the silent switch.
@@ -66,12 +65,12 @@ Do one milestone per Claude Code session. For each one:
     - drop caps and old-style numbers in the newspaper;
     - brass map pins marking your selected territory.
 
-- [ ] **7. Supply, replacements, national will**
+- [x] **7. Supply, replacements, national will**
   - Out-of-supply units can't attack and lose strength.
   - Replacement points rebuild steps. National will changes as RULES.md says, and is
     shown as a bar for each nation.
 
-- [ ] **8. Save, export, import**
+- [x] **8. Save, export, import**
   - Auto-saves at the end of every turn. Closing and reopening the app resumes the game.
   - Export makes a file (share sheet or download). Import restores it exactly.
   - A bad file shows a friendly error instead of breaking the game.
@@ -85,20 +84,43 @@ Do one milestone per Claude Code session. For each one:
     The Recruit advisor warnings work.
   - The running Armistice Score shows on the main screen. A "Nations" screen lists each
     nation's traits.
+  - *Still to do (everything else here is built and checked):* the event pop-up
+    (telegram) and the "Nations" screen with each nation's traits (it can become a page
+    of the War Office in milestone 10).
 
-- [ ] **10. Playtest and polish**
+- [ ] **10. UI overhaul** (built in this order)
+  1. **Board-game pieces.** Counters become chunky, slightly 3D pieces (top bevel and
+     shadow) with a silhouette per unit type in the nation colour, a clear strength
+     number and quality badges. Stacks show as a small tower with a count. Pieces sit
+     beside town names, never on top. The German cross is clear at every zoom.
+  2. **A bigger map to explore.** More scenery drawn around the playing area (the same
+     72 territories and neighbours). The map always fills the screen, starts zoomed in
+     on the front, and has a small locator map.
+  3. **Orders, then commit.** Moves and attacks are queued as grease-pencil arrows
+     (dashed = move, red = attack with its odds); tap an arrow to cancel it. COMMIT
+     ORDERS plays them out with animation: pieces slide, barrage flashes, dice roll,
+     losses tick off, territories change colour, the front line redraws. The enemy's
+     turn plays the same way. Every animation can be skipped, there's a fast mode, and
+     the phone's Reduce Motion setting is honoured (STYLE.md §8).
+  4. **The War Office.** A ledger screen (STYLE.md §6) with, for each nation: Will
+     (gauge and trend), OP, munitions, replacements and rail this turn, units and
+     strength, VP cities held, the Butcher's Bill (month and total), the current
+     commander; plus the Armistice Score, active events, countdowns and a small
+     strength-over-time chart.
+
+- [ ] **11. Playtest and polish**
   - You play 3–4 full games (both sides, more than one difficulty).
   - We list everything that was boring or confusing, then fix it.
   - Every screen passes the "Is it cheesy?" checklist in docs/STYLE.md §11.
 
-- [ ] **11. Commander cards**
+- [ ] **12. Commander cards**
   - Each nation shows its current commander card (silhouette portrait, name, Strength,
     Flaw) on the Nations screen.
   - All the effects in RULES.md §15 work, each with a test.
   - Historical changes ask "Replace X with Y?". Sacking works, with its Will cost. The
     computer follows history.
 
-- [ ] **12. Newspaper, Butcher's Bill and Real Voices**
+- [ ] **13. Newspaper, Butcher's Bill and Real Voices**
   - A newspaper front page appears at the end of every turn: the masthead for your side,
     a generated headline (with `data/headlines.json` templates), propaganda spin, the
     Butcher's Bill line, and 2–3 real headlines from `data/news.json`.
@@ -109,7 +131,7 @@ Do one milestone per Claude Code session. For each one:
   - Styling: aged paper, a serif headline font, a column layout that fits folded and
     unfolded.
 
-- [ ] **13. Home-screen polish**
+- [ ] **14. Home-screen polish**
   - A manifest and icon let it launch full screen from the home screen.
   - A short second scenario (Spring 1918, about 9 turns) added using **only data files**
     — proof the design can grow.
@@ -126,7 +148,7 @@ Gaps in RULES.md found in the first session. Each has a suggested fix that match
 `tools/wfsim.py` where the simulator covers it. **Not agreed yet:** when we reach the
 milestone in brackets, confirm the fix, then update RULES.md and the code together.
 
-4. **[5, 11] Commander bonuses stack.** Haig's "+1 OP from 1916" and Hindenburg &
+4. **[5, 12] Commander bonuses stack.** Haig's "+1 OP from 1916" and Hindenburg &
    Ludendorff's "+1 RP" are added on top of the §6 table (so GBR has 3 OP in 1916–17).
 5. **[5] Mixed stacks and the French 75s.** The trait applies if any French unit is in
    the defending box.
@@ -154,7 +176,7 @@ milestone in brackets, confirm the fix, then update RULES.md and the code togeth
     remainder is dropped. Belgian losses are counted separately against FRA.
 16. **[7] USA Will reaching 0.** Nothing sudden happens, but US units can't attack while
     US Will is 0.
-17. **[9, 11] Match RULES.md to the simulator.**
+17. **[9, 12] Match RULES.md to the simulator.**
     - The AI stops attacking at "this turn's RP + 2", not next turn's.
     - The Kaiserschlacht gamble (−15) and H&L's "last gamble" (−3 a month) both apply in
       Mar–Jul 1918.

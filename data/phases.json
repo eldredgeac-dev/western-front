@@ -10,6 +10,6 @@
     {"id": "dig-in", "name": "Dig in", "auto": true},
     {"id": "replacements", "name": "Replacements", "auto": true},
     {"id": "will", "name": "National Will and victory", "auto": true},
-    {"id": "newspaper", "name": "Newspaper", "auto": true, "until": "Milestone 12"}
+    {"id": "newspaper", "name": "Newspaper", "auto": true, "until": "Milestone 13"}
   ]
 }

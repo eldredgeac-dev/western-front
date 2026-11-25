@@ -94,12 +94,12 @@ I'll change it.
       rules), and the victory check (Milestone 7).
     - Event shifts like the April 1915 gas attack (Milestone 9). The engine already
       accepts them as `extraShifts`.
-    - Commander effects (Milestone 11).
+    - Commander effects (Milestone 12).
     - The attack screen and its animations (Milestones 5–6).
 
 ### Side jobs: commanders and headlines (data only, no code yet)
 23. **`data/commanders.json`** holds all nine §15 cards.
-    - Each Strength and Flaw has machine-readable `effects` for Milestone 11, and each card
+    - Each Strength and Flaw has machine-readable `effects` for Milestone 12, and each card
       has a short history note taken from HISTORY.md.
     - Foch's card is marked as "added alongside" the national cards, and Pershing's start
       date is "when the USA enters".
@@ -142,7 +142,7 @@ I'll change it.
     count too.
 33. **Mutiny timing.** The first time French Will is below 35 at the Will phase, French
     units can't attack for the next 3 turns. France then gets +10 Will. It never happens
-    again. Nivelle's and Pétain's changes come with the commander cards (Milestone 11).
+    again. Nivelle's and Pétain's changes come with the commander cards (Milestone 12).
 34. **The war ends** as soon as a sudden-victory condition is met at the end of a turn
     (FRA or GBR Will 0, Germany owns Paris, GER Will 0). Otherwise it ends after
     November 1918 with the Armistice Score. The result appears in the panel.
@@ -200,7 +200,7 @@ I'll change it.
 51. **The Kaiserschlacht gamble** is checked at the start of November 1918: if Germany
     made no attack in April–October 1918, it loses 15 Will.
 52. **Not done yet:** event pop-ups as telegrams (Milestone 6 polish) and Real Voices
-    quotes (Milestone 12). The French mutinies are handled with Will (Milestone 7); the
+    quotes (Milestone 13). The French mutinies are handled with Will (Milestone 7); the
     armistice ends the game after November 1918.
 
 ### Milestone 9 (second half): the computer opponent
@@ -228,7 +228,7 @@ I'll change it.
 58. **The JS engine's results are far from docs/BALANCE.md.** I ran 50 complete wars
     with `node tools/js-sim.mjs 50` (seeds 1–50, Standard vs Standard, ~2.5 seconds per
     war). I also ran the Python simulator without commanders, because commanders aren't in
-    the JS game yet (Milestone 10).
+    the JS game yet (Milestone 12).
 
     | | Germany wins | Entente wins | Draw | Avg turns | Early end | French mutinies |
     |---|---|---|---|---|---|---|
@@ -261,15 +261,16 @@ I'll change it.
     - **Random numbers** come from one seeded stream in JS and several in Python, so single
       games can't be compared one-to-one; only the averages can.
 
-## Questions for you (open)
-4. **The JS game and the simulator disagree** (decisions 58–60): Germany 52% / Entente
-   12% in the game, against 48% / 35% in BALANCE.md. Which should be the reference?
-   - **My suggestion:** treat RULES.md as right and find out why the JS Entente attacks
-     half as often. Then either change the JS AI to match the simulator (if it's an AI
-     difference) or update the simulator to match the game and re-run the balance tests
-     (if it's a rules difference). I haven't done either, because you said not to change
-     balance numbers to fix this.
-   - You can repeat the check yourself on a computer with `node tools/js-sim.mjs 50`.
+### Milestone 10: UI overhaul
+61. **Milestone numbers changed.** The UI overhaul is milestone 10, so Playtest is now
+    11, Commander cards 12, the Newspaper 13 and Home-screen polish 14. Earlier notes
+    in this file were updated to the new numbers.
+62. **Animations moved.** Barrage, dice, losses and capture animations, skipping, fast
+    mode and Reduce Motion are built in the UI overhaul (orders, then commit). Milestone
+    6 keeps the sounds, the Will gauge and date-flip animations, and the STYLE.md §13
+    interface details.
+63. **Milestones ticked:** 2, 3, 4, 5, 7 and 8 (everything passed on your phone).
+    Milestone 9 stays open for the event telegram pop-up and the Nations screen.
 
 ## Questions for you (answered)
 1. **Combat table — answered: RULES.md is right.**
@@ -289,50 +290,54 @@ I'll change it.
    - Foch and Hindenburg & Ludendorff keep their real titles ("Allied Generalissimo",
      "The Third Supreme Command") as a separate `title`.
    - RULES.md §15 was updated to match.
+4. **The JS game and the simulator disagree — answered: RULES.md is right; find out
+   why.** After the UI overhaul I'll trace one war turn by turn against the simulator,
+   find why the JS Entente attacks half as often, and report back with a suggested fix
+   before changing anything.
 
 ## Check on my phone
-- [ ] **Counters.** Start a New Campaign and zoom in with **+** three times. Each front
+- [x] **Counters.** Start a New Campaign and zoom in with **+** three times. Each front
       territory should show a small counter with a cockade, roundel or cross in the top
       left, an X-in-a-box symbol and 4 dots. Zoomed out, you should see small numbered
       squares instead.
-- [ ] **Selecting a unit.** Tap Verdun. The sheet lists "French infantry, 4 of 4 steps ·
+- [x] **Selecting a unit.** Tap Verdun. The sheet lists "French infantry, 4 of 4 steps ·
       Regular". Tap that row: it gets a brass border, and the map outlines 3 territories
       in solid brass and many more in dashed brass. Tap the row again to clear it.
-- [ ] **Top bar.** It shows the date with the phase underneath ("German move") and a brass
+- [x] **Top bar.** It shows the date with the phase underneath ("German move") and a brass
       **END PHASE** button on the right. It should fit on the folded phone without
       squashing the date.
-- [ ] **Moving.** In "German move", tap a German territory, tap its unit, close the sheet
+- [x] **Moving.** In "German move", tap a German territory, tap its unit, close the sheet
       (swipe it down) and tap a brass-outlined territory next door. The counter moves, and
       "Dispatches" in the panel says so. Try a dashed one too (a rail move).
-- [ ] **Order slip.** Tap END PHASE once ("German attack"), then tap Verdun.
+- [x] **Order slip.** Tap END PHASE once ("German attack"), then tap Verdun.
       - A cream "ORDER OF ATTACK" slip should appear in typewriter text, listing every
         column shift (trench, ridge, fortress, winter, heavy howitzers, the 75s) and a
         red stamped "COLUMN 1:2".
       - A red grease-pencil arrow should point into Verdun.
       - Tap CONFIRM ORDER: the slip shows the dice and "REPULSED" (or "OBJECTIVE TAKEN").
       - Is it readable on the folded phone?
-- [ ] **"The war" section.** With nothing selected, the panel shows each nation's Will
+- [x] **"The war" section.** With nothing selected, the panel shows each nation's Will
       (Germany 105, France 75, Britain 85) and "Armistice Score +25.0 (Germany ahead)".
       Is it clear what the score means?
-- [ ] **Saving.** Start a campaign, tap END PHASE a few times, then close Safari (or
+- [x] **Saving.** Start a campaign, tap END PHASE a few times, then close Safari (or
       the home-screen app) completely and reopen it. **Continue** should be lit and bring
       you back to the same month and phase.
-- [ ] **Export and import.** On the title screen tap **Export save**: the share sheet
+- [x] **Export and import.** On the title screen tap **Export save**: the share sheet
       should open; save the file to Files. Then tap **Import save** and pick that file:
       the game should open at the same point. Picking a photo or any other file should
       show a polite message instead.
-- [ ] **Event questions.** Tap END PHASE until February 1917 (about 100 taps; or wait
+- [x] **Event questions.** Tap END PHASE until February 1917 (about 100 taps; or wait
       until the computer opponent plays one side). A cream "DECISION REQUIRED" card about
       the U-boats appears and END PHASE greys out until you tap an answer. Is it clear?
-- [ ] **Playing the computer.** New Campaign → Entente → Regular → Begin. You should
+- [x] **Playing the computer.** New Campaign → Entente → Regular → Begin. You should
       start at "Entente move" in December 1914, with Dispatches already listing
       Germany's moves and attacks. Make a move or an attack, then tap END PHASE twice:
       the computer plays Germany's January turn and you're back at "Entente move",
       January 1915.
-- [ ] **Recruit advisor.** On Recruit, open an attack at poor odds: the slip should show
+- [x] **Recruit advisor.** On Recruit, open an attack at poor odds: the slip should show
       "ADVISOR: This attack will probably fail and cost 3 Will".
-- [ ] **Counter details.** At full zoom: is the German cross pattée (top-left mark) clear
+- [x] **Counter details.** At full zoom: is the German cross pattée (top-left mark) clear
       enough? It's small and dark on field grey. Counters also sit over their own town's
       name. Tell me if you'd rather they sat beside it.
-- [ ] **End Phase.** Tap **END PHASE** four times: the label should go German attack →
+- [x] **End Phase.** Tap **END PHASE** four times: the label should go German attack →
       Entente move → Entente attack → back to German move, and the date to January 1915.
