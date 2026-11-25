@@ -88,6 +88,19 @@ I'll change it.
     - Commander effects (Milestone 11).
     - The attack screen and its animations (Milestones 5–6).
 
+### Side jobs: commanders and headlines (data only, no code yet)
+23. **`data/commanders.json`** holds all nine §15 cards.
+    - Each Strength and Flaw has machine-readable `effects` for Milestone 11, and each card
+      has a short history note taken from HISTORY.md.
+    - Foch's card is marked as "added alongside" the national cards, and Pershing's start
+      date is "when the USA enters".
+24. **`data/headlines.json`** has 2–3 versions of every §17 headline type, each with a
+    headline and a line under it.
+    - Where it matters, there are "ours" and "theirs" versions, so your own paper can spin
+      bad news ("LINE ADJUSTED AT the Somme").
+    - All the wording is in English, including for the German paper (DIE KRIEGSZEITUNG),
+      because the game is in English.
+
 ## Questions for you
 1. **The simulator's combat table is different from RULES.md.** `tools/wfsim.py`
    (`TABLE0`) doesn't match RULES.md §9.3. For example, at 1:2 on a roll of 2–4 the
@@ -98,6 +111,9 @@ I'll change it.
 2. **The simulator's starting German Will is 80** (`DEFAULT['will']`), but RULES.md §11
    says 105. I used 105. Perhaps `levels.py` overrides it; worth a look when the balance is
    re-run.
+3. **Commander and headline wording.** I wrote the headline templates and the card
+   nicknames ("The healer", "Black Jack"…) myself, in a 1916 newspaper tone. Do they fit
+   what you had in mind?
 
 ## Check on my phone
 - [ ] **Counters.** Start a New Campaign and zoom in with **+** three times. Each front

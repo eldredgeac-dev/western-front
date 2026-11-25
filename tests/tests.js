@@ -846,6 +846,37 @@ test('combat: the odds preview — better columns mean better chances', () => {
   check(low.pTake >= 0 && high.pTake <= 1, 'chances between 0 and 1');
 });
 
+// ---------------------------------------------------------------- commanders and headlines
+test('commanders: all nine cards from RULES.md §15, with Strength, Flaw and history', () => {
+  const ids = data.commanders.cards.map((c) => c.id).sort();
+  check(ids.join() === 'falkenhayn,foch,french,haig,hindenburg-ludendorff,joffre,nivelle,pershing,petain', ids.join());
+  const nations = new Set([...data.nations.nations.map((n) => n.id), ...data.nations.sides.map((s) => s.id)]);
+  for (const c of data.commanders.cards) {
+    check(nations.has(c.nation), c.id + ' nation');
+    check(c.strength && c.strength.name && c.strength.effects.length, c.id + ' strength');
+    check(c.flaw === null || (c.flaw.name && c.flaw.effects.length), c.id + ' flaw');
+    check(c.history && c.history.length > 40, c.id + ' history note');
+    for (const n of c.next) check(ids.includes(n), `${c.id} → ${n}`);
+  }
+  for (const list of Object.values(data.commanders.succession)) for (const id of list) check(ids.includes(id), id);
+  const r = data.commanders.rules;
+  check(r.keepOldCommanderWill === -3 && r.sackWill === -5 && r.noSackingFirstTurns === 3, 'choice costs');
+});
+
+test('headlines: every RULES.md §17 type, in priority order, 2–3 versions each', () => {
+  const types = data.headlines.types;
+  check(types.map((t) => t.priority).join() === '1,2,3,4,5,6', 'priorities 1–6');
+  for (const t of types) {
+    for (const [v, list] of Object.entries(t.variants)) {
+      check(list.length >= 2 && list.length <= 3, `${t.id}/${v} has ${list.length}`);
+      for (const h of list) {
+        check(h.head && h.deck, `${t.id}/${v} needs head and deck`);
+        for (const ph of (h.head + h.deck).match(/\{[a-z]+\}/g) || []) check(ph in data.headlines.placeholders, `${t.id}: ${ph}`);
+      }
+    }
+  }
+});
+
 export async function runAll(loadJson, loadText) {
   const results = [];
   try {
@@ -858,6 +889,8 @@ export async function runAll(loadJson, loadText) {
     data.unitTypes = await loadJson('data/unit-types.json');
     data.phases = await loadJson('data/phases.json');
     data.combat = await loadJson('data/combat-table.json');
+    data.commanders = await loadJson('data/commanders.json');
+    data.headlines = await loadJson('data/headlines.json');
   } catch (err) {
     results.push({ name: 'load data files', ok: false, error: err.message });
     return results;

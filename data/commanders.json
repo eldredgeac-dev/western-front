@@ -1,0 +1,99 @@
+{
+  "_about": "Commander cards (RULES.md §15) [balanced]. Each card has its dates, a Strength and a Flaw (with 'effects' written as data the game code will read in Milestone 11), and a short history note from docs/HISTORY.md. Months are 'YYYY-MM'; 'months' lists months of the year (3 = March). Don't change the effects without changing RULES.md. See docs/DATA.md.",
+  "rules": {
+    "keepOldCommanderWill": -3,
+    "askAgainEveryTurns": 3,
+    "sackWill": -5,
+    "noSackingFirstTurns": 3,
+    "computerFollowsHistory": true
+  },
+  "succession": {
+    "fra": ["joffre", "nivelle", "petain"],
+    "gbr": ["french", "haig"],
+    "ger": ["falkenhayn", "hindenburg-ludendorff"],
+    "usa": ["pershing"],
+    "entente": ["foch"]
+  },
+  "cards": [
+    {
+      "id": "joffre", "name": "Joffre", "nickname": "Papa Joffre", "nation": "fra",
+      "from": "1914-12", "to": "1916-11", "next": ["nivelle", "petain"],
+      "strength": {"name": "Offensive drive", "text": "France gets +1 OP every March to October.",
+        "effects": [{"kind": "op", "nation": "fra", "value": 1, "months": [3, 4, 5, 6, 7, 8, 9, 10]}]},
+      "flaw": {"name": "Attaque à outrance", "text": "In any March–October month with no French attack, France loses 2 Will.",
+        "effects": [{"kind": "will-if-no-attack", "nation": "fra", "value": -2, "months": [3, 4, 5, 6, 7, 8, 9, 10]}]},
+      "history": "The victor of the Marne, Joffre believed in constant offensives: Artois and Champagne in 1915. He lost the government's confidence after Verdun and was moved aside, and made a Marshal, in December 1916."
+    },
+    {
+      "id": "nivelle", "name": "Nivelle", "nickname": "I have the formula", "nation": "fra",
+      "from": "1916-12", "to": "1917-04", "onlyBetween": ["1916-12", "1917-04"], "next": ["petain"],
+      "strength": {"name": "The Nivelle Method", "text": "France gets +1 munition per turn. Once, one French attack gets +2 columns (you choose which).",
+        "effects": [{"kind": "munitions", "nation": "fra", "value": 1}, {"kind": "once-attack-shift", "nation": "fra", "value": 2}]},
+      "flaw": {"name": "Broken promise", "text": "If that +2 attack fails to take its box, the French mutinies start immediately.",
+        "effects": [{"kind": "mutiny-if-once-attack-fails", "nation": "fra"}]},
+      "history": "Nivelle rose through successful counter-attacks at Verdun and promised a quick breakthrough on the Chemin des Dames. Its failure in April 1917 set off the mutinies, and Pétain replaced him."
+    },
+    {
+      "id": "petain", "name": "Pétain", "nickname": "The healer", "nation": "fra",
+      "from": "1917-05", "to": null, "alsoAvailableFrom": "1916-12", "next": [],
+      "strength": {"name": "Care for the men", "text": "France loses 1 Will per 3 steps instead of 2. Mutinies last 2 turns instead of 3, then France gets +15 Will.",
+        "effects": [{"kind": "steps-per-will", "nation": "fra", "value": 3}, {"kind": "mutiny-length", "nation": "fra", "value": 2}, {"kind": "mutiny-end-will", "nation": "fra", "value": 15}]},
+      "flaw": {"name": "\"Wait for the tanks and the Americans\"", "text": "France may use at most 1 OP per turn.",
+        "effects": [{"kind": "op-max", "nation": "fra", "value": 1}]},
+      "history": "The defender of Verdun (\"Courage! On les aura!\", 10 April 1916). Pétain became chief of the General Staff on 29 April 1917, then commander-in-chief, and restored the army with leave, better food and limited attacks."
+    },
+    {
+      "id": "foch", "name": "Foch", "nickname": "Generalissimo", "nation": "entente", "addedAlongside": true,
+      "from": "1918-04", "to": null, "next": [], "cannotBeSacked": true,
+      "strength": {"name": "Unified command", "text": "Coalition attacks cost no extra OP. France and Britain get +1 rail move each.",
+        "effects": [{"kind": "coalition-op-cost", "side": "entente", "value": 1}, {"kind": "rail", "nation": "fra", "value": 1}, {"kind": "rail", "nation": "gbr", "value": 1}]},
+      "flaw": null,
+      "history": "Foch was chosen in spring 1918, at Clemenceau's urging, to coordinate all the Allied armies."
+    },
+    {
+      "id": "french", "name": "Sir John French", "nickname": null, "nation": "gbr",
+      "from": "1914-12", "to": "1915-11", "next": ["haig"],
+      "strength": {"name": "Old Contemptibles", "text": "The 2 starting British units are Elite.",
+        "effects": [{"kind": "elite-units", "units": ["gbr-01", "gbr-02"]}]},
+      "flaw": {"name": "Prickly ally", "text": "British units can't join coalition attacks with France.",
+        "effects": [{"kind": "no-coalition-with", "nation": "gbr", "with": "fra"}]},
+      "history": "Sir John French commanded the regular \"Old Contemptibles\". He had a difficult relationship with Joffre and Kitchener, and was replaced after Loos."
+    },
+    {
+      "id": "haig", "name": "Haig", "nickname": null, "nation": "gbr",
+      "from": "1915-12", "to": null, "next": [],
+      "strength": {"name": "The Big Push", "text": "Britain gets +1 OP from 1916.",
+        "effects": [{"kind": "op", "nation": "gbr", "value": 1, "from": "1916-01"}]},
+      "flaw": {"name": "Lloyd George's distrust", "text": "Britain gets 1 RP less in January–April 1918 (reserves held back in Britain).",
+        "effects": [{"kind": "rp", "nation": "gbr", "value": -1, "from": "1918-01", "to": "1918-04"}]},
+      "history": "Haig led the Somme, Passchendaele and the Hundred Days. Lloyd George distrusted him and held reserves back in Britain over the winter of 1917–18. He issued the \"Backs to the Wall\" order on 11 April 1918."
+    },
+    {
+      "id": "falkenhayn", "name": "Falkenhayn", "nickname": null, "nation": "ger",
+      "from": "1914-12", "to": "1916-08", "next": ["hindenburg-ludendorff"],
+      "strength": {"name": "\"Bleed France white\"", "text": "French steps lost defending Verdun cost France an extra 1 Will per 4 steps.",
+        "effects": [{"kind": "extra-will-per-steps", "nation": "fra", "box": "l11-e1", "steps": 4, "value": -1}]},
+      "flaw": {"name": "Penny-packets", "text": "Germany may make at most 2 rail moves per turn.",
+        "effects": [{"kind": "rail-max", "nation": "ger", "value": 2}]},
+      "history": "Falkenhayn planned Verdun to wear down the French army. He was replaced after Romania entered the war."
+    },
+    {
+      "id": "hindenburg-ludendorff", "name": "Hindenburg & Ludendorff", "nickname": "The Third Supreme Command", "nation": "ger",
+      "from": "1916-09", "to": null, "next": [],
+      "strength": {"name": "Hindenburg Programme", "text": "Germany gets +1 RP per turn.",
+        "effects": [{"kind": "rp", "nation": "ger", "value": 1}]},
+      "flaw": {"name": "The last gamble", "text": "In March–July 1918, any month with no German attack costs Germany 3 Will.",
+        "effects": [{"kind": "will-if-no-attack", "nation": "ger", "value": -3, "from": "1918-03", "to": "1918-07"}]},
+      "history": "Hindenburg and Ludendorff brought in total mobilisation (the Hindenburg Programme), the Hindenburg Line and the 1918 Spring Offensives. Ludendorff called 8 August 1918 the \"black day of the German Army\"."
+    },
+    {
+      "id": "pershing", "name": "Pershing", "nickname": "Black Jack", "nation": "usa",
+      "from": "usa-entry", "to": null, "next": [], "cannotBeSacked": true,
+      "strength": {"name": "Hard training", "text": "US units are Green for 2 turns instead of 3.",
+        "effects": [{"kind": "green-turns", "nation": "usa", "value": 2}]},
+      "flaw": {"name": "No amalgamation", "text": "US units can't join coalition attacks until September 1918.",
+        "effects": [{"kind": "no-coalition", "nation": "usa", "to": "1918-08"}]},
+      "history": "Pershing insisted that the Americans fight as an independent army rather than being fed into Allied units. The words \"Lafayette, we are here\" were his aide Colonel Stanton's, on 4 July 1917."
+    }
+  ]
+}

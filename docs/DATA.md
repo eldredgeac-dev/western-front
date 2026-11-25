@@ -7,9 +7,8 @@ mean editing data. Every file starts with an `"_about"` line saying what it is f
 `tests/run.mjs` checks that every data file is valid JSON. The tests in
 `tests/tests.js` check that the map and scenario match `docs/RULES.md`.
 
-Planned files that don't exist yet:
-(5), `events.json` (9), `commanders.json` (11) and `headlines.json` (12). Describe each one
-here when it is added.
+Planned files that don't exist yet: `events.json` (Milestone 9).
+(5), Describe each one here when it is added.
 
 ---
 
@@ -114,6 +113,21 @@ Copy numbers tagged [balanced] in RULES.md exactly; change them in RULES.md firs
 `attack`: the phase waits for that side's orders) or `auto: true` (it runs by itself
 when End Phase reaches it). `until` notes the milestone where an automatic phase starts
 doing something.
+
+## `commanders.json`: commander cards (RULES.md §15) [balanced]
+| Field | Meaning |
+|---|---|
+| `rules` | The cost of keeping the old commander (−3 Will, asked again every 3 turns), sacking (−5 Will, not in the first 3 turns) |
+| `succession` | Each nation's cards in order |
+| `cards[]` | `id`, `name`, `nickname`, `nation` (or `"entente"` for Foch), `from`/`to` (historical dates; Pershing's `from` is `"usa-entry"`), `next` (who can follow) |
+| `cards[].strength`, `cards[].flaw` | `name`, `text` (for the card) and `effects`: a list of `{kind, nation, value, …}` that the Milestone 11 code will read (`op`, `munitions`, `rp`, `rail`, `rail-max`, `op-max`, `will-if-no-attack`, `steps-per-will`, …) |
+| `cards[].history` | A short note from docs/HISTORY.md for the full-screen card |
+
+## `headlines.json`: newspaper headlines (RULES.md §17)
+`types` lists the headline types by `priority` (1 = game over … 6 = quiet). Each has
+`variants`: lists of 2–3 `{head, deck}` templates. `ours` is good news for the reader's
+side, `theirs` is bad news, spun by the censor. `placeholders` lists the `{words}` the
+game fills in.
 
 ## `news.json`: real world news (RULES.md §17)
 An object keyed by month (`"1914-12"` … `"1918-11"`). Each month is a list of
