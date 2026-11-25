@@ -1,0 +1,226 @@
+{
+  "_about": "Real world news for each game month, shown in the 'Elsewhere in the World' column of the monthly newspaper (RULES.md §17). Headlines are written in period style and paraphrased from the sources in docs/HISTORY.md. Western Front battles are left out on purpose, because the game makes those happen. Months use the format YYYY-MM.",
+  "1914-12": [
+    {"date": "Dec 8", "headline": "VON SPEE'S SQUADRON DESTROYED OFF THE FALKLANDS — German Admiral Goes Down With His Ship"},
+    {"date": "Dec 12", "headline": "NEW YORK STOCK EXCHANGE REOPENS — First Full Trading Since August"},
+    {"date": "Dec 16", "headline": "GERMAN CRUISERS SHELL SCARBOROUGH, HARTLEPOOL AND WHITBY — Civilians Killed in English Towns"},
+    {"date": "Dec 18", "headline": "EGYPT DECLARED A BRITISH PROTECTORATE"},
+    {"date": "Dec 24", "headline": "STRANGE REPORTS OF CAROLS AND HANDSHAKES BETWEEN THE TRENCHES"}
+  ],
+  "1915-01": [
+    {"date": "Jan 13", "headline": "EARTHQUAKE LAYS WASTE TO AVEZZANO — Some 30,000 Dead in Italy"},
+    {"date": "Jan 24", "headline": "BRITISH FLEET VICTORIOUS AT DOGGER BANK"},
+    {"date": "Jan 25", "headline": "FIRST TELEPHONE CALL ACROSS AMERICA — New York Speaks to San Francisco"}
+  ],
+  "1915-02": [
+    {"date": "Feb 8", "headline": "GRIFFITH'S 'THE BIRTH OF A NATION' PREMIERES IN LOS ANGELES"},
+    {"date": "Feb 18", "headline": "GERMANY DECLARES THE SEAS AROUND BRITAIN A WAR ZONE"},
+    {"date": "Feb 20", "headline": "PANAMA-PACIFIC EXPOSITION OPENS IN SAN FRANCISCO"}
+  ],
+  "1915-03": [
+    {"date": "Mar 18", "headline": "ALLIED FLEET REPULSED AT THE DARDANELLES — Battleships Lost to Mines"},
+    {"date": "Mar 18", "headline": "HMS DREADNOUGHT RAMS AND SINKS A U-BOAT"}
+  ],
+  "1915-04": [
+    {"date": "Apr 5", "headline": "JESS WILLARD TAKES THE HEAVYWEIGHT CROWN FROM JACK JOHNSON IN HAVANA"},
+    {"date": "Apr 25", "headline": "ANZACS AND BRITISH LAND AT GALLIPOLI"},
+    {"date": "Apr 26", "headline": "RUMOURS OF A SECRET BARGAIN TO BRING ITALY INTO THE WAR"}
+  ],
+  "1915-05": [
+    {"date": "May 7", "headline": "LUSITANIA TORPEDOED OFF IRELAND — 1,199 Lost, Americans Among the Dead"},
+    {"date": "May 22", "headline": "TROOP TRAIN DISASTER AT QUINTINSHILL — Scotland Mourns"},
+    {"date": "May 23", "headline": "ITALY DECLARES WAR ON AUSTRIA-HUNGARY"}
+  ],
+  "1915-06": [
+    {"date": "Jun 16", "headline": "WOMEN'S INSTITUTES FOUNDED IN BRITAIN TO AID THE WAR EFFORT AT HOME"},
+    {"date": "Jun 19", "headline": "ICELAND GIVES WOMEN THE VOTE"}
+  ],
+  "1915-07": [
+    {"date": "Jul 9", "headline": "GERMAN SOUTH WEST AFRICA SURRENDERS TO GENERAL BOTHA"},
+    {"date": "Jul 22", "headline": "RUSSIAN ARMIES IN GREAT RETREAT FROM POLAND"},
+    {"date": "Jul 24", "headline": "EXCURSION STEAMER EASTLAND CAPSIZES IN CHICAGO RIVER — 844 Dead"}
+  ],
+  "1915-08": [
+    {"date": "Aug 6", "headline": "NEW ALLIED ASSAULT AT GALLIPOLI — Sari Bair Heights Stormed"},
+    {"date": "Aug", "headline": "HURRICANE STRIKES GALVESTON AND NEW ORLEANS"}
+  ],
+  "1915-09": [
+    {"date": "Sep 5", "headline": "SOCIALISTS MEET AT ZIMMERWALD TO DEMAND PEACE"},
+    {"date": "Sep 12", "headline": "FRENCH WARSHIPS RESCUE 4,000 ARMENIANS FROM MUSA DAGH"}
+  ],
+  "1915-10": [
+    {"date": "Oct 12", "headline": "NURSE EDITH CAVELL SHOT BY GERMANS IN BRUSSELS — World Outraged"},
+    {"date": "Oct 13", "headline": "RED SOX WIN THE WORLD SERIES OVER THE PHILLIES, FOUR GAMES TO ONE"},
+    {"date": "Oct 15", "headline": "BULGARIA ENTERS THE WAR — Serbia Invaded From Two Sides"}
+  ],
+  "1915-11": [
+    {"date": "Nov 21", "headline": "SHACKLETON'S SHIP ENDURANCE CRUSHED BY ANTARCTIC ICE"},
+    {"date": "Nov 25", "headline": "PROFESSOR EINSTEIN PRESENTS A NEW THEORY OF GRAVITATION IN BERLIN"}
+  ],
+  "1915-12": [
+    {"date": "Dec 4", "headline": "HENRY FORD'S 'PEACE SHIP' SAILS TO END THE WAR BY CHRISTMAS"},
+    {"date": "Dec 12", "headline": "YUAN SHIKAI PROCLAIMS HIMSELF EMPEROR OF CHINA"},
+    {"date": "Dec 20", "headline": "LAST TROOPS SLIP AWAY FROM ANZAC COVE AND SUVLA"}
+  ],
+  "1916-01": [
+    {"date": "Jan 9", "headline": "GALLIPOLI ABANDONED — Last British Troops Withdrawn"},
+    {"date": "Jan", "headline": "RUSSIANS ADVANCE ON ERZURUM IN THE CAUCASUS"}
+  ],
+  "1916-02": [
+    {"date": "Feb", "headline": "STRANGE 'DADA' ART MOVEMENT BORN IN A ZURICH CABARET"},
+    {"date": "Feb 11", "headline": "BALTIMORE SYMPHONY ORCHESTRA GIVES ITS FIRST CONCERT"}
+  ],
+  "1916-03": [
+    {"date": "Mar 9", "headline": "PANCHO VILLA RAIDS COLUMBUS, NEW MEXICO"},
+    {"date": "Mar 15", "headline": "WILSON SENDS 12,000 TROOPS INTO MEXICO AFTER VILLA"},
+    {"date": "Mar 24", "headline": "CHANNEL FERRY SUSSEX TORPEDOED — Composer Granados Among the Lost"}
+  ],
+  "1916-04": [
+    {"date": "Apr 24", "headline": "REBELLION IN DUBLIN — Republic Proclaimed at the General Post Office"},
+    {"date": "Apr 24", "headline": "SHACKLETON SETS OUT IN AN OPEN BOAT TO FETCH HELP"},
+    {"date": "Apr 29", "headline": "KUT SURRENDERS — British Army Captured in Mesopotamia"}
+  ],
+  "1916-05": [
+    {"date": "May 3", "headline": "EASTER RISING LEADERS EXECUTED IN DUBLIN"},
+    {"date": "May 4", "headline": "GERMANY PROMISES WILSON TO RESTRAIN ITS U-BOATS"},
+    {"date": "May 31", "headline": "GREAT FLEETS CLASH OFF JUTLAND — Both Sides Claim Victory"}
+  ],
+  "1916-06": [
+    {"date": "Jun 4", "headline": "BRUSILOV SMASHES THE AUSTRIAN LINE"},
+    {"date": "Jun 5", "headline": "LORD KITCHENER LOST AT SEA — HMS Hampshire Sunk by a Mine"},
+    {"date": "Jun 10", "headline": "ARAB REVOLT AGAINST THE TURKS DECLARED IN MECCA"}
+  ],
+  "1916-07": [
+    {"date": "Jul 22", "headline": "BOMB AT SAN FRANCISCO PREPAREDNESS PARADE — 10 Killed"},
+    {"date": "Jul 30", "headline": "BLACK TOM ARSENAL BLOWN UP IN NEW YORK HARBOR — German Agents Suspected"}
+  ],
+  "1916-08": [
+    {"date": "Aug 3", "headline": "ROGER CASEMENT HANGED IN LONDON"},
+    {"date": "Aug 27", "headline": "ROMANIA DECLARES WAR ON THE CENTRAL POWERS"},
+    {"date": "Aug 30", "headline": "ALL OF SHACKLETON'S MEN SAVED FROM ELEPHANT ISLAND"}
+  ],
+  "1916-09": [
+    {"date": "Sep 2", "headline": "GERMAN AIRSHIP SHOT DOWN IN FLAMES NEAR LONDON"},
+    {"date": "Sep 6", "headline": "'PIGGLY WIGGLY' OPENS IN MEMPHIS — Shoppers Serve Themselves"}
+  ],
+  "1916-10": [
+    {"date": "Oct 7", "headline": "GEORGIA TECH 222, CUMBERLAND 0"},
+    {"date": "Oct 12", "headline": "RED SOX WIN THE WORLD SERIES AGAIN, BEATING BROOKLYN"},
+    {"date": "Oct 16", "headline": "MARGARET SANGER OPENS A BIRTH CONTROL CLINIC IN BROOKLYN"}
+  ],
+  "1916-11": [
+    {"date": "Nov 7", "headline": "WILSON RE-ELECTED — 'He Kept Us Out of War'"},
+    {"date": "Nov 7", "headline": "JEANNETTE RANKIN OF MONTANA, FIRST WOMAN ELECTED TO CONGRESS"},
+    {"date": "Nov 21", "headline": "EMPEROR FRANZ JOSEPH DIES AFTER 68 YEARS ON THE THRONE"}
+  ],
+  "1916-12": [
+    {"date": "Dec 12", "headline": "AVALANCHES BURY THOUSANDS OF SOLDIERS IN THE DOLOMITES"},
+    {"date": "Dec 30", "headline": "RASPUTIN MURDERED IN PETROGRAD"}
+  ],
+  "1917-01": [
+    {"date": "Jan 11", "headline": "MUNITIONS PLANT EXPLODES AT KINGSLAND, NEW JERSEY"},
+    {"date": "Jan", "headline": "UNITED STATES BUYS THE DANISH WEST INDIES FOR $25 MILLION"}
+  ],
+  "1917-02": [
+    {"date": "Feb 1", "headline": "GERMANY ANNOUNCES UNRESTRICTED SUBMARINE WARFARE"},
+    {"date": "Feb 3", "headline": "UNITED STATES BREAKS RELATIONS WITH GERMANY"},
+    {"date": "Feb 13", "headline": "DANCER MATA HARI ARRESTED IN PARIS AS A SPY"}
+  ],
+  "1917-03": [
+    {"date": "Mar 1", "headline": "ZIMMERMANN TELEGRAM REVEALED — Germany Offered Mexico Texas, New Mexico and Arizona"},
+    {"date": "Mar 7", "headline": "'LIVERY STABLE BLUES' — First Jazz Record Goes on Sale"},
+    {"date": "Mar 15", "headline": "TSAR NICHOLAS ABDICATES — Revolution in Russia"}
+  ],
+  "1917-04": [
+    {"date": "Apr 6", "headline": "AMERICA DECLARES WAR ON GERMANY"},
+    {"date": "Apr 10", "headline": "EXPLOSION AT EDDYSTONE MUNITIONS PLANT — 139 Dead, Mostly Women"},
+    {"date": "Apr 16", "headline": "LENIN ARRIVES AT THE FINLAND STATION IN PETROGRAD"}
+  ],
+  "1917-05": [
+    {"date": "May 13", "headline": "CHILDREN REPORT A VISION OF THE VIRGIN AT FATIMA"},
+    {"date": "May 18", "headline": "CONGRESS PASSES THE DRAFT — Selective Service Act Signed"},
+    {"date": "May 21", "headline": "GREAT FIRE SWEEPS ATLANTA"}
+  ],
+  "1917-06": [
+    {"date": "Jun 4", "headline": "FIRST PULITZER PRIZES AWARDED"},
+    {"date": "Jun 13", "headline": "GERMAN BOMBERS RAID LONDON IN DAYLIGHT — 162 Killed"},
+    {"date": "Jun 26", "headline": "FIRST AMERICAN TROOPS LAND IN FRANCE AT SAINT-NAZAIRE"}
+  ],
+  "1917-07": [
+    {"date": "Jul 2", "headline": "RACE RIOT IN EAST ST. LOUIS"},
+    {"date": "Jul 6", "headline": "ARAB FORCES WITH LAWRENCE TAKE AQABA"},
+    {"date": "Jul 17", "headline": "ROYAL FAMILY DROPS GERMAN NAME — The House of Windsor"}
+  ],
+  "1917-08": [
+    {"date": "Aug 14", "headline": "CHINA DECLARES WAR ON GERMANY"},
+    {"date": "Aug 18", "headline": "GREAT FIRE DESTROYS A THIRD OF SALONIKA"}
+  ],
+  "1917-09": [
+    {"date": "Sep", "headline": "GERMANS ENTER RIGA"},
+    {"date": "Sep 14", "headline": "RUSSIA PROCLAIMED A REPUBLIC"}
+  ],
+  "1917-10": [
+    {"date": "Oct 15", "headline": "WHITE SOX WIN THE WORLD SERIES OVER THE GIANTS"},
+    {"date": "Oct 15", "headline": "MATA HARI SHOT BY FIRING SQUAD AT VINCENNES"},
+    {"date": "Oct 24", "headline": "ITALIAN DISASTER AT CAPORETTO"}
+  ],
+  "1917-11": [
+    {"date": "Nov 2", "headline": "BALFOUR DECLARATION PROMISES A JEWISH HOME IN PALESTINE"},
+    {"date": "Nov 7", "headline": "BOLSHEVIKS SEIZE POWER IN PETROGRAD — Winter Palace Stormed"},
+    {"date": "Nov 26", "headline": "NATIONAL HOCKEY LEAGUE FORMED IN MONTREAL"}
+  ],
+  "1917-12": [
+    {"date": "Dec 6", "headline": "HALIFAX DESTROYED BY MUNITIONS SHIP EXPLOSION — Nearly 2,000 Dead"},
+    {"date": "Dec 6", "headline": "FINLAND DECLARES INDEPENDENCE"},
+    {"date": "Dec 11", "headline": "GENERAL ALLENBY ENTERS JERUSALEM ON FOOT"}
+  ],
+  "1918-01": [
+    {"date": "Jan 8", "headline": "PRESIDENT WILSON'S FOURTEEN POINTS FOR PEACE"},
+    {"date": "Jan 19", "headline": "BOLSHEVIKS DISPERSE RUSSIA'S CONSTITUENT ASSEMBLY"}
+  ],
+  "1918-02": [
+    {"date": "Feb 5", "headline": "TROOPSHIP TUSCANIA TORPEDOED — First Ship Lost Carrying American Soldiers"},
+    {"date": "Feb 6", "headline": "BRITISH WOMEN OVER 30 WIN THE VOTE"}
+  ],
+  "1918-03": [
+    {"date": "Mar 3", "headline": "RUSSIA SIGNS SEPARATE PEACE AT BREST-LITOVSK"},
+    {"date": "Mar 12", "headline": "MOSCOW BECOMES THE CAPITAL OF SOVIET RUSSIA"},
+    {"date": "Mar 19", "headline": "CONGRESS ADOPTS DAYLIGHT SAVING TIME"}
+  ],
+  "1918-04": [
+    {"date": "Apr 1", "headline": "ROYAL AIR FORCE FORMED"},
+    {"date": "Apr 21", "headline": "THE 'RED BARON' RICHTHOFEN SHOT DOWN AND KILLED"},
+    {"date": "Apr 28", "headline": "GAVRILO PRINCIP, ASSASSIN OF THE ARCHDUKE, DIES IN PRISON"}
+  ],
+  "1918-05": [
+    {"date": "May 15", "headline": "REGULAR AIR MAIL SERVICE BEGINS IN THE UNITED STATES"},
+    {"date": "May 16", "headline": "SEDITION ACT PASSED IN WASHINGTON"},
+    {"date": "May 24", "headline": "CANADIAN WOMEN WIN THE FEDERAL VOTE"}
+  ],
+  "1918-06": [
+    {"date": "Jun 8", "headline": "BRILLIANT NEW STAR BLAZES IN THE SKY"},
+    {"date": "Jun 10", "headline": "ITALIAN TORPEDO BOATS SINK AUSTRIAN BATTLESHIP SZENT ISTVAN"}
+  ],
+  "1918-07": [
+    {"date": "Jul 17", "headline": "FORMER TSAR AND FAMILY SHOT AT EKATERINBURG"},
+    {"date": "Jul 17", "headline": "CARPATHIA, RESCUE SHIP OF THE TITANIC, TORPEDOED"}
+  ],
+  "1918-08": [
+    {"date": "Aug 2", "headline": "ALLIED TROOPS LAND AT ARCHANGEL"},
+    {"date": "Aug 30", "headline": "LENIN SHOT AND WOUNDED IN MOSCOW"}
+  ],
+  "1918-09": [
+    {"date": "Sep 11", "headline": "RED SOX WIN THE WORLD SERIES — Ruth Wins Twice on the Mound"},
+    {"date": "Sep 19", "headline": "ALLENBY ROUTS THE TURKS AT MEGIDDO"},
+    {"date": "Sep 29", "headline": "BULGARIA QUITS THE WAR"}
+  ],
+  "1918-10": [
+    {"date": "Oct", "headline": "INFLUENZA EPIDEMIC SWEEPS THE NATION — Schools, Churches and Theatres Closed"},
+    {"date": "Oct 1", "headline": "DAMASCUS FALLS TO ARAB AND BRITISH FORCES"},
+    {"date": "Oct 12", "headline": "FOREST FIRES DESTROY CLOQUET, MINNESOTA — 453 Dead"}
+  ],
+  "1918-11": [
+    {"date": "Nov 3", "headline": "AUSTRIA-HUNGARY SIGNS ARMISTICE — Poland Declares Independence"},
+    {"date": "Nov 9", "headline": "KAISER ABDICATES — Germany Proclaimed a Republic"}
+  ]
+}

@@ -1,0 +1,75 @@
+{
+  "_about": "Real Voices (RULES.md §18). All texts were published before 1929, so they're public domain in the US. 'trigger' says when the quote appears. A quote shows once per game, as an italic line under the newspaper or on the event pop-up. 'note' is shown in smaller text under the quote.",
+  "quotes": [
+    {"id": "grey-lamps", "trigger": "game_start",
+     "text": "The lamps are going out all over Europe; we shall not see them lit again in our lifetime.",
+     "who": "Sir Edward Grey, British Foreign Secretary", "when": "3 August 1914", "note": "Recalled in his memoir Twenty-Five Years (1925)."},
+
+    {"id": "kitchener-poster", "trigger": "first_green_gbr_reinforcement",
+     "text": "Your Country Needs You.", "who": "Recruiting poster with Lord Kitchener", "when": "1914", "note": "Over a million men volunteered for Kitchener's New Armies."},
+
+    {"id": "brooke-soldier", "trigger": "month:1915-04",
+     "text": "If I should die, think only this of me: / That there's some corner of a foreign field / That is for ever England.",
+     "who": "Rupert Brooke, 'The Soldier'", "when": "1914", "note": "Brooke died of sepsis on his way to Gallipoli, 23 April 1915."},
+
+    {"id": "mccrae-flanders", "trigger": "first_attack_in_lanes:1-3_from:1915-05",
+     "text": "In Flanders fields the poppies blow / Between the crosses, row on row,",
+     "who": "Lt-Col John McCrae, 'In Flanders Fields'", "when": "May 1915", "note": "Written near Ypres after the death of a friend."},
+
+    {"id": "cavell", "trigger": "month:1915-10",
+     "text": "Patriotism is not enough. I must have no hatred or bitterness towards anyone.",
+     "who": "Edith Cavell, British nurse", "when": "the night before her execution, 11 October 1915"},
+
+    {"id": "petain-onlesaura", "trigger": "verdun_attacked_in:1916",
+     "text": "Courage! On les aura! (Courage! We'll get them!)",
+     "who": "General Philippe Pétain, order of the day at Verdun", "when": "10 April 1916"},
+
+    {"id": "verdun-pass", "trigger": "verdun_holds_after_3_attacks",
+     "text": "Ils ne passeront pas! (They shall not pass!)",
+     "who": "Rallying cry of the defence of Verdun", "when": "1916", "note": "Linked to General Nivelle's order of 23 June 1916."},
+
+    {"id": "seeger-rendezvous", "trigger": "month:1916-07",
+     "text": "I have a rendezvous with Death / At some disputed barricade,",
+     "who": "Alan Seeger, American volunteer in the French Foreign Legion", "when": "1916", "note": "Seeger was killed on the Somme on 4 July 1916."},
+
+    {"id": "rosenberg-daybreak", "trigger": "quiet_month",
+     "text": "The darkness crumbles away. / It is the same old druid Time as ever,",
+     "who": "Isaac Rosenberg, 'Break of Day in the Trenches'", "when": "1916"},
+
+    {"id": "wilson-democracy", "trigger": "usa_declares_war",
+     "text": "The world must be made safe for democracy.",
+     "who": "President Woodrow Wilson, asking Congress to declare war", "when": "2 April 1917"},
+
+    {"id": "stanton-lafayette", "trigger": "first_usa_unit_arrives",
+     "text": "Lafayette, we are here.",
+     "who": "Colonel Charles E. Stanton, at Lafayette's tomb in Paris", "when": "4 July 1917", "note": "Often credited to Pershing, who said the words were Stanton's."},
+
+    {"id": "sassoon-general", "trigger": "failed_attack_with_4plus_steps_lost",
+     "text": "'Good-morning, good-morning!' the General said / When we met him last week on our way to the line.",
+     "who": "Siegfried Sassoon, 'The General'", "when": "1917"},
+
+    {"id": "owen-dulce", "trigger": "attack_in_mud",
+     "text": "Bent double, like old beggars under sacks, / Knock-kneed, coughing like hags, we cursed through sludge,",
+     "who": "Wilfred Owen, 'Dulce et Decorum Est'", "when": "written 1917, published 1920"},
+
+    {"id": "owen-anthem", "trigger": "butchers_bill_total:5000000",
+     "text": "What passing-bells for these who die as cattle? / Only the monstrous anger of the guns.",
+     "who": "Wilfred Owen, 'Anthem for Doomed Youth'", "when": "written 1917, published 1920", "note": "Owen was killed one week before the Armistice."},
+
+    {"id": "owen-futility", "trigger": "first_unit_destroyed",
+     "text": "Move him into the sun— / Gently its touch awoke him once,",
+     "who": "Wilfred Owen, 'Futility'", "when": "1918"},
+
+    {"id": "clemenceau-war", "trigger": "month:1918-03",
+     "text": "Home policy: I wage war. Foreign policy: I still wage war. Always, I wage war. (Politique intérieure, je fais la guerre; politique extérieure, je fais toujours la guerre.)",
+     "who": "Georges Clemenceau, French Prime Minister, to the Chamber of Deputies", "when": "8 March 1918"},
+
+    {"id": "haig-backs", "trigger": "ger_takes_box_in_lanes:1-6_in:1918",
+     "text": "With our backs to the wall and believing in the justice of our cause each one of us must fight on to the end.",
+     "who": "Field Marshal Sir Douglas Haig, Special Order of the Day", "when": "11 April 1918"},
+
+    {"id": "ludendorff-black-day", "trigger": "month:1918-08",
+     "text": "August 8th was the black day of the German Army in the history of this war.",
+     "who": "General Erich Ludendorff, My War Memories", "when": "1919"}
+  ]
+}
