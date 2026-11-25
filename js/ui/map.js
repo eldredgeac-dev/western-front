@@ -6,7 +6,7 @@
 // is the box id (like "l07-e3"), and every border between two neighbours is a
 // <path class="edge" data-a="…" data-b="…">.
 
-import { stackSvg } from './counters.js';
+import { stackSvg, STACK_STEP } from './counters.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -350,16 +350,18 @@ export function createMapView(container, svg, { nations, boxNameFn, noteNameFn, 
   }
 
   // ---- units (docs/STYLE.md §5)
-  // Counters stand on the territory's town. Zoomed out, each box shows one small
-  // marker instead. Both keep a steady size on screen (see rescale()).
+  // Each territory's pieces stand as one stack beside its town. Pieces keep a steady
+  // size on screen, and layout() moves each stack to a spot where it doesn't cover a
+  // town name, town symbol, VP ring or pencil note (or another stack).
   const unitsLayer = svgEl('g', { id: 'units' });
-  layer('notes').before(unitsLayer);
+  svg.appendChild(unitsLayer);                     // on top of everything, even the folds
   const targetsLayer = svgEl('g', { id: 'targets' });
   layer('selection').before(targetsLayer);
-  let counterScale = 0.3; let markerScale = 1;
+  let zoomK = 1;                                   // screen pixels per map unit
+  const PIECE_PX = { far: 26, mid: 32, near: 40 }; // a piece's width on screen
 
   //   units      — the game's units
-  //   lookFor(u) — { color, symbol, maxSteps } for a unit (from the data files)
+  //   lookFor(u) — { color, symbol, maxSteps, mirror } for a unit (from the data files)
   function drawUnits(units, lookFor) {
     unitsLayer.replaceChildren();
     const byBox = new Map();
@@ -370,27 +372,101 @@ export function createMapView(container, svg, { nations, boxNameFn, noteNameFn, 
     for (const [boxId, list] of byBox) {
       if (!byId[boxId]) continue;
       const [x, y] = anchor(boxId);
-      const at = svgEl('g', { class: 'unit-spot', transform: `translate(${x},${y + 4})`, 'data-box': boxId });
-      // zoomed in: the stack of counters
-      const stack = stackSvg(list, lookFor);
-      stack.classList.add('stack-scaled');
-      at.appendChild(stack);
-      // zoomed out: one marker in the colour of the top unit, with the number of units
-      const marker = svgEl('g', { class: 'unit-marker' });
-      marker.appendChild(svgEl('rect', { x: -5, y: -5, width: 10, height: 10, rx: 2, fill: lookFor(list[list.length - 1]).color, class: 'marker-body' }));
-      const count = svgEl('text', { x: 0, y: 3.4, class: 'marker-count' });
-      count.textContent = String(list.length);
-      marker.appendChild(count);
-      at.appendChild(marker);
+      const at = svgEl('g', { class: 'unit-spot', transform: `translate(${x},${y})`, 'data-box': boxId, 'data-count': list.length });
+      const holder = svgEl('g', { class: 'piece-holder' });
+      holder.appendChild(stackSvg(list, lookFor));
+      at.appendChild(holder);
       unitsLayer.appendChild(at);
     }
-    rescale();
+    layout();
   }
-  // Keep counters a steady size on screen: k = screen pixels per map unit.
-  function rescale(k) {
-    if (k) { counterScale = Math.min(1 / k, 0.3); markerScale = 1 / k; }
-    for (const s of unitsLayer.querySelectorAll('.stack-scaled')) s.setAttribute('transform', `scale(${counterScale})`);
-    for (const m of unitsLayer.querySelectorAll('.unit-marker')) m.setAttribute('transform', `scale(${markerScale})`);
+
+  // The box round a stack of n pieces, in piece units: [left, top, right, bottom]
+  // (see counters.js: the face is −14.6…14.4, the side face and shadow reach 17.6, and
+  // each piece in the tower sits STACK_STEP higher; the brass tab sticks out top right).
+  function stackBox(n) {
+    const rise = (n - 1) * STACK_STEP;
+    return n > 1 ? [-14.6, -14.6 - rise - 2.2, 21.8 + (n - 1) * 1.2, 17.6] : [-14.6, -14.6, 16.6, 17.6];
+  }
+
+  // Where a stack may go, next to its town (screen pixels from the town dot to the
+  // stack box's nearest edge or centre). Tried in this order; the first free one wins.
+  function candidates(w, h) {
+    const g = 5;
+    return [
+      [g, -h * 0.25],              // right of the town, a little below the name
+      [g, -h * 0.5],               // right, centred on the town
+      [-w - g, -h * 0.25],         // left
+      [-w / 2, g + 4],             // below
+      [g, -h - g],                 // above right
+      [-w - g, -h - g],            // above left
+      [-w / 2, g + 16],            // further below
+      [g + 14, -h * 0.25],         // further right
+      [-w - g - 14, -h * 0.25],    // further left
+      [-w / 2, -h - 18],           // well above
+      [g + 28, -h * 0.5],          // far right
+      [-w - g - 28, -h * 0.5],     // far left
+    ];
+  }
+
+  // Screen rectangles of what a piece must not cover: town names and symbols, VP rings
+  // and pencil notes ("hard"); village and landmark names ("soft": a piece may cover
+  // one if there's no other room, and that name is then hidden).
+  const visibleRects = (selector) => [...svg.querySelectorAll(selector)]
+    .filter((t) => t.style.visibility !== 'hidden')
+    .map((t) => ({ el: t, r: t.getBoundingClientRect() }))
+    .filter((o) => o.r.width > 0);
+  const hardThings = () => visibleRects('#towns text, #towns circle, #towns path, #notes text').map((o) => o.r);
+  const softThings = () => visibleRects('#villages text, #landmarks text');
+  const overlapArea = (a, b) => Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) *
+    Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
+  const overlaps = (a, b) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+
+  // Size the pieces for the zoom and move every stack to a free spot beside its town.
+  function layout(k) {
+    if (k) zoomK = k;
+    const level = svg.classList.contains('near') ? 'near' : svg.classList.contains('far') ? 'far' : 'mid';
+    const px = PIECE_PX[level] / 30;              // screen pixels per piece unit
+    const scale = px / zoomK;                     // map units per piece unit
+    const ctm = svg.getScreenCTM();
+    if (!ctm) return;
+    const blocked = hardThings();
+    const soft = softThings();
+    for (const spot of unitsLayer.querySelectorAll('.unit-spot')) {
+      const [x, y] = anchor(spot.dataset.box);
+      const sx = ctm.a * x + ctm.e; const sy = ctm.d * y + ctm.f;     // the town on screen
+      const [L, T, R, B] = stackBox(Number(spot.dataset.count));
+      const w = (R - L) * px; const h = (B - T) * px;
+      // also try just past either end of the territory's own name, level with it
+      const own = svg.querySelector(`#towns [data-box="${spot.dataset.box}"]`);
+      const ownR = own && own.style.visibility !== 'hidden' ? own.getBoundingClientRect() : null;
+      const extra = ownR && ownR.width > 0
+        ? [[ownR.right - sx + 4, ownR.top - sy], [ownR.left - sx - w - 4, ownR.top - sy],
+          [ownR.right - sx + 4, ownR.bottom - sy - h], [ownR.left - sx - w - 4, ownR.bottom - sy - h]]
+        : [];
+      const spots = [...candidates(w, h).slice(0, 4), ...extra, ...candidates(w, h).slice(4)].map(([cx, cy]) => [cx, cy, { left: sx + cx, top: sy + cy, right: sx + cx + w, bottom: sy + cy + h }]);
+      // Take the first spot that covers nothing; if every spot covers something, the one
+      // that covers least (names and symbols count a hundred times more than village names).
+      // A stack must stand in its own territory: a spot whose middle is outside it is
+      // never used if there's another, and corners sticking out cost a little.
+      const shape = svg.getElementById('shape-' + spot.dataset.box);
+      const inside = (px2, py2) => { const p = svg.createSVGPoint(); p.x = (px2 - ctm.e) / ctm.a; p.y = (py2 - ctm.f) / ctm.d; return shape.isPointInFill(p); };
+      const outside = (rect) => {
+        if (!shape || !shape.isPointInFill) return 0;
+        let n = inside((rect.left + rect.right) / 2, (rect.top + rect.bottom) / 2) ? 0 : 1e6;
+        for (const [qx, qy] of [[rect.left, rect.top], [rect.right, rect.top], [rect.left, rect.bottom], [rect.right, rect.bottom]]) if (!inside(qx, qy)) n += 150;
+        return n;
+      };
+      const cost = (rect) => blocked.reduce((t, o) => t + 100 * overlapArea(rect, o), 0) +
+        soft.reduce((t, o) => t + overlapArea(rect, o.r), 0) + outside(rect);
+      let chosen = null; let best = Infinity;
+      spots.forEach((c, i) => { const v = cost(c[2]) + i * 0.5; if (v < best) { best = v; chosen = c; } });
+      for (const o of soft) if (overlaps(chosen[2], o.r)) o.el.style.visibility = 'hidden';
+      blocked.push(chosen[2]);                    // later stacks keep clear of this one
+      // the stack's own origin, in map units from the town
+      const ox = (chosen[0] - L * px) / zoomK; const oy = (chosen[1] - T * px) / zoomK;
+      spot.firstChild.setAttribute('transform', `translate(${ox.toFixed(2)},${oy.toFixed(2)}) scale(${scale.toFixed(4)})`);
+    }
   }
 
   // Outline where the selected unit can go: brass for a normal move, dashed brass
@@ -402,5 +478,5 @@ export function createMapView(container, svg, { nations, boxNameFn, noteNameFn, 
   }
 
   return { svg, update, select, declutter, frontBounds, showPlannedAttack, clearPlannedAttack,
-    drawUnits, rescale, showTargets };
+    drawUnits, layout, showTargets };
 }

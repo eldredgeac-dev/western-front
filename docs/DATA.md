@@ -79,7 +79,7 @@ instead of +1: open ground 2, forest and mountains 0).
 ## `nations.json`: sides and nations
 | Field | Meaning |
 |---|---|
-| `sides` | `id` (`"entente"`, `"germany"`), `name`, `color` (the 30% tint on territories the side owns; a docs/STYLE.md colour) and the list of its `nations` |
+| `sides` | `id` (`"entente"`, `"germany"`), `name`, `color` (the 30% tint on territories the side owns; a docs/STYLE.md colour), `faces` (`"left"` or `"right"`: which way the soldiers on its pieces face, towards the enemy) and the list of its `nations` |
 | `nations` | `id` (`"ger"`, `"fra"`…), `adjective` (`"German"`), `name`, `short` (`"GER"`), `side` and `color` (the nation's STYLE.md colour, for its counters) |
 | `nations[].startWill` | Starting National Will (RULES.md §11). `null` for Belgium (its losses count against `willCountsAgainst`). `entersLater: true` for the USA. |
 | `nations[].stepsPerWill` | 1 Will lost per this many steps lost (RULES.md §4, §11) |

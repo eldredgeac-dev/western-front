@@ -272,6 +272,24 @@ I'll change it.
 63. **Milestones ticked:** 2, 3, 4, 5, 7 and 8 (everything passed on your phone).
     Milestone 9 stays open for the event telegram pop-up and the Nations screen.
 
+64. **Pieces (part 1).** Each piece is a block in the nation's colour with a lighter
+    bevel, a darker side face and a shadow. The shades are the nation colour mixed with
+    paper or ink, so no new colours appear. It shows a flat silhouette, the nation's mark,
+    the quality badge, the small military symbol and a big Courier strength number on a
+    paper chip, with pips under it.
+65. **German pieces face left, Entente pieces face right**, so both armies face the
+    enemy. This is set by `faces` on each side in `data/nations.json`, not hard-coded.
+66. **Where pieces stand is worked out on your screen, not by the map builder** (a
+    change from the plan). Town names keep a steady size on screen while the map zooms,
+    so a spot that's clear at one zoom isn't at another. Each time you zoom, every stack
+    tries a list of spots beside its town and takes the first that covers no town name,
+    town symbol, VP ring, pencil note or other stack, and stays inside its own territory.
+    - If a village or landmark name is in the way, that name is hidden.
+    - In a few cramped territories at some zooms, nothing fits. The piece then covers as
+      little of a name as it can, rather than standing in the wrong territory.
+67. **Piece sizes on screen:** 26 px zoomed out (the simple version), 32 px at mid zoom,
+    40 px fully zoomed in.
+
 ## Questions for you (answered)
 1. **Combat table — answered: RULES.md is right.**
    - The balance tests used `tools/t2.py`, which patched the simulator's 1:2 and 1:1
@@ -341,3 +359,12 @@ I'll change it.
       name. Tell me if you'd rather they sat beside it.
 - [x] **End Phase.** Tap **END PHASE** four times: the label should go German attack →
       Entente move → Entente attack → back to German move, and the date to January 1915.
+- [ ] **Board-game pieces.** Start a New Campaign and zoom in with **+**. Each unit should
+      be a chunky square piece with a soldier silhouette (a tank shape for tanks), a big
+      strength number and the nation's mark. German pieces face left with a clear black
+      cross.
+      - Zoomed out, pieces show just the mark and the number.
+      - Pieces should sit beside the town names, not on them. Pinch in and out: do they
+        stay clear?
+      - Where two or three units share a territory you should see a small tower with a
+        brass "×2" or "×3" tab.

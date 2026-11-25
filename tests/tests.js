@@ -15,6 +15,7 @@ import { spendReplacements, threat } from '../js/engine/systems/replacements.js'
 import { willPhase, armisticeScore, suddenVictory } from '../js/engine/systems/will.js';
 import { runEvents, chooseOption, pendingChoice, eventDue } from '../js/engine/events.js';
 import { aiMove, aiAttack, frontBoxes } from '../js/engine/ai.js';
+import { SILHOUETTES, mix, isDark } from '../js/ui/counters.js';
 import { columnAverages, ratioColumn, planAttack, oddsPreview, resolveAttack, applyCombatResult,
   barrageMax, eligibleAttackers } from '../js/engine/combat.js';
 
@@ -1200,6 +1201,22 @@ test('headlines: every RULES.md §17 type, in priority order, 2–3 versions eac
       }
     }
   }
+});
+
+// ---------------------------------------------------------------- pieces (STYLE.md §5)
+test('rule: every unit type has a silhouette for its piece', () => {
+  const types = data.unitTypes.types;
+  for (const t of types) check(SILHOUETTES[t.symbol], `no silhouette for "${t.symbol}"`);
+});
+
+test('rule: each side says which way its soldiers face', () => {
+  for (const side of data.nations.sides) check(['left', 'right'].includes(side.faces), `${side.id} has no "faces"`);
+});
+
+test('rule: piece shades are palette colours mixed with paper or ink', () => {
+  check(mix('#6B6E63', '#2B241C', 0) === '#6B6E63', 'mixing 0 keeps the colour');
+  check(mix('#6B6E63', '#2B241C', 1) === '#2B241C', 'mixing 1 gives the other colour');
+  check(isDark('#6B6E63') && !isDark('#6F8FAF'), 'field grey is dark, horizon blue is light');
 });
 
 export async function runAll(loadJson, loadText) {

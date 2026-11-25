@@ -213,7 +213,9 @@ function boxInfo(boxId) {
 // How a unit looks on a counter: its nation's colour, its symbol and its max steps.
 function lookFor(unit) {
   const type = unitType(data.engine, unit);
-  return { color: nationOf(data.engine, unit.nation).color, symbol: type.symbol, maxSteps: type.maxSteps };
+  const nation = nationOf(data.engine, unit.nation);
+  const side = data.nations.sides.find((s) => s.nations.includes(unit.nation));
+  return { color: nation.color, symbol: type.symbol, maxSteps: type.maxSteps, mirror: side && side.faces === 'left' };
 }
 
 // Everything the panel shows about one unit.
@@ -471,7 +473,7 @@ function showMap() {
     });
     zoom = enableZoom(mapView.svg, {
       onTap: tapBox,
-      onViewChange: (k) => { mapView.rescale(k); mapView.declutter(); },
+      onViewChange: (k) => { mapView.declutter(); mapView.layout(k); },
       home: mapView.frontBounds,
     });
     $('btn-zoom-in').addEventListener('click', () => zoom.zoomIn());
