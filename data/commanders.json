@@ -1,5 +1,5 @@
 {
-  "_about": "Commander cards (RULES.md §15) [balanced]. Each card has its dates, a nickname only if the commander really had one (otherwise null), a Strength and a Flaw (with 'effects' written as data the game code will read in Milestone 11), and a short history note from docs/HISTORY.md. Months are 'YYYY-MM'; 'months' lists months of the year (3 = March). Don't change the effects without changing RULES.md. See docs/DATA.md.",
+  "_about": "Commander cards (RULES.md §15) [balanced]. Each card has its dates, a nickname only if the commander really had one (otherwise null), a Strength and a Flaw (with 'effects' written as data the game code will read in Milestone 12), and a short history note from docs/HISTORY.md. Months are 'YYYY-MM'; 'months' lists months of the year (3 = March). Don't change the effects without changing RULES.md. See docs/DATA.md.",
   "rules": {
     "keepOldCommanderWill": -3,
     "askAgainEveryTurns": 3,

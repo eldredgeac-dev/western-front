@@ -2,7 +2,7 @@
 // Node (run.mjs). Each test is a name plus a function that throws if it fails.
 import { hasSave, SAVE_KEY, saveGame, loadGame, readSave, saveText } from '../js/storage.js';
 import { checkMap, indexBoxes, boxName, trenchMax } from '../js/engine/boxes.js';
-import { newGame, currentMonth, monthLabel, migrateState, checkState } from '../js/engine/state.js';
+import { newGame, currentMonth, monthLabel, migrateState, checkState, STATE_VERSION } from '../js/engine/state.js';
 import { battleCounts, bigBattles, scarLevel, shortMonth } from '../js/engine/battles.js';
 import { unitsIn, stepsIn, stackRoom, unitType } from '../js/engine/units.js';
 import { moveTargets, railTargets, moveUnit, railMove } from '../js/engine/moves.js';
@@ -15,6 +15,9 @@ import { spendReplacements, threat } from '../js/engine/systems/replacements.js'
 import { willPhase, armisticeScore, suddenVictory } from '../js/engine/systems/will.js';
 import { runEvents, chooseOption, pendingChoice, eventDue } from '../js/engine/events.js';
 import { aiMove, aiAttack, frontBoxes } from '../js/engine/ai.js';
+import { SILHOUETTES, mix, isDark } from '../js/ui/counters.js';
+import { queueCheck, addOrder, cancelOrder, commitOrders } from '../js/engine/orders.js';
+import { recordMonth, casualties, ledger } from '../js/engine/history.js';
 import { columnAverages, ratioColumn, planAttack, oddsPreview, resolveAttack, applyCombatResult,
   barrageMax, eligibleAttackers } from '../js/engine/combat.js';
 
@@ -225,7 +228,7 @@ test('scenario 1914: E1 and G1 start at trench 1, the rest at 0 (RULES.md §9.5)
 
 test('newGame: copies owners and trenches, starts in December 1914', () => {
   const state = newGame(data.scenario, 12345);
-  check(state.seed === 12345 && state.turn === 1 && state.version === 2);
+  check(state.seed === 12345 && state.turn === 1 && state.version === STATE_VERSION);
   check(state.boxes['l07-e3'].owner === 'entente' && state.boxes['l07-g1'].trench === 1);
   check(currentMonth(state) === '1914-12');
   check(monthLabel(currentMonth(state)) === 'December 1914');
@@ -966,7 +969,7 @@ test('saves: auto-save and load give back exactly the same game', () => {
   check(saveGame(store, s) && hasSave(store), 'saved');
   const back = loadGame(store, data.scenario, bundle());
   check(back.ok && JSON.stringify(back.state) === JSON.stringify(s), 'identical after loading: ' + back.error);
-  check(JSON.parse(store.raw[SAVE_KEY]).version === 2, 'stamped with the version');
+  check(JSON.parse(store.raw[SAVE_KEY]).version === STATE_VERSION, 'stamped with the version');
 });
 
 test('saves: export and import round-trip; the game carries on identically', () => {
@@ -997,7 +1000,7 @@ test('saves: an old version 1 save (owners and trenches only) is upgraded', () =
   const v1 = { version: 1, scenario: '1914-west', seed: 3, turn: 5, startMonth: '1914-12', boxes: copyOf(started().boxes) };
   v1.boxes['l06-g1'].owner = 'entente'; v1.boxes['l06-g1'].trench = 0;
   const up = migrateState(v1, data.scenario, bundle());
-  check(up.version === 2 && up.turn === 5 && up.boxes['l06-g1'].owner === 'entente', 'kept month and owners');
+  check(up.version === STATE_VERSION && up.turn === 5 && up.boxes['l06-g1'].owner === 'entente', 'kept month and owners');
   check(up.units.length === 37 && !up.units.some((u) => u.box === 'l06-g1') && up.will.ger === 105 &&
     checkState(up, bundle()).length === 0, 'filled in the rest (and no German unit left in the lost box)');
 });
@@ -1200,6 +1203,175 @@ test('headlines: every RULES.md §17 type, in priority order, 2–3 versions eac
       }
     }
   }
+});
+
+// ---------------------------------------------------------------- orders, then commit
+// Throws? Returns the error message, or '' if it didn't throw.
+const errorOf = (fn) => { try { fn(); return ''; } catch (err) { return err.message; } };
+
+test('orders: a queued move waits for COMMIT ORDERS', () => {
+  const s = started();
+  const u = s.units.find((x) => x.box === 'l06-g2');
+  const q = addOrder(s, bundle(), { kind: 'move', unit: u.id, to: 'l06-g3' });
+  check(unit(q, u.id).box === 'l06-g2', 'the unit has not moved yet');
+  check(queueCheck(q, bundle()).state.units.find((x) => x.id === u.id).box === 'l06-g3', 'the preview shows it moved');
+  const { state, actions } = commitOrders(q, bundle());
+  check(unit(state, u.id).box === 'l06-g3' && state.orders.length === 0, 'moved after the commit');
+  check(actions.length === 1 && actions[0].kind === 'move' && actions[0].from === 'l06-g2', 'one move action');
+});
+
+test('orders: a new move for the same unit replaces its old one', () => {
+  const s = started();
+  const u = s.units.find((x) => x.box === 'l06-g2');
+  let q = addOrder(s, bundle(), { kind: 'move', unit: u.id, to: 'l06-g3' });
+  q = addOrder(q, bundle(), { kind: 'move', unit: u.id, to: 'l06-g1' });
+  check(q.orders.length === 1 && q.orders[0].to === 'l06-g1', JSON.stringify(q.orders));
+});
+
+test('orders: stacking counts the moves already queued (RULES.md §5)', () => {
+  const s = copyOf(started());
+  const target = 'l06-g3';
+  const around = indexBoxes(data.map)[target].neighbours.filter((n) => s.boxes[n].owner === 'germany');
+  const movers = s.units.filter((x) => x.nation === 'ger' && !around.includes(x.box) && x.box !== target).slice(0, 4);
+  movers.forEach((m, i) => place(s, m.id, around[i % around.length]));
+  for (const id of Object.keys(s.boxes)) if (id === target) check(unitsIn(s, id).length === 0, 'target starts empty');
+  let q = s;
+  for (const m of movers.slice(0, 3)) q = addOrder(q, bundle(), { kind: 'move', unit: m.id, to: target });
+  const why = errorOf(() => addOrder(q, bundle(), { kind: 'move', unit: movers[3].id, to: target }));
+  check(why !== '', 'a 4th unit is refused');
+});
+
+test('orders: a unit can only be in one queued attack, and OP is set aside', () => {
+  const s = atWar('1915-05');
+  const targets = ['l06-e1', 'l11-e1'];
+  const units = targets.map((t) => eligibleAttackers(s, bundle(), t));
+  check(units[0].length && units[1].length, 'both targets can be attacked');
+  let q = addOrder(s, bundle(), { kind: 'attack', target: targets[0], units: units[0], munitions: 0 });
+  check(errorOf(() => addOrder(q, bundle(), { kind: 'attack', target: targets[0], units: units[0], munitions: 0 })) !== '', 'same units twice');
+  const poor = copyOf(s); poor.resources.ger.op = 1;
+  q = addOrder(poor, bundle(), { kind: 'attack', target: targets[0], units: units[0], munitions: 0 });
+  const why = errorOf(() => addOrder(q, bundle(), { kind: 'attack', target: targets[1], units: units[1], munitions: 0 }));
+  check(/Offensive Points/.test(why), 'the 2nd attack has no OP left: ' + why);
+  // cancelling the first makes room for the second
+  q = cancelOrder(q, 0);
+  q = addOrder(q, bundle(), { kind: 'attack', target: targets[1], units: units[1], munitions: 0 });
+  check(q.orders.length === 1 && q.orders[0].target === targets[1], 'after cancelling, the 2nd fits');
+});
+
+test('orders: committing gives the same result as attacking one by one (same seed)', () => {
+  const s = atWar('1915-05');
+  const a = { kind: 'attack', target: 'l06-e1', units: eligibleAttackers(s, bundle(), 'l06-e1'), munitions: 1 };
+  const b = { kind: 'attack', target: 'l11-e1', units: eligibleAttackers(s, bundle(), 'l11-e1'), munitions: 0 };
+  const q = addOrder(addOrder(s, bundle(), a), bundle(), b);
+  const committed = commitOrders(q, bundle());
+  let byHand = resolveAttack(q, bundle(), a).state;
+  byHand = resolveAttack(byHand, bundle(), b).state;
+  byHand.orders = [];
+  check(JSON.stringify(committed.state) === JSON.stringify(byHand), 'identical');
+  check(committed.actions.length === 2 && committed.actions.every((x) => x.kind === 'attack' && x.result), 'two attack actions');
+});
+
+test('orders: an order that is no longer possible is skipped at commit', () => {
+  const s = atWar('1915-05');
+  const order = { kind: 'attack', target: 'l06-e1', units: eligibleAttackers(s, bundle(), 'l06-e1'), munitions: 0 };
+  const q = copyOf(addOrder(s, bundle(), order));
+  q.units = q.units.filter((x) => !order.units.includes(x.id));          // the attackers are gone
+  const { state, actions } = commitOrders(q, bundle());
+  check(actions.length === 1 && actions[0].kind === 'skipped', JSON.stringify(actions));
+  check(state.log.some((l) => /cancelled/.test(l.text || l)), 'a dispatch says so');
+});
+
+test('orders: recording the computer\'s turn changes nothing (balance is untouched)', () => {
+  const plain = newGame(data.scenario, 11, bundle(), { player: 'entente' });
+  let a = beginGame(plain, bundle());
+  const seen = [];
+  let b = beginGame(plain, bundle(), { record: (action) => seen.push(action) });
+  for (let i = 0; i < 16; i++) {
+    if (a.pendingChoice) { a = chooseOption(a, bundle(), pendingChoice(a, bundle()).aiChoice); b = chooseOption(b, bundle(), pendingChoice(b, bundle()).aiChoice); continue; }
+    a = endPhase(a, bundle());
+    b = endPhase(b, bundle(), { record: (action) => seen.push(action) });
+  }
+  check(JSON.stringify(a) === JSON.stringify(b), 'same game with and without the recorder');
+  check(seen.some((x) => x.kind === 'move' || x.kind === 'rail'), 'moves were recorded');
+  check(seen.some((x) => x.kind === 'attack' && x.result && x.from), 'attacks were recorded');
+});
+
+test('saves: a version 2 save gets an empty order queue', () => {
+  const v2 = copyOf(started()); v2.version = 2; delete v2.orders;
+  const up = migrateState(v2, data.scenario, bundle());
+  check(up.version === STATE_VERSION && Array.isArray(up.orders) && up.orders.length === 0, JSON.stringify(up.orders));
+});
+
+// ---------------------------------------------------------------- the War Office
+const withCommanders = () => ({ ...bundle(), commanders: data.commanders });
+
+test('war office: each month adds a history row and its losses to the totals', () => {
+  const s = copyOf(started());
+  s.lostThisTurn.fra = 3; s.lostThisTurn.ger = 2;
+  recordMonth(s, bundle());
+  check(s.history.length === 1 && s.history[0].month === '1914-12', 'one row for December 1914');
+  check(s.history[0].steps.ger > 0 && s.history[0].will.fra === s.will.fra, 'strength and Will recorded');
+  check(s.lossesTotal.fra === 3 && s.lossesTotal.ger === 2, JSON.stringify(s.lossesTotal));
+});
+
+test('war office: playing on records every month that ends', () => {
+  const s = playTo(monthStart('1915-01'), '1915-04');
+  check(s.history.map((h) => h.month).join(',') === '1915-01,1915-02,1915-03', s.history.map((h) => h.month).join(','));
+});
+
+test('rule: the Butcher\'s Bill is 85,000 casualties a step, 1 in 5 killed, to the nearest 1,000 (RULES.md §16)', () => {
+  check(casualties(bundle(), 4).casualties === 340000 && casualties(bundle(), 4).killed === 68000, JSON.stringify(casualties(bundle(), 4)));
+  check(casualties(bundle(), 1).killed === 17000, 'one step: 17,000 killed');
+});
+
+test('war office: the ledger figures come from the state', () => {
+  const s = copyOf(atWar('1916-03'));
+  s.lostThisTurn.fra = 2; s.lossesTotal = { fra: 10 };
+  s.resources.fra.op = 1;
+  const l = ledger(s, withCommanders());
+  const fra = l.nations.find((n) => n.id === 'fra');
+  check(fra.will === s.will.fra && fra.steps === s.units.filter((u) => u.nation === 'fra').reduce((a, u) => a + u.steps, 0), 'Will and strength');
+  check(fra.bill.month.casualties === 170000 && fra.bill.total.casualties === 1020000, JSON.stringify(fra.bill));
+  check(fra.resources.find((r) => r.key === 'op').left === 1 && fra.resources.find((r) => r.key === 'op').of >= 1, 'OP left of');
+  check(fra.commander && fra.commander.name === 'Joffre', 'Joffre commands France in March 1916');
+  const entente = l.sides.find((x) => x.id === 'entente');
+  check(entente.cities.some((c) => c.vp === 15), 'the Entente holds Paris');
+  check(l.series.length === 1 && l.series[0].germany > 0, 'one chart point (this month)');
+});
+
+test('war office: countdowns for a known month', () => {
+  const s = copyOf(atWar('1916-03'));
+  const l = ledger(s, withCommanders());
+  const ends = l.countdowns.find((c) => c.key === 'war-ends');
+  check(ends.months === s.turns - s.turn, 'months left in the war');
+  check(l.countdowns.find((c) => c.key === 'us-troops').months === null, 'US troops: after the US declares war');
+  s.usaEntry = '1917-04';
+  const later = copyOf(atWar('1917-05')); later.usaEntry = '1917-04';
+  const us = ledger(later, withCommanders()).countdowns.find((c) => c.key === 'us-troops');
+  const first = Math.min(...data.events.reinforcements.afterEntry.map((d) => d.after));
+  check(us.months === first - 1, `US troops in ${us.months} months, expected ${first - 1}`);
+});
+
+test('saves: a version 3 save gets empty War Office records', () => {
+  const v3 = copyOf(started()); v3.version = 3; delete v3.history; delete v3.lossesTotal;
+  const up = migrateState(v3, data.scenario, bundle());
+  check(up.version === STATE_VERSION && Array.isArray(up.history) && up.lossesTotal && typeof up.lossesTotal === 'object', 'records added');
+});
+
+// ---------------------------------------------------------------- pieces (STYLE.md §5)
+test('rule: every unit type has a silhouette for its piece', () => {
+  const types = data.unitTypes.types;
+  for (const t of types) check(SILHOUETTES[t.symbol], `no silhouette for "${t.symbol}"`);
+});
+
+test('rule: each side says which way its soldiers face', () => {
+  for (const side of data.nations.sides) check(['left', 'right'].includes(side.faces), `${side.id} has no "faces"`);
+});
+
+test('rule: piece shades are palette colours mixed with paper or ink', () => {
+  check(mix('#6B6E63', '#2B241C', 0) === '#6B6E63', 'mixing 0 keeps the colour');
+  check(mix('#6B6E63', '#2B241C', 1) === '#2B241C', 'mixing 1 gives the other colour');
+  check(isDark('#6B6E63') && !isDark('#6F8FAF'), 'field grey is dark, horizon blue is light');
 });
 
 export async function runAll(loadJson, loadText) {

@@ -12,6 +12,7 @@ import { supplyPhase } from './systems/supply.js';
 import { replacementsPhase } from './systems/replacements.js';
 import { willPhase } from './systems/will.js';
 import { runEvents } from './events.js';
+import { recordMonth } from './history.js';
 
 // Clear what units did last turn and hand out this month's resources.
 function startOfTurn(state, data) {
@@ -49,11 +50,13 @@ const phasesOf = (data) => data.phases.phases;
 
 // Run automatic phases until we reach one that needs orders (or the game ends).
 // Passing the last phase ends the month and starts the next one.
-function settle(state, data) {
+//   record — optional: passed to the computer's moves and attacks (see ai.js)
+function settle(state, data, record = null) {
   const phases = phasesOf(data);
   let guard = 0;
   while (!state.over && guard++ < 1000) {
     if (state.phase >= phases.length) {
+      recordMonth(state, data);            // the War Office's records (history.js)
       if (state.turn >= state.turns) {
         if (!state.over) { state.over = true; addLog(state, 'The armistice: the war is over.'); }
         return state;
@@ -67,8 +70,8 @@ function settle(state, data) {
     if (!phase.auto) {
       // The computer plays its own side's phases; a person's phase waits for orders.
       if (!data.ai || (state.controllers || {})[phase.side] !== 'ai') return state;
-      if (phase.kind === 'move') aiMove(state, data, phase.side);
-      if (phase.kind === 'attack') aiAttack(state, data, phase.side);
+      if (phase.kind === 'move') aiMove(state, data, phase.side, record);
+      if (phase.kind === 'attack') aiAttack(state, data, phase.side, record);
       if (state.over) return state;
       state.phase += 1;
       continue;
@@ -83,19 +86,22 @@ function settle(state, data) {
 
 // Start a fresh game: run the opening automatic phases so it waits at the first
 // phase that needs orders (the German move).
-export function beginGame(state, data) {
+export function beginGame(state, data, options = {}) {
   const next = copyState(state);
   addLog(next, `${monthLabel(currentMonth(next))} begins.`);
-  return settle(next, data);
+  return settle(next, data, options.record || null);
 }
 
 // The player presses End Phase: move on to the next phase that needs orders,
 // running any automatic phases (and the end of the month) on the way.
-export function endPhase(state, data) {
+//   options.record(action, state) — optional, see ai.js (the screen uses it to play
+//   the computer's turn back). Queued orders that weren't committed are dropped.
+export function endPhase(state, data, options = {}) {
   if (state.over || state.pendingChoice) return state;
   const next = copyState(state);
   next.phase += 1;
-  return settle(next, data);
+  next.orders = [];
+  return settle(next, data, options.record || null);
 }
 
 // The current phase record from data/phases.json.

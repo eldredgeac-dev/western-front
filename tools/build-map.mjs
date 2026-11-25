@@ -37,7 +37,7 @@ const extra = readJson(join(here, 'map-extra.json'));
 const countries = readJson(join(here, 'node_modules/world-atlas/countries-10m.json'));
 
 // ---------------------------------------------------------------- settings
-const WIDTH = 1000;                 // SVG width in map units; height follows the shape
+const INNER_WIDTH = 1000;           // width of the detailed area round the front, in map units
 const MIN_SHARED = 3;               // a real border must be at least this long (map units)
 const COUNTRY = { fra: '250', bel: '056', lux: '442', deu: '276', nld: '528', che: '756', gbr: '826' };
 const PLAYABLE = [COUNTRY.fra, COUNTRY.bel, COUNTRY.lux, COUNTRY.deu];
@@ -59,25 +59,49 @@ async function naturalEarth(name) {
 }
 
 // ---------------------------------------------------------------- projection
-const [south, west, north, east] = extra.frame.bounds;
-// The four corners plus edge middles (curved edges bulge on a conic projection).
-const frameGeo = {
+// The detailed area round the front (frame.bounds) is INNER_WIDTH map units wide. The
+// map itself shows a wider area (frame.scenery) at the same scale, so there's scenery
+// to pan around beyond the playing area.
+const [iSouth, iWest, iNorth, iEast] = extra.frame.bounds;
+const [south, west, north, east] = extra.frame.scenery || extra.frame.bounds;
+const cornersOf = (s0, w0, n0, e0) => ({
   type: 'MultiPoint',
-  coordinates: [[west, south], [east, south], [east, north], [west, north],
-    [(west + east) / 2, south], [(west + east) / 2, north]],
-};
+  coordinates: [[w0, s0], [e0, s0], [e0, n0], [w0, n0], [(w0 + e0) / 2, s0], [(w0 + e0) / 2, n0]],
+});
 const projection = geoConicConformal()
   .parallels([48, 50.5]).rotate([-4.9, 0]).center([0, 49.4])
-  .fitWidth(WIDTH, frameGeo);
+  .fitWidth(INNER_WIDTH, cornersOf(iSouth, iWest, iNorth, iEast));
+// The outline of a lat/long box, projected (its edges bulge on a conic projection).
+function ringOf(s0, w0, n0, e0) {
+  const r = [];
+  for (let i = 0; i <= 40; i++) r.push(projection([w0 + (e0 - w0) * i / 40, s0]));
+  for (let i = 0; i <= 40; i++) r.push(projection([e0, s0 + (n0 - s0) * i / 40]));
+  for (let i = 0; i <= 40; i++) r.push(projection([e0 - (e0 - w0) * i / 40, n0]));
+  for (let i = 0; i <= 40; i++) r.push(projection([w0, n0 - (n0 - s0) * i / 40]));
+  return r;
+}
+// The detailed area's height before the shift (what the map was before the scenery).
+const INNER_HEIGHT = Math.ceil(Math.max(...ringOf(iSouth, iWest, iNorth, iEast).map((p) => p[1])));
+// Shift the map so the scenery frame starts at (0, 0). The shift is a whole number of
+// map units, so the territory shapes (whose wobble noise is worked out in the
+// unshifted coordinates, see noise2d) come out the same as before the scenery.
+const SHIFT = (() => {
+  const r = ringOf(south, west, north, east);
+  return [Math.ceil(-Math.min(...r.map((p) => p[0]))), Math.ceil(-Math.min(...r.map((p) => p[1])))];
+})();
+{
+  const [tx, ty] = projection.translate();
+  projection.translate([tx + SHIFT[0], ty + SHIFT[1]]);
+}
+const frameRing = ringOf(south, west, north, east);
+const WIDTH = Math.ceil(Math.max(...frameRing.map((p) => p[0])));
+const HEIGHT = Math.ceil(Math.max(...frameRing.map((p) => p[1])));
+// The detailed area, in map units: [x0, y0, x1, y1].
+const innerRing = ringOf(iSouth, iWest, iNorth, iEast);
+const INNER = [Math.min(...innerRing.map((p) => p[0])), Math.min(...innerRing.map((p) => p[1])),
+  Math.max(...innerRing.map((p) => p[0])), Math.max(...innerRing.map((p) => p[1]))];
 // [lat, lon] (how our data files write points) → [x, y] on the map
 const P = ([lat, lon]) => projection([lon, lat]);
-// Height = the projected frame's bottom edge.
-const frameRing = [];
-for (let i = 0; i <= 40; i++) frameRing.push(P([south, west + (east - west) * i / 40]));
-for (let i = 0; i <= 40; i++) frameRing.push(P([south + (north - south) * i / 40, east]));
-for (let i = 0; i <= 40; i++) frameRing.push(P([north, east - (east - west) * i / 40]));
-for (let i = 0; i <= 40; i++) frameRing.push(P([north - (north - south) * i / 40, west]));
-const HEIGHT = Math.ceil(Math.max(...frameRing.map((p) => p[1])));
 // The visible map is simply the SVG rectangle.
 const VIEW = [[[0, 0], [WIDTH, 0], [WIDTH, HEIGHT], [0, HEIGHT], [0, 0]]];
 
@@ -271,6 +295,8 @@ function depthAt(j, s) {
 
 const RES = 0.5;                                  // pixel size in map units
 const GW = Math.ceil(WIDTH / RES); const GH = Math.ceil(HEIGHT / RES);
+// The detailed area in grid pixels: [x0, y0, x1, y1].
+const SEED_BOX = [SHIFT[0] / RES, SHIFT[1] / RES, (SHIFT[0] + INNER_WIDTH) / RES, (SHIFT[1] + INNER_HEIGHT) / RES];
 const WARP_MAX = 6;                               // largest warp, map units (kept gentle
                                                   // enough that it can never fold space over)
 
@@ -304,7 +330,8 @@ function distanceField(curve) {
     for (let t = 0; t < 1; t += 0.125) {
       const p = add(curve[i], mul(sub(curve[i + 1], curve[i]), t));
       const x = Math.floor(p[0] / RES); const y = Math.floor(p[1] / RES);
-      if (x >= 0 && y >= 0 && x < GW && y < GH) seedS[y * GW + x] = i + t;
+      // only the part of the curve inside the detailed area counts (as before the scenery)
+      if (x >= SEED_BOX[0] && y >= SEED_BOX[1] && x < SEED_BOX[2] && y < SEED_BOX[3]) seedS[y * GW + x] = i + t;
     }
   }
   // Pass 1, down each column: squared distance to the nearest seed in that column.
@@ -358,11 +385,12 @@ function sideOf(p, s) {
 // Smooth random 2-D noise for the warp (seeded, so every build is the same).
 function noise2d(key, wavelength) {
   const rnd = rngFrom(key);
-  const nx = Math.ceil(WIDTH / wavelength) + 2; const ny = Math.ceil(HEIGHT / wavelength) + 2;
+  // the noise grid covers the detailed area, in its unshifted coordinates
+  const nx = Math.ceil(INNER_WIDTH / wavelength) + 2; const ny = Math.ceil(INNER_HEIGHT / wavelength) + 2;
   const g = Array.from({ length: nx * ny }, () => rnd() * 2 - 1);
   const ease = (t) => t * t * (3 - 2 * t);
   return (x, y) => {
-    const fx = x / wavelength; const fy = y / wavelength;
+    const fx = (x - SHIFT[0]) / wavelength; const fy = (y - SHIFT[1]) / wavelength;
     const ix = Math.max(0, Math.min(nx - 2, Math.floor(fx))); const iy = Math.max(0, Math.min(ny - 2, Math.floor(fy)));
     const tx = ease(fx - ix); const ty = ease(fy - iy);
     const a = g[iy * nx + ix] * (1 - tx) + g[iy * nx + ix + 1] * tx;
@@ -415,11 +443,21 @@ for (let y = 0; y < GH; y++) {
     const amp = Math.min(WARP_MAX, nearD[i] * 0.15);
     const qx = px + amp * (warpX[0](px, py) + 0.25 * warpX[1](px, py));
     const qy = py + amp * (warpY[0](px, py) + 0.25 * warpY[1](px, py));
-    const gx = Math.max(0, Math.min(GW - 1, Math.floor(qx / RES)));
-    const gy = Math.max(0, Math.min(GH - 1, Math.floor(qy / RES)));
+    const gx = Math.max(SEED_BOX[0], Math.min(SEED_BOX[2] - 1, Math.floor(qx / RES)));
+    const gy = Math.max(SEED_BOX[1], Math.min(SEED_BOX[3] - 1, Math.floor(qy / RES)));
     const j = gy * GW + gx;
-    label[i] = classify(nearS[j], nearD[j], sideOf([qx, qy], exact.nearS[j]), px, py);
+    // Territories stay inside the detailed area (frame.bounds), exactly as they were
+    // before the scenery was added; the edge of that area fades out softly (see
+    // innerFade). The land beyond is scenery, not territory.
+    const outsideInner = x < SEED_BOX[0] || y < SEED_BOX[1] || x >= SEED_BOX[2] || y >= SEED_BOX[3];
+    label[i] = outsideInner ? -1 : classify(nearS[j], nearD[j], sideOf([qx, qy], exact.nearS[j]), px, py);
   }
+}
+if (process.env.DUMP) {
+  const ow = INNER_WIDTH / RES; const oh = Math.floor(INNER_HEIGHT / RES);
+  const crop = new Int16Array(ow * oh); const cs = new Float32Array(ow * oh); const cd = new Float32Array(ow * oh);
+  for (let y = 0; y < oh; y++) for (let x = 0; x < ow; x++) { const j = (y + SEED_BOX[1]) * GW + x + SEED_BOX[0]; crop[y * ow + x] = label[j]; cs[y*ow+x] = nearS[j]; cd[y*ow+x]=nearD[j]; }
+  writeFileSync(process.env.DUMP, Buffer.concat([Buffer.from(crop.buffer), Buffer.from(cs.buffer), Buffer.from(cd.buffer)]));
 }
 const boxOfLabel = (l) => boxAt(Math.floor(l / NC), l % NC);
 const labelAt = (x, y) => (x < 0 || y < 0 || x >= GW || y >= GH ? -1 : label[y * GW + x]);
@@ -1046,12 +1084,14 @@ const capitalVp = Math.max(...map.boxes.map((b) => b.vp));
 // Contour lines from real elevation data (tools/elevation.mjs): every 50 m up to
 // 500 m, then every 100 m; every 200 m is an "index" contour, drawn a little bolder.
 async function contourSvg() {
-  const height = await loadElevation(join(here, 'cache/terrain'), [south - 0.1, west - 0.1, north + 0.1, east + 0.1]);
-  const gw = WIDTH + 1; const gh = HEIGHT + 1;          // one sample per map unit
+  // Only in the detailed area round the front: the scenery beyond has none.
+  const height = await loadElevation(join(here, 'cache/terrain'), [iSouth - 0.1, iWest - 0.1, iNorth + 0.1, iEast + 0.1]);
+  const ox = Math.floor(INNER[0]); const oy = Math.floor(INNER[1]);
+  const gw = Math.ceil(INNER[2]) - ox + 1; const gh = Math.ceil(INNER[3]) - oy + 1;   // one sample per map unit
   let g = new Float32Array(gw * gh);
   for (let y = 0; y < gh; y++) {
     for (let x = 0; x < gw; x++) {
-      const [lon, lat] = projection.invert([x, y]);
+      const [lon, lat] = projection.invert([x + ox, y + oy]);
       g[y * gw + x] = height(lon, lat);
     }
   }
@@ -1135,15 +1175,15 @@ async function contourSvg() {
         before = cur; cur = next;
       }
       if (line.length < 4 || polylineLength(line) < 18) continue;
-      const smooth = simplify(chaikin(line, 2), 0.55);
+      const smooth = simplify(chaikin(line, 2), 0.55).map(([x, y]) => [x + ox, y + oy]);
       out.push({ level: L, pts: smooth });
     }
   }
   const index = out.filter((c) => c.level % 200 === 0);
   const plain = out.filter((c) => c.level % 200 !== 0);
-  return `<g id="contours" class="lod-near">` +
+  return `<g ${FADE_MASK}><g id="contours" class="lod-near">` +
     `<path class="contour" d="${plain.map((c) => lineD(c.pts)).join('')}"/>` +
-    `<path class="contour index" d="${index.map((c) => lineD(c.pts)).join('')}"/></g>`;
+    `<path class="contour index" d="${index.map((c) => lineD(c.pts)).join('')}"/></g></g>`;
 }
 
 // Railways: classic black-and-white tick line.
@@ -1228,6 +1268,26 @@ function ageMarks() {
   return o.join('');
 }
 
+// The detailed area (territories, terrain, contours, roads and railways) fades out
+// softly at its edge, so it blends into the scenery instead of stopping in a straight
+// line. A mask: white inside, fading to black over FADE map units at the edge.
+function innerFade() {
+  const FADE = 36;
+  const [x0, y0] = SHIFT; const x1 = x0 + INNER_WIDTH; const y1 = y0 + INNER_HEIGHT;
+  const g = (id, x1g, y1g, x2g, y2g) => `<linearGradient id="${id}" x1="${x1g}" y1="${y1g}" x2="${x2g}" y2="${y2g}"><stop offset="0" stop-color="#000"/><stop offset="1" stop-color="#fff"/></linearGradient>`;
+  const corner = `<radialGradient id="fade-c"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#000"/></radialGradient>`;
+  const r = (x, y, w, h, fill) => `<rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(h)}" fill="${fill}"/>`;
+  const c = (cx, cy) => `<circle cx="${f(cx)}" cy="${f(cy)}" r="${FADE}" fill="url(#fade-c)"/>`;
+  return `${g('fade-l', 0, 0, 1, 0)}${g('fade-r', 1, 0, 0, 0)}${g('fade-t', 0, 0, 0, 1)}${g('fade-b', 0, 1, 0, 0)}${corner}` +
+    `<mask id="inner-fade" maskUnits="userSpaceOnUse" x="0" y="0" width="${WIDTH}" height="${HEIGHT}">` +
+    r(x0 + FADE, y0 + FADE, x1 - x0 - 2 * FADE, y1 - y0 - 2 * FADE, '#fff') +
+    r(x0, y0 + FADE, FADE, y1 - y0 - 2 * FADE, 'url(#fade-l)') + r(x1 - FADE, y0 + FADE, FADE, y1 - y0 - 2 * FADE, 'url(#fade-r)') +
+    r(x0 + FADE, y0, x1 - x0 - 2 * FADE, FADE, 'url(#fade-t)') + r(x0 + FADE, y1 - FADE, x1 - x0 - 2 * FADE, FADE, 'url(#fade-b)') +
+    `<g clip-path="url(#fade-corners)">${c(x0 + FADE, y0 + FADE)}${c(x1 - FADE, y0 + FADE)}${c(x0 + FADE, y1 - FADE)}${c(x1 - FADE, y1 - FADE)}</g></mask>` +
+    `<clipPath id="fade-corners">${r(x0, y0, FADE, FADE)}${r(x1 - FADE, y0, FADE, FADE)}${r(x0, y1 - FADE, FADE, FADE)}${r(x1 - FADE, y1 - FADE, FADE, FADE)}</clipPath>`;
+}
+const FADE_MASK = 'mask="url(#inner-fade)"';
+
 // ---------------------------------------------------------------- write the SVG
 const rivers = await riverLines();
 const contours = await contourSvg();
@@ -1298,6 +1358,7 @@ out.push(`<defs>
 ${patternDefs()}
 ${scarPatterns()}
 <clipPath id="map-frame"><rect x="0" y="0" width="${WIDTH}" height="${HEIGHT}"/></clipPath>
+${innerFade()}
 </defs>`);
 // Everything is drawn on one sheet of paper: nothing spills past its edge.
 out.push('<g id="sheet" clip-path="url(#map-frame)">');
@@ -1322,7 +1383,7 @@ out.push('</defs>');
 
 // Terrain (static): ground tones, then textures. Mud only shows in autumn (map.js
 // adds the "autumn" class in September–November).
-out.push('<g id="terrain">');
+out.push(`<g id="terrain" ${FADE_MASK}>`);
 for (const box of map.boxes) {
   const g = groundFor(box);
   if (g) out.push(`<use class="ground" href="#shape-${box.id}" fill="${g.ground}" fill-opacity="${g.groundOpacity ?? 1}"/>`);
@@ -1338,11 +1399,11 @@ out.push('</g>');
 out.push(`<g class="season-snow"><rect width="${WIDTH}" height="${HEIGHT}" fill="${C.telegram}" fill-opacity="0.32"/><rect width="${WIDTH}" height="${HEIGHT}" fill="url(#pat-snow)"/></g>`);
 out.push(`<rect class="season-spring" width="${WIDTH}" height="${HEIGHT}" fill="${C.forest}" fill-opacity="0.07"/>`);
 // Battle scars and owner-coloured region edges go here (map.js).
-out.push('<g id="scars"></g><g id="region-edges"></g>');
+out.push(`<g id="scars" ${FADE_MASK}></g><g id="region-edges" ${FADE_MASK}></g>`);
 
 // Relief: contours (full zoom), then ridge shading and hachures.
 out.push(contours);
-out.push('<g id="relief">', reliefSvg(), '</g>');
+out.push(`<g id="relief" ${FADE_MASK}>`, reliefSvg(), '</g>');
 
 // Water and borders, hand-wobbled, each with a faint ink bleed underneath.
 const wobbled = (pts, key) => simplify(handWobble(thin(pts, 0.6), key, 0.22), 0.12);
@@ -1356,12 +1417,11 @@ out.push('<g id="rivers"><use class="bleed river" href="#line-rivers"/><use clas
 out.push('<use class="bleed border" href="#line-borders"/><use class="border-ink" href="#line-borders"/>');
 out.push(`<path class="border-1871" d="${lineD(handWobble(extra.border1871.points.map(P), '1871', 0.3))}"/>`);
 // Roads and railways (mid zoom and closer).
-out.push(roadSvg());
-out.push(railwaySvg());
+out.push(`<g ${FADE_MASK}>`, roadSvg(), railwaySvg(), '</g>');
 
 // Territories: the tap targets. map.js tints them by owner (30%, STYLE.md §4.5).
 // data-x / data-y is the anchor town, used for arrows and pencil notes.
-out.push('<g id="territories">');
+out.push(`<g id="territories" ${FADE_MASK}>`);
 for (const box of map.boxes) {
   const [ax, ay] = P([box.anchor.lat, box.anchor.lon]);
   out.push(`<use ${attrs({ id: box.id, class: 'territory', 'data-box': box.id, 'data-x': f(ax), 'data-y': f(ay), href: '#shape-' + box.id })}/>`);
@@ -1409,6 +1469,12 @@ for (const t of extra.otherTowns.list) {
   const [x, y] = P(t.at);
   out.push(`<circle class="town-dot other lod-mid" cx="${f(x)}" cy="${f(y)}" r="0.9"/>`);
   out.push(`<text class="label town other map-label lod-mid" x="${f(x)}" y="${f(y - 2.4)}">${esc(t.name)}</text>`);
+}
+for (const t of (extra.sceneryTowns?.list || [])) {
+  const [x, y] = P(t.at);
+  if (x < 4 || y < 4 || x > WIDTH - 4 || y > HEIGHT - 4) continue;
+  out.push(`<circle class="town-dot other" cx="${f(x)}" cy="${f(y)}" r="1.1"/>`);
+  out.push(`<text class="label town other scenery map-label" x="${f(x)}" y="${f(y - 2.6)}">${esc(t.name)}</text>`);
 }
 for (const box of map.boxes) {
   const [x, y] = P([box.anchor.lat, box.anchor.lon]);

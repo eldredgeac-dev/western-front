@@ -124,31 +124,45 @@ The map is the most important thing in the game. Spend effort here.
     - Labels and counters stay crisp; that's why it's SVG.
 
 ## 5. Unit counters
-Style counters like real wargame pieces, not cartoon soldiers.
+Style counters like real board-wargame pieces (think a cardboard counter or a wooden
+block), not cartoon soldiers.
 
-- **Shape:** a rounded square, about 36px at 1× zoom. Tap targets are at least 44px,
-  so pad the hit area.
-- **Fill:** the nation colour. A thin darker border, and a slight drop shadow, as if
-  the counter is resting on the map.
-- **Symbol** (military map style, in ink or paper colour):
-  - Infantry: a box with an X.
-  - Tank: a lozenge, like the British Mark IV outline.
-  - Stormtroopers: the infantry X plus a small lightning bolt.
-  - US Infantry: the infantry X with a small star.
-- **Strength:** pips along the bottom edge, filled for current steps and hollow for
-  lost ones.
-- **Quality badges:**
-  - Elite: a small brass star, top right.
-  - Green: a small pale-green dot, top right.
-- **National mark,** small, top left:
+- **Shape:** a chunky square piece, about 36px at 1× zoom, that looks about 2 mm thick:
+  - a slightly lighter strip along the top edge (the bevel), and a darker face along the
+    bottom and right edges (the side of the piece);
+  - a soft ink shadow down and to the right, as if it's standing on the map;
+  - flat palette colours only: lighter and darker shades are the nation colour mixed with
+    paper or ink. No gradients, no gloss, no glow.
+  - Tap targets are at least 44px, so pad the hit area.
+- **Fill:** the nation colour.
+- **Silhouette** (flat, in paper or ink to contrast with the fill), filling the middle:
+  - Infantry: a soldier in profile with a rifle at the slope.
+  - Tank: the British Mark IV rhomboid, side on.
+  - Stormtroopers: a soldier in the 1916 steel helmet with a stick grenade.
+  - US Infantry: a soldier in the campaign hat with a rifle.
+  - The small military symbol (a box with an X; a lozenge for tanks) stays in the bottom
+    left corner, as on real wargame counters.
+- **Strength:** a big Courier number on a small paper chip, bottom right. Under it, a row
+  of tiny pips: filled for current steps, hollow for lost ones.
+- **Quality badges,** top right:
+  - Elite: a small brass star.
+  - Green: a pale chevron.
+- **National mark,** top left, big enough to read at every zoom (with a thin paper
+  outline where it's dark on a dark piece):
   - France: tricolour cockade.
   - Britain: roundel.
-  - Germany: black cross pattée (Iron Cross shape).
+  - Germany: black cross pattée (Iron Cross shape) with a paper outline.
   - USA: white star in a blue circle.
   - Belgium: black, yellow and red cockade.
-- **Stacks:** up to 3 counters, offset 4px up-right like a real stack. Tapping the
-  stack fans them out.
-- **Moved or attacked this turn:** the counter is slightly dimmed (about 70%).
+- **Zoomed out:** the same piece, smaller and simplified: colour, national mark and
+  strength number only.
+- **Stacks:** up to 3 pieces drawn as a small tower (each piece a little higher than the
+  one under it), with the number of pieces on a brass tab ("×3"). Tapping the territory
+  lists them in the panel.
+- **Where they stand:** beside the town name, never on top of it or of the town dot,
+  the city label or the VP ring. Each territory has a "unit spot" worked out by the map
+  builder.
+- **Moved or attacked this turn:** the piece is slightly dimmed (about 70%).
 
 ## 6. Interface: the desk
 - **Panels:**
@@ -163,6 +177,13 @@ Style counters like real wargame pieces, not cartoon soldiers.
   - Telegram paper with Courier text, a list of every column shift as typed lines,
     and the final odds stamped in front-red.
   - "CONFIRM ORDER" stamps the slip when tapped.
+- **Orders, then commit** (like Axis & Allies):
+  - Orders you give in your phase are queued, not carried out. Each is a grease-pencil
+    arrow on the map: dashed for a move, front-red for an attack with the odds written
+    on it ("2:1 · 58%"). Tap an arrow to see or cancel its order.
+  - The brass **COMMIT ORDERS** button plays the queued orders out in order, with the
+    §8 animations. The enemy's turn plays the same way: its arrows first, then the
+    action, with a **SKIP** button.
 - **Events:** arrive as **telegrams**: a strip of telegram paper with
   "TELEGRAM — URGENT" at the top and typed text, sliding up from the bottom.
 - **Commander cards:**

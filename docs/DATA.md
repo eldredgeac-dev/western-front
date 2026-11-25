@@ -79,7 +79,7 @@ instead of +1: open ground 2, forest and mountains 0).
 ## `nations.json`: sides and nations
 | Field | Meaning |
 |---|---|
-| `sides` | `id` (`"entente"`, `"germany"`), `name`, `color` (the 30% tint on territories the side owns; a docs/STYLE.md colour) and the list of its `nations` |
+| `sides` | `id` (`"entente"`, `"germany"`), `name`, `color` (the 30% tint on territories the side owns; a docs/STYLE.md colour), `faces` (`"left"` or `"right"`: which way the soldiers on its pieces face, towards the enemy) and the list of its `nations` |
 | `nations` | `id` (`"ger"`, `"fra"`…), `adjective` (`"German"`), `name`, `short` (`"GER"`), `side` and `color` (the nation's STYLE.md colour, for its counters) |
 | `nations[].startWill` | Starting National Will (RULES.md §11). `null` for Belgium (its losses count against `willCountsAgainst`). `entersLater: true` for the USA. |
 | `nations[].stepsPerWill` | 1 Will lost per this many steps lost (RULES.md §4, §11) |
@@ -119,6 +119,7 @@ doing something.
 |---|---|
 | `sudden` | Checked at the end of every turn, in order: `will-zero` (that `nation`'s Will is 0 or less) or `owns` (that `side` owns that `box`), with the `winner` and a `reason` for the log |
 | `armistice` | After the last turn: score = Will of `plus` − the average Will of `minusAverage` + captured VP. Above `margin`: `aboveMargin` wins; below −`margin`: `belowMargin` wins; otherwise a stalemate peace |
+| `butchersBill` | RULES.md §16: `casualtiesPerStep` (85,000), `killedShare` (0.2: about 1 in 5) and `roundTo` (1,000). Used by the War Office ledger (`js/engine/history.js`) |
 
 `nations.json` also has `mutiny` for France: `name`, `belowWill` (35), `turns` (3) and
 `willAfter` (10), and `rebuildType` for nations that don't rebuild as plain infantry (the
@@ -162,7 +163,7 @@ and `effects`). The computer picks `aiChoice`; a human player is asked, and the 
 | `rules` | The cost of keeping the old commander (−3 Will, asked again every 3 turns), sacking (−5 Will, not in the first 3 turns) |
 | `succession` | Each nation's cards in order |
 | `cards[]` | `id`, `name`, `nickname` (a real historical nickname, like "Papa Joffre", or `null`), `title` *(optional, a real title such as "Allied Generalissimo")*, `nation` (or `"entente"` for Foch), `from`/`to` (historical dates; Pershing's `from` is `"usa-entry"`), `next` (who can follow) |
-| `cards[].strength`, `cards[].flaw` | `name`, `text` (for the card) and `effects`: a list of `{kind, nation, value, …}` that the Milestone 11 code will read (`op`, `munitions`, `rp`, `rail`, `rail-max`, `op-max`, `will-if-no-attack`, `steps-per-will`, …) |
+| `cards[].strength`, `cards[].flaw` | `name`, `text` (for the card) and `effects`: a list of `{kind, nation, value, …}` that the Milestone 12 code will read (`op`, `munitions`, `rp`, `rail`, `rail-max`, `op-max`, `will-if-no-attack`, `steps-per-will`, …) |
 | `cards[].history` | A short note from docs/HISTORY.md for the full-screen card |
 
 ## `headlines.json`: newspaper headlines (RULES.md §17)

@@ -211,7 +211,29 @@ html, body {
   line-height: 1;
   letter-spacing: 0;
 }
-.btn-zoom-fit { font-size: 0.8rem; letter-spacing: 0.04em; }
+.btn-zoom-fit { font-size: 0.72rem; letter-spacing: 0.04em; }
+/* The locator map (top left of the map): brass hairline on leather, the paper map
+   inside, and the part on screen outlined in front-red. */
+.locator {
+  position: absolute;
+  left: max(10px, env(safe-area-inset-left));
+  top: 10px;
+  width: 112px;
+  padding: 3px;
+  border: 1px solid var(--brass);
+  border-radius: 4px;
+  background: var(--leather-light);
+  line-height: 0;
+  cursor: pointer;
+}
+.locator-svg { display: block; width: 100%; height: auto; pointer-events: none; }
+.locator-svg .sea { fill: var(--paper-dark); }
+.locator-svg .front-wire { display: none; }
+.locator-box { fill: none; stroke: var(--front-red); stroke-width: calc(1.6px * var(--u)); }
+@media (max-width: 699px) {
+  .game-screen.sheet-open .locator { display: none; }
+  .locator { width: 92px; }
+}
 
 /* The panel sheet. */
 .panel-sheet {
@@ -440,13 +462,13 @@ html, body {
 .map-svg .trench-net.support { stroke-width: 0.26; opacity: 0.85; }
 .map-svg .trench-net.comms { stroke-width: 0.24; opacity: 0.75; }
 
-/* Units (STYLE.md §5): counters from mid zoom, one marker per box when zoomed out.
+/* Units (STYLE.md §5): board-game pieces. Zoomed out, the simple version of each
+   piece (colour, mark, number); from mid zoom, the full one.
    Taps go straight through them to the territory underneath. */
 .map-svg #units, .map-svg #targets { pointer-events: none; }
-.map-svg.far .stack-scaled, .map-svg:not(.far) .unit-marker { display: none; }
-.map-svg .counter.done { opacity: 0.7; }
-.map-svg .marker-body { stroke: var(--ink); stroke-width: 0.8; }
-.map-svg .marker-count { font: 7px var(--font-ui); font-weight: 600; fill: var(--telegram); text-anchor: middle; }
+.map-svg.far .piece-full, .map-svg:not(.far) .piece-simple, .counter-icon .piece-simple { display: none; }
+.counter.done { opacity: 0.7; }
+.piece-strength, .piece-count { font-family: var(--font-type); font-weight: 700; }
 .map-svg .target { fill: none; stroke: var(--brass); stroke-width: max(1.4px, calc(2.6px * var(--u))); stroke-linejoin: round; }
 .map-svg .target.rail { stroke-dasharray: calc(5px * var(--u)) calc(3px * var(--u)); stroke-opacity: 0.85; }
 
@@ -458,9 +480,155 @@ html, body {
   fill: var(--ink-faded);
 }
 .map-svg .pencil-lead { fill: none; stroke: var(--ink-faded); stroke-width: max(0.3px, calc(0.8px * var(--u))); stroke-linecap: round; opacity: 0.8; }
-.map-svg .plan-arrow { fill: none; stroke: var(--front-red); stroke-linecap: round; stroke-linejoin: round; opacity: 0.8; }
-.map-svg .plan-arrow.second { opacity: 0.45; }
+/* Orders as grease-pencil arrows (STYLE.md §6): attacks in front-red, moves dashed
+   in ink. The width is set in screen pixels (var(--u) = map units per pixel). */
+.map-svg .plan-arrow { fill: none; stroke: var(--front-red); stroke-linecap: round; stroke-linejoin: round; opacity: 0.8;
+  stroke-width: max(1.4px, calc(3.4px * var(--u))); }
+.map-svg .plan-arrow.second { opacity: 0.45; stroke-width: max(0.8px, calc(1.6px * var(--u))); }
+.map-svg .arrow.move .plan-arrow { stroke: var(--ink); stroke-dasharray: calc(7px * var(--u)) calc(5px * var(--u)); opacity: 0.7; }
+.map-svg .arrow.move .plan-arrow.second { display: none; }
+.map-svg .arrow.bad .plan-arrow { opacity: 0.3; }
+.map-svg #orders { pointer-events: none; }
+.map-svg .arrow-hit { fill: none; stroke: var(--ink); stroke-opacity: 0; stroke-width: calc(30px * var(--u)); pointer-events: stroke; cursor: pointer; }
+.map-svg .arrow-label {
+  font-family: "Reenie Beanie", cursive;
+  font-size: calc(19px * var(--u));
+  fill: var(--front-red);
+  text-anchor: middle;
+  paint-order: stroke;
+  stroke: var(--paper);
+  stroke-width: calc(3px * var(--u));
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+/* Playing a turn back (STYLE.md §8): barrage puffs, losses floating up, territory
+   colours cross-fading on capture. All under 1 second. */
+.map-svg.playing .territory { transition: fill 0.6s ease; }
+.map-svg #effects, .map-svg .ghost { pointer-events: none; }
+.map-svg .puff { fill: var(--ink); opacity: 0; transform-box: fill-box; transform-origin: center; animation: puff 0.6s ease-out forwards; }
+@keyframes puff { 0% { opacity: 0.55; transform: scale(0.3); } 100% { opacity: 0; transform: scale(1.6); } }
+.map-svg .float-loss { font-family: var(--font-type); font-weight: 700; font-size: 18px; fill: var(--front-red); text-anchor: middle;
+  paint-order: stroke; stroke: var(--paper); stroke-width: 3px; animation: float-up 0.5s ease-out forwards; }
+@keyframes float-up { 0% { opacity: 1; translate: 0 0; } 100% { opacity: 0; translate: 0 -20px; } }
+.map-area.shake { animation: shake 0.3s linear 2; }
+@keyframes shake { 0%, 100% { translate: 0 0; } 25% { translate: 2px 0; } 75% { translate: -2px 0; } }
 .map-svg #notes, .map-svg #plans, .map-svg #region-edges, .map-svg #scars, .map-svg #villages, .map-svg #landmarks,
 .map-svg #contours, .map-svg #roads, .map-svg #railways, .map-svg #age-marks,
 .map-svg .bleed, .map-svg .coast-ink, .map-svg .border-ink, .map-svg .season-snow,
 .map-svg .season-spring { pointer-events: none; }
+
+/* ---------- Orders, then commit (STYLE.md §6, §8) ---------- */
+/* The number of queued orders on the COMMIT ORDERS button. */
+.commit-count:not(:empty) {
+  display: inline-block; min-width: 1.5em; margin-left: 6px; padding: 0 4px;
+  border-radius: 2px; background: var(--leather); color: var(--brass);
+  font: 700 0.8rem var(--font-type); letter-spacing: 0; text-align: center;
+}
+/* The orders list in the panel. */
+.orders { margin: 0 0 var(--gap); }
+.order-row { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; padding: 6px 8px; border: 1px solid var(--brass); border-radius: 4px; }
+.order-row.selected { box-shadow: inset 0 0 0 1px var(--brass); background: var(--leather); }
+.order-row.bad { border-style: dashed; }
+.order-text { flex: 1; font: 0.9rem var(--font-type); color: var(--telegram); }
+.order-why { display: block; color: var(--stamp-red); }
+.order-row .btn { flex: none; }
+.orders-left { margin: 4px 0 0; color: var(--paper-dark); font-size: 0.9rem; }
+/* The playback bar (top of the map) and the small dice slip under it. */
+.playback {
+  position: absolute; left: 50%; top: 10px; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 12px; padding: 4px 4px 4px 14px;
+  background: var(--leather-light); border: 1px solid var(--brass); border-radius: 4px;
+  color: var(--telegram); font-family: var(--font-place); white-space: nowrap; z-index: 2;
+}
+.playback[hidden], .playback-slip[hidden] { display: none; }
+.playback-slip {
+  position: absolute; left: 50%; top: 66px; transform: translateX(-50%) rotate(-1deg);
+  width: min(300px, calc(100% - 32px)); padding: 10px 14px;
+  background: var(--telegram); color: var(--ink); border-radius: 2px; box-shadow: 0 2px 8px var(--leather);
+  font-family: var(--font-type); font-size: 0.95rem; text-align: center; z-index: 2; pointer-events: none;
+}
+.playback-slip p { margin: 2px 0; }
+.pb-title { font-weight: 700; }
+.pb-dice { display: flex; justify-content: center; gap: 14px; margin: 8px 0; }
+/* Bone-coloured dice: a 3 × 3 grid of ink pips. */
+.die {
+  display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr);
+  width: 40px; height: 40px; padding: 5px; box-sizing: border-box;
+  background: var(--paper); border: 1px solid var(--ink-faded); border-radius: 6px;
+}
+.die[hidden] { display: none; }
+.die i { width: 7px; height: 7px; margin: auto; border-radius: 50%; background: var(--ink); visibility: hidden; }
+.die.rolling { animation: tumble 0.8s ease-out; }
+@keyframes tumble { 0% { rotate: -200deg; translate: -10px -8px; } 70% { rotate: 12deg; translate: 0 0; } 100% { rotate: 0deg; } }
+.pb-stamp:not(:empty) {
+  display: inline-block; margin-top: 4px; padding: 2px 8px;
+  border: 3px double var(--front-red); color: var(--front-red);
+  font-weight: 700; letter-spacing: 0.12em; transform: rotate(-3deg);
+}
+.pb-stamp.failed { border-color: var(--stamp-red); color: var(--stamp-red); }
+.settings { border-top: 1px solid var(--brass); padding-top: 8px; }
+@media (prefers-reduced-motion: reduce) {
+  .die.rolling, .map-area.shake, .map-svg .puff, .map-svg .float-loss { animation: none; }
+  .map-svg.playing .territory { transition: none; }
+}
+/* The folded phone: a shorter COMMIT label, and no locator while a turn plays back. */
+.commit-short { display: none; }
+@media (max-width: 459px) {
+  .commit-long { display: none; }
+  .commit-short { display: inline; }
+}
+.game-screen.playing-back .locator { display: none; }
+
+/* ---------- The War Office ledger (STYLE.md §6: ruled lines, Courier figures, an
+   ink Will gauge that drains), on paper inside the leather desk. ---------- */
+.btn-war-office {
+  position: absolute;
+  left: max(10px, env(safe-area-inset-left));
+  bottom: calc(64px + env(safe-area-inset-bottom));
+  background: var(--leather-light);
+}
+@media (min-width: 700px) { .btn-war-office { bottom: calc(16px + env(safe-area-inset-bottom)); } }
+.game-screen.playing-back .btn-war-office { display: none; }
+.war-office {
+  position: fixed; inset: 0; z-index: 20; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  background: var(--leather);
+  padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+}
+.war-office[hidden] { display: none; }
+.ledger-page {
+  max-width: 980px; margin: 0 auto; padding: 14px 16px 20px;
+  background: var(--paper); color: var(--ink); border-radius: 2px; box-shadow: 0 2px 10px var(--leather);
+}
+.ledger-top { display: flex; align-items: center; gap: 12px; }
+.ledger-top .btn { color: var(--ink); border-color: var(--ink); }
+.ledger-kicker { margin: 0; font: 700 0.85rem var(--font-type); letter-spacing: 0.3em; }
+.ledger-title { margin: 10px 0 8px; font: 400 1.5rem var(--font-place); }
+.ledger-heading { margin: 0 0 4px; font: 400 1.2rem var(--font-place); border-bottom: 1px solid var(--ink); }
+.ledger-section { margin: 16px 0 0; }
+.ledger-line { margin: 4px 0; font-size: 0.95rem; line-height: 1.45; }
+.ledger-big { margin: 2px 0; font: 700 1.8rem var(--font-type); }
+.ledger-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -4px; }
+.ledger-table { border-collapse: collapse; min-width: 100%; font-size: 0.92rem; }
+.ledger-table th, .ledger-table td { padding: 6px 8px; border-bottom: 1px solid rgba(110, 98, 83, 0.45); vertical-align: top; text-align: left; }
+.ledger-table td { border-left: 1px solid rgba(110, 98, 83, 0.45); min-width: 6.5em; }
+.ledger-rowhead { font: 400 0.92rem var(--font-ui); position: sticky; left: 0; background: var(--paper); min-width: 7em; max-width: 10em; }
+.ledger-nation { font: 400 1.1rem var(--font-place); border-left: 1px solid rgba(110, 98, 83, 0.45); }
+.ledger-num { font-family: var(--font-type); }
+.ledger-text { font-family: var(--font-ui); }
+.ledger-sub { display: block; font-style: italic; color: var(--ink-faded); }
+.ledger-warn { color: var(--stamp-red); }
+.ledger-will .ledger-num { font: 700 1.1rem var(--font-type); }
+.will-gauge { display: block; height: 8px; margin: 4px 0; border: 1px solid var(--ink); background: var(--paper-dark); }
+.will-fill { display: block; height: 100%; background: var(--ink); transition: width 0.4s ease; }
+.will-trend { display: block; font: 0.8rem var(--font-type); color: var(--ink-faded); }
+/* the strength chart: thin lines, recessive grid, direct labels */
+.ledger-chart { display: block; width: 100%; max-width: 560px; height: auto; touch-action: manipulation; }
+.chart-grid { stroke: var(--ink-faded); stroke-opacity: 0.3; stroke-width: 0.5; }
+.chart-tick { font: 8px var(--font-type); fill: var(--ink-faded); }
+.chart-line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.chart-label { font: 700 8.5px var(--font-type); fill: var(--ink); }
+.chart-rule { stroke: var(--ink); stroke-width: 0.6; stroke-dasharray: 2 2; }
+.chart-legend { display: flex; gap: 16px; margin: 4px 0; font-size: 0.9rem; }
+.chart-key { display: inline-flex; align-items: center; gap: 6px; }
+.chart-readout { color: var(--ink-faded); }
+@media (prefers-reduced-motion: reduce) { .will-fill { transition: none; } }

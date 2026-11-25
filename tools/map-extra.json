@@ -1,12 +1,18 @@
 {
   "_about": "Hand-traced lines the map builder needs that Natural Earth does not have. Points are [lat, lon], about ±2 km. Sources are in docs/HISTORY.md ('The map'). Used only by tools/build-map.mjs, never by the game.",
   "frame": {
-    "_about": "The area the map shows: [south, west, north, east].",
+    "_about": "'bounds' [south, west, north, east] is the detailed area round the front (hand-traced towns, roads, railways, villages, contours). 'scenery' is the whole area the map shows: the land beyond 'bounds' is scenery (coast, rivers, borders, big towns), so there's more map to explore. The territories don't depend on it.",
     "bounds": [
       47.35,
       1.55,
       51.45,
       8.25
+    ],
+    "scenery": [
+      46.5,
+      -0.1,
+      52.4,
+      9.8
     ]
   },
   "front": {
@@ -898,7 +904,19 @@
     "Rhine": "Rhine",
     "Ill": "Ill",
     "Sarre": "Sarre",
-    "Aube": "Aube"
+    "Aube": "Aube",
+    "Loire": "Loire",
+    "Main": "Main",
+    "Neckar": "Neckar",
+    "Saône": "Saône",
+    "Doubs": "Doubs",
+    "Lahn": "Lahn",
+    "Oise": "Oise",
+    "Aisne": "Aisne",
+    "Yonne": "Yonne",
+    "Ruhr": "Ruhr",
+    "Waal": "Waal",
+    "IJssel": "IJssel"
   },
   "placeNames": {
     "_about": "Country and sea names drawn on the map. 'at' is [lat, lon].",
@@ -915,15 +933,15 @@
         "text": "ENGLAND",
         "at": [
           51.3,
-          1.75
+          0.6
         ],
         "cls": "country-label small"
       },
       {
         "text": "NETHERLANDS (neutral)",
         "at": [
-          51.4,
-          4.35
+          52.05,
+          5.35
         ],
         "cls": "country-label small"
       },
@@ -962,10 +980,18 @@
       {
         "text": "SWITZERLAND (neutral)",
         "at": [
-          47.42,
-          7.7
+          46.85,
+          7.9
         ],
         "cls": "country-label small"
+      },
+      {
+        "text": "ENGLISH CHANNEL",
+        "at": [
+          50.15,
+          0.55
+        ],
+        "cls": "sea-label"
       }
     ]
   },
@@ -1068,6 +1094,172 @@
         "at": [
           49.762,
           4.72
+        ]
+      }
+    ]
+  },
+  "sceneryTowns": {
+    "_about": "Big towns in the scenery beyond 'frame.bounds', to help you find your way (1914 names). Not part of the game. 'at' is [lat, lon].",
+    "list": [
+      {
+        "name": "Rouen",
+        "at": [
+          49.44,
+          1.1
+        ]
+      },
+      {
+        "name": "Le Havre",
+        "at": [
+          49.49,
+          0.11
+        ]
+      },
+      {
+        "name": "Dieppe",
+        "at": [
+          49.92,
+          1.08
+        ]
+      },
+      {
+        "name": "Dover",
+        "at": [
+          51.13,
+          1.31
+        ]
+      },
+      {
+        "name": "Tours",
+        "at": [
+          47.39,
+          0.69
+        ]
+      },
+      {
+        "name": "Chartres",
+        "at": [
+          48.45,
+          1.49
+        ]
+      },
+      {
+        "name": "Dijon",
+        "at": [
+          47.32,
+          5.04
+        ]
+      },
+      {
+        "name": "Besançon",
+        "at": [
+          47.24,
+          6.02
+        ]
+      },
+      {
+        "name": "Berne",
+        "at": [
+          46.95,
+          7.45
+        ]
+      },
+      {
+        "name": "Zurich",
+        "at": [
+          47.37,
+          8.54
+        ]
+      },
+      {
+        "name": "Rotterdam",
+        "at": [
+          51.92,
+          4.48
+        ]
+      },
+      {
+        "name": "Amsterdam",
+        "at": [
+          52.33,
+          4.9
+        ]
+      },
+      {
+        "name": "Utrecht",
+        "at": [
+          52.09,
+          5.12
+        ]
+      },
+      {
+        "name": "Essen",
+        "at": [
+          51.46,
+          7.01
+        ]
+      },
+      {
+        "name": "Dortmund",
+        "at": [
+          51.51,
+          7.47
+        ]
+      },
+      {
+        "name": "Münster",
+        "at": [
+          51.96,
+          7.63
+        ]
+      },
+      {
+        "name": "Frankfurt",
+        "at": [
+          50.11,
+          8.68
+        ]
+      },
+      {
+        "name": "Mainz",
+        "at": [
+          50.0,
+          8.27
+        ]
+      },
+      {
+        "name": "Mannheim",
+        "at": [
+          49.49,
+          8.47
+        ]
+      },
+      {
+        "name": "Karlsruhe",
+        "at": [
+          49.01,
+          8.4
+        ]
+      },
+      {
+        "name": "Stuttgart",
+        "at": [
+          48.78,
+          9.18
+        ]
+      },
+      {
+        "name": "Kassel",
+        "at": [
+          51.31,
+          9.49
+        ]
+      },
+      {
+        "name": "Würzburg",
+        "at": [
+          49.79,
+          9.93
         ]
       }
     ]

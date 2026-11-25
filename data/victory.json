@@ -13,5 +13,11 @@
     "margin": 2,
     "aboveMargin": "germany",
     "belowMargin": "entente"
+  },
+  "butchersBill": {
+    "_about": "The Butcher's Bill (RULES.md §16) [balanced]: every step lost is about 85,000 casualties (killed, wounded and missing), of whom about 1 in 5 were killed. Shown rounded to the nearest 1,000.",
+    "casualtiesPerStep": 85000,
+    "killedShare": 0.2,
+    "roundTo": 1000
   }
 }
