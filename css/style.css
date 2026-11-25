@@ -1,0 +1,152 @@
+/* Western Front 1914–18 — styles.
+   Colours are variables here so they're easy to change in one place. */
+:root {
+  --bg: #1f1d18;          /* dark trench brown */
+  --bg-raised: #2b2820;
+  --ink: #ece4d0;         /* old paper */
+  --ink-dim: #a99f88;
+  --accent: #8c2f23;      /* dark red */
+  --accent-ink: #fff6e8;
+  --line: #4a4536;
+  --tap: 44px;            /* smallest tap target (Apple's guideline) */
+  --gap: 12px;
+  --radius: 8px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: Georgia, "Times New Roman", serif;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* [hidden] must win over the display rules below. */
+[hidden] { display: none !important; }
+
+/* Every screen fills the visible screen (100dvh changes as Safari's bars
+   appear and disappear) and keeps clear of the notch and home bar. */
+.screen {
+  min-height: 100dvh;
+  padding:
+    max(var(--gap), env(safe-area-inset-top))
+    max(var(--gap), env(safe-area-inset-right))
+    max(var(--gap), env(safe-area-inset-bottom))
+    max(var(--gap), env(safe-area-inset-left));
+}
+
+/* ---------- Title screen ---------- */
+.title-screen {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 40px;
+  text-align: center;
+}
+.title-kicker {
+  margin: 0;
+  color: var(--ink-dim);
+  font-style: italic;
+}
+.title-name {
+  margin: 8px 0 0;
+  /* clamp: grows with the screen width but stays between 2.4rem and 4.5rem */
+  font-size: clamp(2.4rem, 11vw, 4.5rem);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+.title-dates {
+  margin: 8px 0 0;
+  font-size: clamp(1.4rem, 6vw, 2.2rem);
+  color: var(--ink-dim);
+}
+.title-buttons {
+  display: grid;
+  gap: var(--gap);
+  width: min(320px, 100%);
+}
+
+/* ---------- Buttons ---------- */
+.btn {
+  min-height: var(--tap);
+  min-width: var(--tap);
+  padding: 12px 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  color: var(--ink);
+  font: inherit;
+  font-size: 1.1rem;
+  cursor: pointer;
+  touch-action: manipulation;   /* no double-tap zoom on buttons */
+}
+.btn:active { transform: translateY(1px); }
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.btn-small { padding: 8px 14px; font-size: 1rem; }
+
+.note {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--ink-dim);
+}
+
+/* ---------- Game screen ----------
+   Narrow (folded): bar on top, map, then panel below.
+   Wide (unfolded, 700px or more): map and panel side by side. */
+.game-screen {
+  display: grid;
+  gap: var(--gap);
+  grid-template-columns: 1fr;
+  grid-template-rows: auto minmax(0, 3fr) minmax(0, 2fr);
+  grid-template-areas:
+    "bar"
+    "map"
+    "panel";
+  height: 100dvh;
+}
+.game-bar {
+  grid-area: bar;
+  display: flex;
+  align-items: center;
+  gap: var(--gap);
+}
+.game-bar-title { font-size: 1.1rem; }
+.map-area, .panel-area {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  padding: var(--gap);
+  overflow: auto;
+  min-width: 0;
+}
+.map-area {
+  grid-area: map;
+  display: grid;
+  place-content: center;
+  text-align: center;
+  touch-action: manipulation;   /* stop double-tap zoom on the map */
+}
+.panel-area { grid-area: panel; }
+.panel-area p:first-child { margin-top: 0; }
+
+@media (min-width: 700px) {
+  .game-screen {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-areas:
+      "bar bar"
+      "map panel";
+  }
+}
