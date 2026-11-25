@@ -133,13 +133,77 @@ html, body {
 }
 .map-area {
   grid-area: map;
-  display: grid;
-  place-content: center;
-  text-align: center;
+  /* The SVG is sized by js/ui/map.js; if it's taller than the area, it scrolls. */
+  padding: 6px;
   touch-action: manipulation;   /* stop double-tap zoom on the map */
+  -webkit-tap-highlight-color: transparent;
 }
 .panel-area { grid-area: panel; }
-.panel-area p:first-child { margin-top: 0; }
+
+/* ---------- Map ---------- */
+.map-svg {
+  display: block;
+  margin: 0 auto;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.box-base {
+  stroke: #1a1812;
+  stroke-width: 1.5;
+  cursor: pointer;
+  outline: none;
+}
+.box-base:focus-visible { stroke: #fff; stroke-width: 4; }
+/* Overlays ignore taps so the box underneath always gets them. */
+.box-deco { pointer-events: none; }
+.box-label, .box-vp, .box-badge {
+  fill: #fff8e6;
+  stroke: #1a1812;
+  stroke-width: 4px;
+  paint-order: stroke;        /* dark outline behind the letters, readable on any colour */
+  font-family: Georgia, "Times New Roman", serif;
+}
+.box-label { font-size: 19px; font-weight: bold; }
+.box-vp { font-size: 16px; }
+.box-badge { font-size: 22px; fill: #f2e6c4; }
+.map-lane-label, .map-col-label {
+  fill: var(--ink-dim);
+  font-size: 18px;
+  font-family: Georgia, "Times New Roman", serif;
+  pointer-events: none;
+}
+.map-highlight {
+  fill: none;
+  stroke: #ffd23f;
+  stroke-width: 6;
+  pointer-events: none;
+}
+
+/* ---------- Panel ---------- */
+.panel-hint { margin: 0 0 var(--gap); color: var(--ink-dim); }
+.box-title { margin: 0 0 8px; font-size: 1.3rem; }
+.box-facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  margin: 0 0 var(--gap);
+}
+.box-facts dt { color: var(--ink-dim); }
+.box-facts dd { margin: 0; }
+.terrain-list { margin: 0; padding-left: 1.1em; }
+.legend { border-top: 1px solid var(--line); padding-top: 8px; }
+.legend-title { margin: 0 0 6px; font-size: 1rem; color: var(--ink-dim); }
+.legend-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 6px 12px;
+  font-size: 0.95rem;
+}
+.legend-item { display: flex; align-items: center; gap: 8px; }
+.legend-swatch { width: 28px; height: 20px; flex: none; border: 1px solid #1a1812; }
 
 @media (min-width: 700px) {
   .game-screen {

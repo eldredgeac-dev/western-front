@@ -42,13 +42,22 @@ const ruleChecks = [
   ['rule: js/engine/ never touches the page', () =>
     webFiles.filter((f) => f.startsWith('js/engine/') && /\b(document|window)\b/.test(read(f)))],
 
+  ['rule: every data/*.json file is valid JSON', () =>
+    files.filter((f) => f.startsWith('data/') && f.endsWith('.json')).filter((f) => {
+      try { JSON.parse(read(f)); return false; } catch (err) { return true; }
+    })],
+
+  ['rule: js/engine/ never hard-codes place names', () =>
+    webFiles.filter((f) => f.startsWith('js/engine/') && /Verdun|Paris|France/.test(read(f)))],
+
   ['rule: index.html has the phone viewport tag', () => {
     const html = read('index.html');
     return html.includes('width=device-width, initial-scale=1, viewport-fit=cover') ? [] : ['index.html'];
   }],
 ];
 
-const results = await runAll();
+// Node reads the data files straight from disk.
+const results = await runAll(async (f) => JSON.parse(read(f)));
 for (const [name, fn] of ruleChecks) {
   const problems = fn();
   results.push(problems.length === 0
