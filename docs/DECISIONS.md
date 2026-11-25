@@ -383,6 +383,36 @@ I'll change it.
     - The tool calls both colours "too grey"; that's STYLE.md's deliberate muted palette,
       so I kept them.
 
+### Question 4 follow-up: why the game's Entente attacks less (report only, nothing changed)
+82. **First findings.** I compared the computer's attack choice in
+    `js/engine/ai.js` with `ai_attack` in `tools/wfsim.py` line by line.
+    - **These match:** the scoring formula (value × chance + Will swing − losses −
+      munitions), the depth bonus, 1 OP per single-nation attack, the "stop after RP + 2
+      steps lost" rule, and trying every munitions spend.
+    - **Difference 1: what counts as "taken".** The simulator counts a box as taken
+      whenever its defenders are cleared, even if every attacker died. The game also
+      requires an attacker to survive and move in, which is the RULES.md wording. A
+      temporary test with the simulator's definition (20 wars, then undone) gave Germany
+      40% / Entente 25% / draw 35%, about 18 Entente attacks a war. That's within chance
+      of the current game, so **this isn't the main cause**.
+    - **Difference 2: the simulator caps nothing.** Its expected attacker loss can be
+      more than the attackers have; the game caps it. That makes the game's AI *bolder*,
+      so it isn't the cause either.
+    - **Ruled out earlier:** resources, trench limits, moving twice, rebuild order
+      (decisions 58–59).
+    - **Where the gap is:** over 10 wars, the game's Entente made only about 2 attacks
+      per war in 1915, against Germany's 4; in 1917 the two sides were close. So the
+      Entente rarely finds an attack worth making in 1915–16.
+    - **Still to check:** whether the game's computer keeps French units back in the
+      second and third lines (decision 54's "units in front boxes stay" rule moves
+      reserves up only to the most threatened boxes), so fewer stand next to a target.
+      Also whether the game's trenches are deeper on average in 1915–16 than the
+      simulator's.
+    - **My suggestion:** let me add a small counting tool to both simulators (attack
+      odds available to the Entente each month, and how many French units stand in the
+      front line), compare them, and bring you one fix with the numbers before and
+      after. I haven't changed any code or numbers.
+
 ## Questions for you (answered)
 1. **Combat table — answered: RULES.md is right.**
    - The balance tests used `tools/t2.py`, which patched the simulator's 1:2 and 1:1
