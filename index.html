@@ -35,7 +35,11 @@
   <main id="game-screen" class="game-screen" hidden>
     <header class="game-bar">
       <button id="btn-back" class="btn btn-small" type="button" aria-label="Back to the title screen">‹ Back</button>
-      <span id="game-title" class="game-bar-title">December 1914</span>
+      <span class="game-bar-when">
+        <span id="game-title" class="game-bar-title">December 1914</span>
+        <span id="phase-label" class="game-bar-phase"></span>
+      </span>
+      <button id="btn-end-phase" class="btn btn-primary btn-small btn-end-phase" type="button">End Phase</button>
     </header>
     <section id="map-area" class="map-area" aria-label="Map">
       <div class="map-holder" id="map-holder"></div>

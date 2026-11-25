@@ -33,6 +33,29 @@ I'll change it.
 7. **Unit names** use an adjective ("French infantry"), so `nations.json` gained an
    `adjective` field.
 
+### Milestone 4: turn loop, movement and rail
+8. **You give orders for both sides for now.** Until the computer opponent arrives
+   (Milestone 9), End Phase steps through German move → German attack → Entente move →
+   Entente attack. In each phase you can move that side's units: hot-seat, so you can test
+   both.
+9. **Phases that belong to later milestones are already in the list** (`data/phases.json`)
+   but do nothing yet: events and reinforcements (9), supply losses, replacements and Will
+   (7), newspaper (12). Reinforcements are in RULES.md §10 with the events, so they come
+   with Milestone 9.
+10. **One move per unit per turn:** either a normal move or a rail move, not both.
+    RULES.md doesn't say whether a unit can do both; one move is simpler and matches
+    `tools/wfsim.py`.
+11. **A rail move can end anywhere joined by friendly boxes**, including next door (it
+    just uses a rail move). Rail doesn't check supply.
+12. **How to move:** select a unit in the panel, then tap a brass-outlined territory. If
+    the territory is next door, it's a normal move; otherwise a rail move, which uses one
+    of the nation's rail moves.
+13. **Turn 48 (November 1918):** after its last phase the game shows "The war is over",
+    and End Phase is greyed out. The Armistice Score and victory check come with
+    Milestone 7.
+14. **Dispatches:** the log shows the last 8 lines in the panel, newest first, in the
+    typewriter font.
+
 ## Questions for you
 (none yet)
 
@@ -44,3 +67,11 @@ I'll change it.
 - [ ] **Selecting a unit.** Tap Verdun. The sheet lists "French infantry, 4 of 4 steps ·
       Regular". Tap that row: it gets a brass border, and the map outlines 3 territories
       in solid brass and many more in dashed brass. Tap the row again to clear it.
+- [ ] **Top bar.** It shows the date with the phase underneath ("German move") and a brass
+      **END PHASE** button on the right. It should fit on the folded phone without
+      squashing the date.
+- [ ] **Moving.** In "German move", tap a German territory, tap its unit, close the sheet
+      (swipe it down) and tap a brass-outlined territory next door. The counter moves, and
+      "Dispatches" in the panel says so. Try a dashed one too (a rail move).
+- [ ] **End Phase.** Tap **END PHASE** four times: the label should go German attack →
+      Entente move → Entente attack → back to German move, and the date to January 1915.

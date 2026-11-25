@@ -9,7 +9,8 @@ import { showPanel } from './ui/panel.js';
 import { battleCounts, bigBattles, scarLevel, shortMonth } from './engine/battles.js';
 import { applyDemo } from './ui/demo.js';
 import { unitsIn, unitType, nationOf } from './engine/units.js';
-import { moveTargets, railTargets } from './engine/moves.js';
+import { moveTargets, railTargets, moveUnit, railMove, phaseAllows } from './engine/moves.js';
+import { beginGame, endPhase, phaseOf } from './engine/turn.js';
 
 // Find the page elements we need once, at start-up.
 const $ = (id) => document.getElementById(id);
@@ -36,6 +37,8 @@ let demoAttack = null;
 // What the player has picked: a territory, and maybe one of its units.
 let selectedBox = null;
 let selectedUnit = null;
+// A message about the last order, if it wasn't allowed.
+let orderError = null;
 
 // Get localStorage safely: just reading `window.localStorage` can throw
 // when storage is blocked.
@@ -148,18 +151,31 @@ function unitInfo(unit) {
     steps: unit.steps, maxSteps: type.maxSteps, quality: quality ? quality.name : unit.quality,
     moves: moveTargets(state, orderData(), unit.id).length,
     rails: railTargets(state, orderData(), unit.id).length,
+    why: whyNoOrders(unit),
   };
 }
 
-// The data the engine needs to check orders. (Milestone 3: no turn phases yet, so
-// any unit may be picked to see where it could go.)
+// Why a unit has no moves right now, in plain English.
+function whyNoOrders(unit) {
+  if (state.over) return 'The war is over.';
+  if (!phaseAllows(state, orderData(), unit, 'move')) {
+    return `It is the ${phaseOf(state, orderData()).name} phase. Units move in their own side's move phase.`;
+  }
+  if (unit.attacked) return 'This unit attacked this turn.';
+  if (unit.moved) return 'This unit has already moved this turn.';
+  return 'There is nowhere it can go.';
+}
+
+// The data the engine needs to check orders.
 function orderData() {
-  return { ...data.engine, phases: null };
+  return data.engine;
 }
 
 // Show the panel for the selected territory (and unit).
 function refreshPanel() {
-  showPanel(panelArea, selectedBox ? boxInfo(selectedBox) : null, data.terrainData, { onUnit: selectUnit });
+  showPanel(panelArea, selectedBox ? boxInfo(selectedBox) : null, data.terrainData,
+    { onUnit: selectUnit, log: state.log, error: orderError });
+  orderError = null;
 }
 
 // Tap a unit in the panel: show where it can move (brass) or go by rail (dashed).
@@ -179,7 +195,30 @@ function openSheet(open) {
   sheetHandle.setAttribute('aria-expanded', String(open));
 }
 
-// Called when a territory is tapped: highlight it and show its details.
+// A tap on the map. If a unit is selected and the tapped territory is lit up,
+// that's an order to move there (by road if it's next door, otherwise by rail).
+// Otherwise it selects the territory.
+function tapBox(boxId) {
+  if (selectedUnit) {
+    const near = moveTargets(state, orderData(), selectedUnit);
+    const rail = railTargets(state, orderData(), selectedUnit);
+    if (near.includes(boxId) || rail.includes(boxId)) {
+      try {
+        state = near.includes(boxId)
+          ? moveUnit(state, orderData(), selectedUnit, boxId)
+          : railMove(state, orderData(), selectedUnit, boxId);
+      } catch (err) {
+        orderError = err.message;
+      }
+      redraw();
+      selectBox(boxId);
+      return;
+    }
+  }
+  selectBox(boxId);
+}
+
+// Called when a territory is selected: highlight it and show its details.
 function selectBox(boxId) {
   selectedBox = boxId;
   selectedUnit = null;
@@ -200,7 +239,7 @@ function showMap() {
       shortMonthFn: shortMonth,
     });
     zoom = enableZoom(mapView.svg, {
-      onTap: selectBox,
+      onTap: tapBox,
       onViewChange: (k) => { mapView.rescale(k); mapView.declutter(); },
       home: mapView.frontBounds,
     });
@@ -208,15 +247,33 @@ function showMap() {
     $('btn-zoom-out').addEventListener('click', () => zoom.zoomOut());
     $('btn-zoom-fit').addEventListener('click', () => zoom.fit());
   }
-  const month = currentMonth(state);
-  const record = { counts: battleCounts(state), big: bigBattles(state), scarLevel };
-  mapView.update(state, month, monthLabel(month), record);
-  mapView.drawUnits(state.units, lookFor);
+  redraw();
   mapView.select(null);
   mapView.showTargets([], []);
   if (demoAttack) mapView.showPlannedAttack(...demoAttack);
   else mapView.clearPlannedAttack();
   zoom.fit();
+}
+
+// Repaint the map, the top bar and anything that depends on the game state.
+function redraw() {
+  const month = currentMonth(state);
+  const record = { counts: battleCounts(state), big: bigBattles(state), scarLevel };
+  mapView.update(state, month, monthLabel(month), record);
+  mapView.drawUnits(state.units, lookFor);
+  gameTitle.textContent = monthLabel(month);
+  const phase = phaseOf(state, orderData());
+  $('phase-label').textContent = state.over ? 'The war is over' : (phase ? phase.name : '');
+  $('btn-end-phase').disabled = state.over;
+}
+
+// End Phase: on to the next phase that needs orders.
+function nextPhase() {
+  state = endPhase(state, orderData());
+  selectedUnit = null;
+  mapView.showTargets([], []);
+  redraw();
+  refreshPanel();
 }
 
 // Start a new game and show the map.
@@ -229,6 +286,7 @@ function startGame() {
   selectedUnit = null;
   // "?demo" in the address shows a sample war on the map (js/ui/demo.js).
   demoAttack = new URLSearchParams(window.location.search).has('demo') ? applyDemo(state) : null;
+  state = beginGame(state, orderData());
   showScreen(gameScreen);
   gameTitle.textContent = monthLabel(currentMonth(state));
   showMap();
@@ -267,6 +325,7 @@ async function boot() {
   // Saved games arrive in Milestone 8; until then Continue starts a fresh game.
   continueButton.addEventListener('click', startGame);
   $('btn-back').addEventListener('click', () => showScreen(titleScreen));
+  $('btn-end-phase').addEventListener('click', () => { if (state) nextPhase(); });
   wireSheet();
 
   newGameButton.disabled = true;   // until the data has loaded

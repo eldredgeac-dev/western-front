@@ -84,18 +84,31 @@ function unitList(info, onUnit) {
     if (info.selectedUnit === u.id) {
       const hint = u.moves || u.rails
         ? `Can move to ${u.moves} territor${u.moves === 1 ? 'y' : 'ies'} (brass outline) or go by rail to ${u.rails} (dashed).`
-        : 'This unit can\u2019t move now.';
+        : (u.why || 'This unit can\u2019t move now.');
       section.appendChild(el('p', 'unit-hint', hint));
     }
   }
   return section;
 }
 
+// The last few log lines, newest first, typed like dispatches.
+function dispatches(log) {
+  const section = el('section', 'dispatches');
+  section.appendChild(el('h3', 'panel-subtitle', 'Dispatches'));
+  const list = el('ul', 'dispatch-list');
+  for (const entry of log.slice(-8).reverse()) list.appendChild(el('li', '', entry.text));
+  section.appendChild(list);
+  return section;
+}
+
 // Show the panel. `info` is null when nothing is selected, or an object with
 // everything about the tapped territory, already worked out by main.js.
 //   actions.onUnit(id) — a unit in the list was tapped
+//   actions.log        — the game log, shown as dispatches
+//   actions.error      — a message to show (an order that wasn't allowed)
 export function showPanel(container, info, terrainData, actions = {}) {
   const parts = [];
+  if (actions.error) parts.push(el('p', 'panel-error', actions.error));
   if (!info) {
     parts.push(el('p', 'panel-hint', 'Tap a territory on the map to see its details. Pinch to zoom.'));
   } else {
@@ -119,6 +132,7 @@ export function showPanel(container, info, terrainData, actions = {}) {
     parts.push(unitList(info, actions.onUnit || (() => {})));
     parts.push(dl);
   }
+  if (actions.log && actions.log.length) parts.push(dispatches(actions.log));
   parts.push(legend(terrainData));
   container.replaceChildren(...parts);
 }

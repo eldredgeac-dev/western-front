@@ -8,6 +8,8 @@ import { unitsIn, stepsIn, stackRoom, unitType } from '../js/engine/units.js';
 import { moveTargets, railTargets, moveUnit, railMove } from '../js/engine/moves.js';
 import { next as rngNext, rollD6, roll2d6 } from '../js/engine/rng.js';
 import { resourcesFor } from '../js/engine/resources.js';
+import { beginGame, endPhase, phaseOf, digIn } from '../js/engine/turn.js';
+import { inSupply, rearColumn, supplySources } from '../js/engine/supply.js';
 
 export const tests = [];
 
@@ -324,6 +326,8 @@ test('battles: pencil notes only for 6+ steps lost, grouped by territory, oldest
 });
 
 // ---------------------------------------------------------------- Milestone 3: units
+// A deep copy, for tests that change a state by hand.
+const copyOf = (x) => JSON.parse(JSON.stringify(x));
 // The data bundle the engine expects.
 const bundle = () => ({ map: data.map, terrain: data.terrain, nations: data.nations,
   unitTypes: data.unitTypes, phases: data.phases });
@@ -424,6 +428,130 @@ test('rng: the same seed gives the same rolls; rolls are 1–6 and fair', () => 
   const two = roll2d6(1);
   check(two.total === two.dice[0] + two.dice[1], '2d6 adds up');
   check(rngNext(5).value !== rngNext(6).value, 'different seeds differ');
+});
+
+// ---------------------------------------------------------------- Milestone 4: turns
+const started = (seed = 7) => beginGame(game(seed), bundle());
+// Press End Phase until the phase with this id comes round.
+function endUntil(state, id) {
+  let s = state;
+  for (let i = 0; i < 40 && phaseOf(s, bundle()).id !== id; i++) s = endPhase(s, bundle());
+  return s;
+}
+
+test('turn: phases follow RULES.md §7 order', () => {
+  const ids = data.phases.phases.map((p) => p.id);
+  check(ids.join() === 'events,germany-move,germany-attack,entente-move,entente-attack,supply,dig-in,replacements,will,newspaper', ids.join());
+});
+
+test('turn: a new game waits at the German move; End Phase steps through the turn', () => {
+  let s = started();
+  check(phaseOf(s, bundle()).id === 'germany-move' && s.turn === 1, 'starts at the German move');
+  const seen = [phaseOf(s, bundle()).id];
+  for (let i = 0; i < 4; i++) { s = endPhase(s, bundle()); seen.push(phaseOf(s, bundle()).id); }
+  check(seen.join() === 'germany-move,germany-attack,entente-move,entente-attack,germany-move', seen.join());
+  check(s.turn === 2 && currentMonth(s) === '1915-01', 'January 1915 is turn 2');
+});
+
+test('turn: the war ends after November 1918 (48 turns)', () => {
+  let s = started();
+  for (let i = 0; i < 47 * 4; i++) s = endPhase(s, bundle());
+  check(s.turn === 48 && currentMonth(s) === '1918-11' && !s.over, 'turn 48 is November 1918');
+  for (let i = 0; i < 4; i++) s = endPhase(s, bundle());
+  check(s.over, 'the game is over');
+  check(endPhase(s, bundle()) === s, 'nothing happens after the end');
+});
+
+test('turn: End Phase never changes the state it is given', () => {
+  const s = started(); const before = JSON.stringify(s);
+  endPhase(s, bundle());
+  check(JSON.stringify(s) === before, 'the old state was changed');
+});
+
+test('dig in: boxes with units gain +1 trench up to the month\'s maximum (RULES.md §9.5)', () => {
+  let s = started();
+  // Dec 1914: maximum 1 everywhere, so the front (trench 1) stays at 1; G2 with units goes 0 → 1
+  s = endUntil(endPhase(s, bundle()), 'germany-move');
+  check(s.boxes['l06-g1'].trench === 1, 'front stays at 1 in Dec 1914');
+  check(s.boxes['l06-g2'].trench === 1, 'G2 with a unit dug in to 1');
+  check(s.boxes['l05-g2'].trench === 0, 'empty boxes do not dig in');
+  // run to June 1915: normal 2, chalk 3, mud 2
+  while (currentMonth(s) < '1915-09') s = endUntil(endPhase(s, bundle()), 'germany-move');
+  check(s.boxes['l11-g1'].trench === 2, 'normal ground reaches 2 by Sep 1915: ' + s.boxes['l11-g1'].trench);
+  check(s.boxes['l06-g1'].trench === 3, 'chalk reaches 3 by Sep 1915: ' + s.boxes['l06-g1'].trench);
+  check(s.boxes['l02-g1'].trench === 2, 'Flanders mud stops at 2: ' + s.boxes['l02-g1'].trench);
+});
+
+test('dig in: a box that was attacked this turn does not dig in', () => {
+  const s = copyOf(started());
+  s.boxes['l06-g2'].trench = 0;
+  s.attackedBoxes = ['l06-g2'];
+  digIn(s, bundle());
+  check(s.boxes['l06-g2'].trench === 0, 'attacked box dug in');
+});
+
+test('move: a unit moves once per turn, and can move again next turn', () => {
+  let s = endUntil(started(), 'entente-move');
+  s = moveUnit(s, bundle(), 'fra-01', 'l04-e2');
+  check(s.units.find((u) => u.id === 'fra-01').box === 'l04-e2', 'moved');
+  check(moveTargets(s, bundle(), 'fra-01').length === 0, 'no second move this turn');
+  let threw = false;
+  try { moveUnit(s, bundle(), 'fra-01', 'l04-e1'); } catch (e) { threw = true; }
+  check(threw, 'second move refused');
+  s = endUntil(endPhase(s, bundle()), 'entente-move');
+  check(moveTargets(s, bundle(), 'fra-01').length > 0, 'can move again next turn');
+});
+
+test('move: never into an enemy box, a full box, or out of turn', () => {
+  const s = endUntil(started(), 'entente-move');
+  for (const [unit, to] of [['fra-01', 'l04-g1'], ['ger-06', 'l06-g2']]) {
+    let threw = false;
+    try { moveUnit(s, bundle(), unit, to); } catch (e) { threw = true; }
+    check(threw, `${unit} to ${to} should be refused`);
+  }
+});
+
+test('rail: uses up the nation\'s rail moves; a railed unit has moved', () => {
+  let s = started();                                  // German move
+  check(s.resources.ger.rail === 3, 'GER has 3 rail moves');
+  s = railMove(s, bundle(), 'ger-13', 'l12-g3');      // ger-13 is in l02-g2
+  check(s.units.find((u) => u.id === 'ger-13').box === 'l12-g3' && s.resources.ger.rail === 2, 'railed');
+  const u = s.units.find((x) => x.id === 'ger-13');
+  check(u.railed && u.moved, 'marked as railed');
+  for (const id of ['ger-14', 'ger-15']) s = railMove(s, bundle(), id, 'l01-g3');
+  check(s.resources.ger.rail === 0 && railTargets(s, bundle(), 'ger-16').length === 0, 'no rail moves left');
+  s = endUntil(endPhase(s, bundle()), 'germany-move');
+  check(s.resources.ger.rail === 3, 'rail moves come back next turn');
+});
+
+test('rail: enemy boxes block the line', () => {
+  const s = copyOf(started());
+  // cut the German side in two: lane 6 G1–G3 become Entente
+  for (const c of ['g1', 'g2', 'g3']) s.boxes['l06-' + c].owner = 'entente';
+  s.units = s.units.filter((u) => !u.box.startsWith('l06-g'));
+  const t = railTargets(s, bundle(), 'ger-01');       // lane 1
+  check(t.includes('l05-g3') && !t.includes('l07-g3'), 'cannot rail past lane 6');
+});
+
+test('supply: units trace to their rear column; Britain to the Channel Ports or Hazebrouck', () => {
+  const s = started();
+  check(rearColumn(data.map, 'entente') === 'e3' && rearColumn(data.map, 'germany') === 'g3', 'rear columns');
+  check(supplySources(bundle(), 'gbr').join() === 'l01-e3,l02-e3', 'GBR sources');
+  for (const u of s.units) check(inSupply(s, bundle(), u), u.id + ' starts in supply');
+  const cut = copyOf(s);
+  for (const id of ['l01-e3', 'l02-e3']) cut.boxes[id].owner = 'germany';
+  check(!inSupply(cut, bundle(), cut.units.find((u) => u.id === 'gbr-01')), 'GBR cut off from the ports');
+  check(inSupply(cut, bundle(), cut.units.find((u) => u.id === 'fra-01')), 'FRA still traces to E3');
+});
+
+test('turn: the same seed and orders give the same game', () => {
+  const play = () => {
+    let s = started(99);
+    s = railMove(s, bundle(), 'ger-13', 'l12-g3');
+    for (let i = 0; i < 12; i++) s = endPhase(s, bundle());
+    return JSON.stringify(s);
+  };
+  check(play() === play(), 'two runs differ');
 });
 
 export async function runAll(loadJson, loadText) {
