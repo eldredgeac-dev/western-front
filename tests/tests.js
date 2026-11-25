@@ -1,8 +1,8 @@
 // tests.js — the game's tests. They run in the browser (tests.html) and in
 // Node (run.mjs). Each test is a name plus a function that throws if it fails.
-import { hasSave, SAVE_KEY } from '../js/storage.js';
+import { hasSave, SAVE_KEY, saveGame, loadGame, readSave, saveText } from '../js/storage.js';
 import { checkMap, indexBoxes, boxName, trenchMax } from '../js/engine/boxes.js';
-import { newGame, currentMonth, monthLabel } from '../js/engine/state.js';
+import { newGame, currentMonth, monthLabel, migrateState, checkState } from '../js/engine/state.js';
 import { battleCounts, bigBattles, scarLevel, shortMonth } from '../js/engine/battles.js';
 import { unitsIn, stepsIn, stackRoom, unitType } from '../js/engine/units.js';
 import { moveTargets, railTargets, moveUnit, railMove } from '../js/engine/moves.js';
@@ -942,6 +942,57 @@ test('USA: US units can\'t attack while US Will is 0 (pending rule fix 16)', () 
   check(s.cannotAttack.usa, 'US units can\'t attack');
   s.will.usa = 5; willPhase(s, bundle());
   check(!s.cannotAttack.usa, 'they can again when Will returns');
+});
+
+// ---------------------------------------------------------------- Milestone 8: saves
+// A pretend localStorage for tests (an object with getItem/setItem).
+function fakeStore() {
+  const m = {};
+  return { getItem: (k) => (k in m ? m[k] : null), setItem: (k, v) => { m[k] = String(v); }, raw: m };
+}
+
+test('saves: auto-save and load give back exactly the same game', () => {
+  let s = started(5);
+  s = railMove(s, bundle(), 'ger-13', 'l12-g3');
+  for (let i = 0; i < 6; i++) s = endPhase(s, bundle());
+  const store = fakeStore();
+  check(saveGame(store, s) && hasSave(store), 'saved');
+  const back = loadGame(store, data.scenario, bundle());
+  check(back.ok && JSON.stringify(back.state) === JSON.stringify(s), 'identical after loading: ' + back.error);
+  check(JSON.parse(store.raw[SAVE_KEY]).version === 2, 'stamped with the version');
+});
+
+test('saves: export and import round-trip; the game carries on identically', () => {
+  const s = endPhase(started(8), bundle());
+  const r = readSave(saveText(s), data.scenario, bundle());
+  check(r.ok, r.error);
+  check(JSON.stringify(endPhase(r.state, bundle())) === JSON.stringify(endPhase(s, bundle())), 'same next phase');
+});
+
+test('saves: a bad file gives a friendly error, not a crash', () => {
+  for (const text of ['not json at all', '{"hello": 1}', '[]', 'null']) {
+    const r = readSave(text, data.scenario, bundle());
+    check(!r.ok && typeof r.error === 'string' && r.error.length > 10, `"${text}" → ${r.error}`);
+  }
+  const s = started();
+  const broken = JSON.parse(saveText(s));
+  broken.state.units[0].steps = 99; broken.state.boxes['l01-e1'].owner = 'martians';
+  const r = readSave(JSON.stringify(broken), data.scenario, bundle());
+  check(!r.ok && /damaged/.test(r.error), r.error);
+  const future = JSON.parse(saveText(s)); future.state.version = 99;
+  check(/newer version/.test(readSave(JSON.stringify(future), data.scenario, bundle()).error), 'a save from the future');
+  check(!loadGame(fakeStore(), data.scenario, bundle()).ok, 'no save yet');
+  check(!loadGame({ getItem: () => { throw new Error('blocked'); } }, data.scenario, bundle()).ok, 'blocked storage');
+  check(saveGame({ setItem: () => { throw new Error('full'); } }, s) === false, 'a full store says no');
+});
+
+test('saves: an old version 1 save (owners and trenches only) is upgraded', () => {
+  const v1 = { version: 1, scenario: '1914-west', seed: 3, turn: 5, startMonth: '1914-12', boxes: copyOf(started().boxes) };
+  v1.boxes['l06-g1'].owner = 'entente'; v1.boxes['l06-g1'].trench = 0;
+  const up = migrateState(v1, data.scenario, bundle());
+  check(up.version === 2 && up.turn === 5 && up.boxes['l06-g1'].owner === 'entente', 'kept month and owners');
+  check(up.units.length === 37 && !up.units.some((u) => u.box === 'l06-g1') && up.will.ger === 105 &&
+    checkState(up, bundle()).length === 0, 'filled in the rest (and no German unit left in the lost box)');
 });
 
 // ---------------------------------------------------------------- commanders and headlines

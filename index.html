@@ -25,6 +25,11 @@
     <nav class="title-buttons" aria-label="Main menu">
       <button id="btn-new-game" class="btn btn-primary" type="button">New Campaign</button>
       <button id="btn-continue" class="btn" type="button" disabled>Continue</button>
+      <div class="title-files">
+        <button id="btn-export" class="btn btn-small" type="button" disabled>Export save</button>
+        <button id="btn-import" class="btn btn-small" type="button">Import save</button>
+        <input id="import-file" type="file" accept=".json,application/json" hidden>
+      </div>
       <p id="continue-note" class="note">No saved campaign yet.</p>
     </nav>
   </main>

@@ -153,6 +153,24 @@ I'll change it.
 37. **Supply losses happen in the supply phase**, before dig-in. A unit cut off for
     several turns dies after as many turns as it has steps.
 
+### Milestone 8: save, export, import
+38. **Auto-save after every change** (each move, attack and End Phase), not only at the
+    end of each turn. Closing the app never loses a move, and it costs nothing
+    noticeable.
+39. **One save slot.** New Campaign replaces it, and Continue loads it. Export a file
+    first if you want to keep an old war.
+40. **Export:** on the iPhone, Export opens the share sheet (Save to Files, AirDrop,
+    Mail); on a computer it downloads `western-front-1915-01.json`, named after the
+    month. **Import** reads such a file back and starts playing it at once.
+41. **Every save is checked before it's played:** right app, a version it understands,
+    every box and unit valid. A bad file gives a plain message ("That file isn't a Western
+    Front save") instead of breaking the game.
+42. **Old saves are upgraded.** A version 1 save (owners and trenches only) keeps its
+    month, owners and trenches, and gets the starting units back, minus any that would
+    stand in territory their side no longer owns. A save from a *newer* version is
+    refused, with a message to reload the page.
+43. **The `?demo` sample war is never saved**, so it can't overwrite your real campaign.
+
 ## Questions for you (answered)
 1. **Combat table — answered: RULES.md is right.**
    - The balance tests used `tools/t2.py`, which patched the simulator's 1:2 and 1:1
@@ -196,6 +214,13 @@ I'll change it.
 - [ ] **"The war" section.** With nothing selected, the panel shows each nation's Will
       (Germany 105, France 75, Britain 85) and "Armistice Score +25.0 (Germany ahead)".
       Is it clear what the score means?
+- [ ] **Saving.** Start a campaign, tap END PHASE a few times, then close Safari (or
+      the home-screen app) completely and reopen it. **Continue** should be lit and bring
+      you back to the same month and phase.
+- [ ] **Export and import.** On the title screen tap **Export save**: the share sheet
+      should open; save the file to Files. Then tap **Import save** and pick that file:
+      the game should open at the same point. Picking a photo or any other file should
+      show a polite message instead.
 - [ ] **Counter details.** At full zoom: is the German cross pattée (top-left mark) clear
       enough? It's small and dark on field grey. Counters also sit over their own town's
       name. Tell me if you'd rather they sat beside it.

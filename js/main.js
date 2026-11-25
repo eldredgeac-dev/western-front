@@ -1,6 +1,6 @@
 // main.js — starts the app: loads the data files, wires up the buttons,
 // and connects the map and the panel.
-import { hasSave } from './storage.js';
+import { hasSave, saveGame, loadGame, readSave, saveText, exportName } from './storage.js';
 import { checkMap, indexBoxes, boxName, trenchMax } from './engine/boxes.js';
 import { newGame, currentMonth, monthLabel } from './engine/state.js';
 import { loadMapSvg, createMapView } from './ui/map.js';
@@ -99,11 +99,76 @@ function showScreen(screen) {
   window.scrollTo(0, 0);
 }
 
-// Continue is only usable when a saved game exists.
+// Continue and Export are only usable when a saved game exists.
 function updateContinueButton() {
   const saved = hasSave(getStorage());
   continueButton.disabled = !saved;
+  $('btn-export').disabled = !saved;
   continueNote.hidden = saved;
+  if (!saved) continueNote.textContent = 'No saved campaign yet.';
+}
+
+// Auto-save (Milestone 8): after every change, so closing the app never loses a move.
+function persist() {
+  if (demoAttack) return;                  // the ?demo sample war is never saved
+  if (state && !saveGame(getStorage(), state)) {
+    orderError = 'The game could not be saved on this device (storage is full or blocked). Use Export to keep a copy.';
+  }
+}
+
+// Continue: load the auto-saved campaign.
+function continueGame() {
+  if (!data) return;
+  const loaded = loadGame(getStorage(), data.scenario, data.engine);
+  if (!loaded.ok) { showTitleMessage(loaded.error); return; }
+  demoAttack = null;
+  playState(loaded.state);
+}
+
+// Export: the save as a file. On a phone this opens the share sheet (Save to Files,
+// AirDrop, Mail…); elsewhere it downloads the file.
+async function exportSave() {
+  const loaded = state ? { ok: true, state } : loadGame(getStorage(), data.scenario, data.engine);
+  if (!loaded.ok) { showTitleMessage(loaded.error); return; }
+  const name = exportName(currentMonth(loaded.state));
+  const file = new File([saveText(loaded.state)], name, { type: 'application/json' });
+  try {
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: 'Western Front save' });
+      return;
+    }
+  } catch (err) {
+    if (err && err.name === 'AbortError') return;   // the player closed the share sheet
+  }
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(file);
+  link.download = name;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+}
+
+// Import: read a save file, check it, and play it.
+function importSave(fileInput) {
+  const file = fileInput.files && fileInput.files[0];
+  fileInput.value = '';
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onerror = () => showTitleMessage('That file could not be read.');
+  reader.onload = () => {
+    const r = readSave(String(reader.result), data.scenario, data.engine);
+    if (!r.ok) { showTitleMessage(r.error); return; }
+    demoAttack = null;
+    playState(r.state);
+    persist();
+  };
+  reader.readAsText(file);
+}
+
+function showTitleMessage(text) {
+  continueNote.hidden = false;
+  continueNote.textContent = text;
 }
 
 // The title screen shows Sir Edward Grey's words from data/quotes.json.
@@ -242,6 +307,7 @@ function tapBox(boxId) {
       } catch (err) {
         orderError = err.message;
       }
+      persist();
       redraw();
       selectBox(boxId);
       return;
@@ -338,6 +404,7 @@ function confirmAttack() {
     return;
   }
   state = out.state;
+  persist();
   const r = out.result;
   const steps = (o) => Object.values(o || {}).reduce((a, b) => a + b, 0);
   const lines = [];
@@ -416,6 +483,7 @@ function redraw() {
 // End Phase: on to the next phase that needs orders.
 function nextPhase() {
   state = endPhase(state, orderData());
+  persist();
   attack = null;
   mapView.clearPlannedAttack();
   selectedUnit = null;
@@ -436,6 +504,16 @@ function startGame() {
   // "?demo" in the address shows a sample war on the map (js/ui/demo.js).
   demoAttack = new URLSearchParams(window.location.search).has('demo') ? applyDemo(state) : null;
   state = beginGame(state, orderData());
+  playState(state);
+  persist();
+}
+
+// Show the game screen for a state (new, continued or imported).
+function playState(newState) {
+  state = newState;
+  selectedBox = null;
+  selectedUnit = null;
+  attack = null;
   showScreen(gameScreen);
   gameTitle.textContent = monthLabel(currentMonth(state));
   showMap();
@@ -471,9 +549,11 @@ function wireSheet() {
 async function boot() {
   updateContinueButton();
   newGameButton.addEventListener('click', startGame);
-  // Saved games arrive in Milestone 8; until then Continue starts a fresh game.
-  continueButton.addEventListener('click', startGame);
-  $('btn-back').addEventListener('click', () => showScreen(titleScreen));
+  continueButton.addEventListener('click', continueGame);
+  $('btn-export').addEventListener('click', exportSave);
+  $('btn-import').addEventListener('click', () => $('import-file').click());
+  $('import-file').addEventListener('change', (e) => importSave(e.target));
+  $('btn-back').addEventListener('click', () => { showScreen(titleScreen); updateContinueButton(); });
   $('btn-end-phase').addEventListener('click', () => { if (state) nextPhase(); });
   wireSheet();
 

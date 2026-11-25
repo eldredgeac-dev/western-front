@@ -112,7 +112,8 @@ html, body {
   box-shadow: 0 20px 60px var(--leather);
   pointer-events: none;
 }
-.title-block, .title-quote, .title-buttons { position: relative; }
+.title-block, .title-quote, .title-files { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap); }
+.title-buttons { position: relative; }
 .title-kicker {
   margin: 0;
   color: var(--paper-dark);
