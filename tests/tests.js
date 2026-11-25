@@ -145,11 +145,14 @@ test('map: terrain matches RULES.md §3', () => {
   }
 });
 
-test('map: every terrain type has a way to be drawn, and fills have colours', () => {
+test('map: every terrain type has a way to be drawn, with colours', () => {
   check(data.terrain.types.length === 8, 'RULES.md §3 lists 8 terrain types');
+  const hex = (c) => /^#[0-9a-f]{6}$/i.test(c);
+  check(hex(data.terrain.plainGround), 'terrain.json needs a plainGround colour');
   for (const t of data.terrain.types) {
-    check(['fill', 'pattern', 'badge'].includes(t.draw.kind), t.id + ' has no draw kind');
-    check(/^#[0-9a-f]{6}$/i.test(t.draw.color), t.id + ' needs a colour');
+    check(t.draw.texture || t.draw.badge, t.id + ' needs a texture or a badge');
+    check(hex(t.draw.color), t.id + ' needs a colour');
+    if (t.draw.ground) check(hex(t.draw.ground) && typeof t.draw.priority === 'number', t.id + ' ground needs a colour and priority');
     check(t.effect && t.name, t.id + ' needs a name and effect');
   }
 });
