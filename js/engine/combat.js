@@ -106,6 +106,7 @@ export function planAttack(state, data, order) {
     if (!inSupply(state, data, u)) reasons.push(`${label} is out of supply.`);
     const cannot = (nationOf(data, u.nation).traits || []).find((t) => t.kind === 'cannot-attack');
     if (cannot) reasons.push(`${label} can't attack (${cannot.name}).`);
+    if (state.cannotAttack && state.cannotAttack[u.nation]) reasons.push(`${label} can't attack (${state.cannotAttack[u.nation]}).`);
   }
 
   const defenders = holdingDefenders(state, data, order.target);
@@ -380,4 +381,21 @@ export function resolveAttack(state, data, order) {
   addLog(next, `Attack on ${name} at ${plan.columnLabel}: rolled ${dice.total}.`);
   const result = applyCombatResult(next, data, plan, cell);
   return { state: next, result: { plan, roll: dice.total, dice: dice.dice, cell, ...result } };
+}
+
+// The units that may attack this territory right now: on the side whose attack
+// phase it is, next to the target, in supply, not yet attacked or railed, and of a
+// nation that can attack. Returns [] if the target isn't an enemy territory.
+export function eligibleAttackers(state, data, targetId) {
+  const target = boxesOf(data)[targetId];
+  if (!target) return [];
+  return state.units.filter((u) => {
+    const side = sideOfUnit(data, u);
+    if (state.boxes[targetId].owner === side) return false;
+    if (!phaseAllows(state, data, u, 'attack')) return false;
+    if (!target.neighbours.includes(u.box) || u.attacked || u.railed) return false;
+    if ((nationOf(data, u.nation).traits || []).some((t) => t.kind === 'cannot-attack')) return false;
+    if (state.cannotAttack && state.cannotAttack[u.nation]) return false;
+    return inSupply(state, data, u);
+  }).map((u) => u.id);
 }

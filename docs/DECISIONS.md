@@ -110,6 +110,23 @@ I'll change it.
     - All the wording is in English, including for the German paper (DIE KRIEGSZEITUNG),
       because the game is in English.
 
+### Second night: the order slip (Milestone 5 screen)
+25. **Milestone numbers.** Your list called supply "Milestone 6", saves "7" and events "8".
+    In MILESTONES.md they're 7, 8 and 9, because "Feel and sound" became 6. I built them
+    in your order and use the MILESTONES.md numbers in commits and docs.
+26. **Item 1 (simulator and nicknames) was already done** from your previous message
+    (commits `4e0c3cf` and `37b61e2`), so there was nothing more to do there.
+27. **How an attack starts.** In an attack phase, tap any enemy territory. The order slip
+    opens with every unit that may attack it already chosen. Tap units to leave them out,
+    and use − / + to add munitions. The slip updates the odds as you go, and the
+    grease-pencil arrow shows the plan on the map. CONFIRM ORDER rolls the dice and the
+    slip shows the result; Close puts it away.
+28. **The slip lists only units that may attack** (next to the target, in supply, not yet
+    attacked or railed, able to attack). It doesn't show the ones that can't, with
+    reasons. That could be added later.
+29. **No animation yet.** The dice result appears at once, typed on the slip. Dice
+    tumbling and the stamp animation are Milestone 6 (Feel and sound).
+
 ## Questions for you (answered)
 1. **Combat table — answered: RULES.md is right.**
    - The balance tests used `tools/t2.py`, which patched the simulator's 1:2 and 1:1
@@ -143,6 +160,13 @@ I'll change it.
 - [ ] **Moving.** In "German move", tap a German territory, tap its unit, close the sheet
       (swipe it down) and tap a brass-outlined territory next door. The counter moves, and
       "Dispatches" in the panel says so. Try a dashed one too (a rail move).
+- [ ] **Order slip.** Tap END PHASE once ("German attack"), then tap Verdun.
+      - A cream "ORDER OF ATTACK" slip should appear in typewriter text, listing every
+        column shift (trench, ridge, fortress, winter, heavy howitzers, the 75s) and a
+        red stamped "COLUMN 1:2".
+      - A red grease-pencil arrow should point into Verdun.
+      - Tap CONFIRM ORDER: the slip shows the dice and "REPULSED" (or "OBJECTIVE TAKEN").
+      - Is it readable on the folded phone?
 - [ ] **Counter details.** At full zoom: is the German cross pattée (top-left mark) clear
       enough? It's small and dark on field grey. Counters also sit over their own town's
       name. Tell me if you'd rather they sat beside it.

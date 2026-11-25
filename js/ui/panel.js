@@ -101,6 +101,100 @@ function dispatches(log) {
   return section;
 }
 
+// A typed line on the order slip: label …… value
+function slipLine(parent, label, value, cls = '') {
+  const line = el('div', 'slip-line ' + cls);
+  line.appendChild(el('span', 'slip-label', label));
+  line.appendChild(el('span', 'slip-dots'));
+  line.appendChild(el('span', 'slip-value', value));
+  parent.appendChild(line);
+}
+const signed = (n) => (n > 0 ? `+${n}` : n < 0 ? `\u2212${-n}` : '0');
+const pct = (p) => `${Math.round(p * 100)}%`;
+
+// The attack order slip (STYLE.md §6): telegram paper, typed lines, every column
+// shift listed, the final odds stamped in red, and CONFIRM ORDER.
+//   slip    — worked out by main.js (see attackSlip there)
+//   actions — onToggleUnit(id), onMunitions(change), onConfirm(), onCancel()
+function orderSlip(slip, actions) {
+  const card = el('section', 'order-slip');
+  card.appendChild(el('p', 'slip-kicker', slip.result ? 'ORDER CARRIED OUT' : 'ORDER OF ATTACK'));
+  card.appendChild(el('h3', 'slip-title', `Objective: ${slip.targetName}`));
+  card.appendChild(el('p', 'slip-defenders', slip.defenderText));
+
+  if (!slip.result) {
+    card.appendChild(el('p', 'slip-section', 'Attacking units (tap to add or remove):'));
+    if (!slip.units.length) card.appendChild(el('p', 'slip-note', 'No unit can attack this territory now.'));
+    for (const u of slip.units) {
+      const b = el('button', 'slip-unit');
+      b.type = 'button';
+      b.setAttribute('aria-pressed', String(u.chosen));
+      b.appendChild(counterIcon(u.unit, u.look, 34));
+      b.appendChild(el('span', '', `${u.title} \u00b7 ${u.steps} steps ${u.chosen ? '\u2014 ATTACKING' : ''}`));
+      b.addEventListener('click', () => actions.onToggleUnit(u.id));
+      card.appendChild(b);
+    }
+    const mun = el('div', 'slip-munitions');
+    const less = el('button', 'btn btn-small slip-step', '\u2212');
+    const more = el('button', 'btn btn-small slip-step', '+');
+    less.type = more.type = 'button';
+    less.setAttribute('aria-label', 'One munition less');
+    more.setAttribute('aria-label', 'One munition more');
+    less.disabled = slip.munitions <= 0;
+    more.disabled = slip.munitions >= slip.munitionsMax;
+    less.addEventListener('click', () => actions.onMunitions(-1));
+    more.addEventListener('click', () => actions.onMunitions(1));
+    mun.appendChild(less);
+    mun.appendChild(el('span', 'slip-mun-text', `Barrage: ${slip.munitions} munition${slip.munitions === 1 ? '' : 's'} (up to ${slip.munitionsMax})`));
+    mun.appendChild(more);
+    card.appendChild(mun);
+  }
+
+  const lines = el('div', 'slip-lines');
+  if (slip.empty) {
+    slipLine(lines, 'Defenders', 'none \u2014 taken without a fight');
+  } else if (slip.ratioText) {
+    slipLine(lines, 'Odds', slip.ratioText);
+    for (const sh of slip.shifts) slipLine(lines, sh.label, signed(sh.value));
+  }
+  if (slip.cost) slipLine(lines, 'Cost', slip.cost);
+  card.appendChild(lines);
+
+  if (slip.finalLabel && !slip.result) {
+    const stamp = el('p', 'slip-stamp', `COLUMN ${slip.finalLabel}`);
+    card.appendChild(stamp);
+    const odds = el('div', 'slip-lines');
+    slipLine(odds, 'Chance of taking it', pct(slip.pTake));
+    slipLine(odds, 'Expected losses, ours', `${slip.attackerLoss.toFixed(1)} steps`);
+    slipLine(odds, 'Expected losses, theirs', `${slip.defenderLoss.toFixed(1)} steps`);
+    card.appendChild(odds);
+  }
+  if (slip.warning) card.appendChild(el('p', 'slip-warning', slip.warning));
+  for (const r of slip.reasons || []) card.appendChild(el('p', 'slip-note', r));
+
+  if (slip.result) {
+    const res = el('div', 'slip-lines');
+    for (const [label, value] of slip.result) slipLine(res, label, value);
+    card.appendChild(res);
+    card.appendChild(el('p', 'slip-stamp' + (slip.taken ? '' : ' failed'), slip.taken ? 'OBJECTIVE TAKEN' : 'REPULSED'));
+  }
+
+  const buttons = el('div', 'slip-buttons');
+  if (!slip.result) {
+    const go = el('button', 'btn btn-primary', 'Confirm order');
+    go.type = 'button';
+    go.disabled = !slip.ok;
+    go.addEventListener('click', () => actions.onConfirm());
+    buttons.appendChild(go);
+  }
+  const cancel = el('button', 'btn', slip.result ? 'Close' : 'Cancel');
+  cancel.type = 'button';
+  cancel.addEventListener('click', () => actions.onCancel());
+  buttons.appendChild(cancel);
+  card.appendChild(buttons);
+  return card;
+}
+
 // Show the panel. `info` is null when nothing is selected, or an object with
 // everything about the tapped territory, already worked out by main.js.
 //   actions.onUnit(id) — a unit in the list was tapped
@@ -109,6 +203,7 @@ function dispatches(log) {
 export function showPanel(container, info, terrainData, actions = {}) {
   const parts = [];
   if (actions.error) parts.push(el('p', 'panel-error', actions.error));
+  if (actions.slip) parts.push(orderSlip(actions.slip, actions));
   if (!info) {
     parts.push(el('p', 'panel-hint', 'Tap a territory on the map to see its details. Pinch to zoom.'));
   } else {

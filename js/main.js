@@ -11,6 +11,7 @@ import { applyDemo } from './ui/demo.js';
 import { unitsIn, unitType, nationOf } from './engine/units.js';
 import { moveTargets, railTargets, moveUnit, railMove, phaseAllows } from './engine/moves.js';
 import { beginGame, endPhase, phaseOf } from './engine/turn.js';
+import { oddsPreview, resolveAttack, eligibleAttackers, barrageMax } from './engine/combat.js';
 
 // Find the page elements we need once, at start-up.
 const $ = (id) => document.getElementById(id);
@@ -39,6 +40,9 @@ let selectedBox = null;
 let selectedUnit = null;
 // A message about the last order, if it wasn't allowed.
 let orderError = null;
+// The attack being planned on the order slip, or null:
+// { target, units: [ids], munitions, result: null or [[label, value]…], taken }
+let attack = null;
 
 // Get localStorage safely: just reading `window.localStorage` can throw
 // when storage is blocked.
@@ -68,7 +72,7 @@ async function loadJson(path) {
 
 // Load all the data files the game needs, and check the map makes sense.
 async function loadData() {
-  const [map, terrainData, nations, scenario, quotes, unitTypes, phases] = await Promise.all([
+  const [map, terrainData, nations, scenario, quotes, unitTypes, phases, combat] = await Promise.all([
     loadJson('./data/boxes-west.json'),
     loadJson('./data/terrain.json'),
     loadJson('./data/nations.json'),
@@ -76,12 +80,13 @@ async function loadData() {
     loadJson('./data/quotes.json'),
     loadJson('./data/unit-types.json'),
     loadJson('./data/phases.json'),
+    loadJson('./data/combat-table.json'),
   ]);
   const problems = checkMap(map, terrainData);
   if (problems.length > 0) throw new Error('The map data has problems: ' + problems.join('; '));
   const mapSvg = await loadMapSvg(map.mapSvg);
   // `engine` is the bundle of data files the game engine (js/engine/) works with.
-  const engine = { map, terrain: terrainData, nations, unitTypes, phases };
+  const engine = { map, terrain: terrainData, nations, unitTypes, phases, combat };
   return { map, terrainData, nations, scenario, quotes, unitTypes, phases, engine, mapSvg, boxesById: indexBoxes(map) };
 }
 
@@ -173,8 +178,11 @@ function orderData() {
 
 // Show the panel for the selected territory (and unit).
 function refreshPanel() {
-  showPanel(panelArea, selectedBox ? boxInfo(selectedBox) : null, data.terrainData,
-    { onUnit: selectUnit, log: state.log, error: orderError });
+  showPanel(panelArea, selectedBox ? boxInfo(selectedBox) : null, data.terrainData, {
+    onUnit: selectUnit, log: state.log, error: orderError,
+    slip: attack ? attackSlip() : null,
+    onToggleUnit: toggleAttacker, onMunitions: changeMunitions, onConfirm: confirmAttack, onCancel: closeAttack,
+  });
   orderError = null;
 }
 
@@ -199,6 +207,13 @@ function openSheet(open) {
 // that's an order to move there (by road if it's next door, otherwise by rail).
 // Otherwise it selects the territory.
 function tapBox(boxId) {
+  if (isAttackTarget(boxId)) {
+    selectBox(boxId);
+    openAttack(boxId);
+    refreshPanel();
+    return;
+  }
+  if (attack) closeAttack();
   if (selectedUnit) {
     const near = moveTargets(state, orderData(), selectedUnit);
     const rail = railTargets(state, orderData(), selectedUnit);
@@ -216,6 +231,120 @@ function tapBox(boxId) {
     }
   }
   selectBox(boxId);
+}
+
+// ---------------------------------------------------------------- attacks
+// Is it an attack phase, and is this territory an enemy of the side attacking?
+function isAttackTarget(boxId) {
+  const phase = phaseOf(state, orderData());
+  return !state.over && phase && phase.kind === 'attack' && state.boxes[boxId].owner !== phase.side;
+}
+
+// Open the order slip for an attack on this territory, with every unit that can
+// attack it already chosen.
+function openAttack(boxId) {
+  attack = { target: boxId, units: eligibleAttackers(state, orderData(), boxId), munitions: 0, result: null };
+  showAttackArrow();
+}
+
+// The grease-pencil arrow from the strongest chosen unit to the target.
+function showAttackArrow() {
+  const chosen = attack.units.map((id) => state.units.find((u) => u.id === id)).filter(Boolean);
+  if (attack.result || !chosen.length) { mapView.clearPlannedAttack(); return; }
+  const lead = chosen.reduce((a, b) => (b.steps > a.steps ? b : a));
+  mapView.showPlannedAttack(lead.box, attack.target);
+}
+
+// Everything the order slip shows, worked out by the combat engine.
+function attackSlip() {
+  const box = data.boxesById[attack.target];
+  const order = { target: attack.target, units: attack.units, munitions: attack.munitions };
+  const defenders = unitsIn(state, attack.target);
+  const defSteps = defenders.reduce((s, u) => s + u.steps, 0);
+  const slip = {
+    targetName: boxName(data.map, box),
+    defenderText: defenders.length
+      ? `Held by ${defenders.length} unit${defenders.length === 1 ? '' : 's'} (${defSteps} steps), trench level ${state.boxes[attack.target].trench}.`
+      : 'No enemy units hold it.',
+    units: eligibleAttackers(state, orderData(), attack.target).map((id) => {
+      const u = state.units.find((x) => x.id === id);
+      return { ...unitInfo(u), chosen: attack.units.includes(id) };
+    }),
+    munitions: attack.munitions, munitionsMax: 0, shifts: [], reasons: [],
+    result: attack.result, taken: attack.taken,
+  };
+  if (attack.result || !attack.units.length) {
+    slip.ok = false;
+    if (!attack.units.length && !attack.result) slip.reasons = ['Choose at least one unit.'];
+    return slip;
+  }
+  const odds = oddsPreview(state, orderData(), order);
+  const plan = odds.plan;
+  const payer = plan.payer ? nationOf(data.engine, plan.payer) : null;
+  slip.ok = plan.ok;
+  slip.reasons = plan.reasons;
+  slip.empty = plan.empty;
+  slip.shifts = plan.shifts || [];
+  if (plan.ratioColumn !== null && plan.ratioColumn >= 0) {
+    slip.ratioText = `${plan.attackSteps} steps against ${plan.defendSteps} \u2192 ${data.engine.combat.columns[plan.ratioColumn].label}`;
+    slip.finalLabel = plan.columnLabel;
+    slip.pTake = odds.pTake; slip.attackerLoss = odds.attackerLoss; slip.defenderLoss = odds.defenderLoss;
+  } else if (!plan.empty && plan.ratioColumn !== null) {
+    slip.ratioText = `${plan.attackSteps} steps against ${plan.defendSteps} \u2192 below 1:2`;
+  }
+  if (payer) {
+    const left = state.resources[payer.id];
+    slip.cost = `${plan.opCost} OP from ${payer.name} (${left.op} left)`;
+    slip.munitionsMax = Math.min(barrageMax(data.engine, currentMonth(state)), left.munitions);
+  }
+  return slip;
+}
+
+function toggleAttacker(unitId) {
+  attack.units = attack.units.includes(unitId) ? attack.units.filter((x) => x !== unitId) : [...attack.units, unitId];
+  showAttackArrow();
+  refreshPanel();
+}
+function changeMunitions(change) {
+  attack.munitions = Math.max(0, attack.munitions + change);
+  refreshPanel();
+}
+
+// CONFIRM ORDER: roll the dice and show what happened on the slip.
+function confirmAttack() {
+  let out;
+  try {
+    out = resolveAttack(state, orderData(), { target: attack.target, units: attack.units, munitions: attack.munitions });
+  } catch (err) {
+    orderError = err.message;
+    refreshPanel();
+    return;
+  }
+  state = out.state;
+  const r = out.result;
+  const steps = (o) => Object.values(o || {}).reduce((a, b) => a + b, 0);
+  const lines = [];
+  if (r.empty) lines.push(['Result', 'taken without a fight']);
+  else {
+    lines.push(['Column', r.plan.columnLabel], ['Dice', `${r.dice[0]} + ${r.dice[1]} = ${r.roll}`],
+      ['Table', `A${r.cell.a} D${r.cell.d}${r.cell.r ? ' R' : ''}`],
+      ['Our losses', `${steps(r.attackerLost)} steps`], ['Their losses', `${steps(r.defenderLost) + steps(r.retreatLost)} steps`]);
+    if (r.futile) lines.push(['Futile attack', `\u2212${data.engine.combat.futile.will} Will`]);
+  }
+  for (const [nat, w] of Object.entries(r.will || {})) {
+    if (!r.futile || nat !== r.plan.payer) lines.push([`${nationOf(data.engine, nat).name} Will`, w > 0 ? `+${w}` : `\u2212${-w}`]);
+  }
+  attack.result = lines;
+  attack.taken = r.taken;
+  mapView.clearPlannedAttack();
+  redraw();
+  refreshPanel();
+}
+
+function closeAttack() {
+  attack = null;
+  mapView.clearPlannedAttack();
+  refreshPanel();
 }
 
 // Called when a territory is selected: highlight it and show its details.
@@ -270,6 +399,8 @@ function redraw() {
 // End Phase: on to the next phase that needs orders.
 function nextPhase() {
   state = endPhase(state, orderData());
+  attack = null;
+  mapView.clearPlannedAttack();
   selectedUnit = null;
   mapView.showTargets([], []);
   redraw();
@@ -284,6 +415,7 @@ function startGame() {
   state = newGame(data.scenario, Date.now() % 2147483647, data.engine);
   selectedBox = null;
   selectedUnit = null;
+  attack = null;
   // "?demo" in the address shows a sample war on the map (js/ui/demo.js).
   demoAttack = new URLSearchParams(window.location.search).has('demo') ? applyDemo(state) : null;
   state = beginGame(state, orderData());

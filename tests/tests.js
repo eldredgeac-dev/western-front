@@ -11,7 +11,7 @@ import { resourcesFor } from '../js/engine/resources.js';
 import { beginGame, endPhase, phaseOf, digIn } from '../js/engine/turn.js';
 import { inSupply, rearColumn, supplySources } from '../js/engine/supply.js';
 import { columnAverages, ratioColumn, planAttack, oddsPreview, resolveAttack, applyCombatResult,
-  barrageMax } from '../js/engine/combat.js';
+  barrageMax, eligibleAttackers } from '../js/engine/combat.js';
 
 export const tests = [];
 
@@ -833,6 +833,16 @@ test('combat: the same seed gives the same result, and the old state is untouche
   check(JSON.stringify(s) === before, 'the state passed in was changed');
   check(unit(one.state, 'fra-03').attacked && one.state.attackedBoxes.includes('l06-g1'), 'attacker marked, box marked');
   check(one.state.rng !== s.rng, 'the dice moved on');
+});
+
+test('combat: the order slip lists only units that may attack the target', () => {
+  const s = atWar('1915-04', 'entente');
+  place(s, 'fra-12', 'l06-e1');
+  unit(s, 'fra-13').railed = true; place(s, 'fra-13', 'l05-e1');
+  const ids = eligibleAttackers(s, bundle(), 'l06-g1').sort();
+  check(ids.join() === 'fra-03,fra-12', ids.join());
+  check(eligibleAttackers(s, bundle(), 'l06-e1').length === 0, 'not against a friendly box');
+  check(eligibleAttackers(atWar('1915-04', 'germany'), bundle(), 'l06-g1').length === 0, 'not in the German phase');
 });
 
 test('combat: the odds preview — better columns mean better chances', () => {

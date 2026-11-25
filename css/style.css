@@ -280,6 +280,42 @@ html, body {
 .counter-icon { flex: none; }
 .unit-hint { margin: 4px 0 10px; color: var(--paper-dark); font-size: 0.95rem; }
 .panel-error { margin: 0 0 10px; padding: 8px 10px; border-left: 3px solid var(--stamp-red); color: var(--telegram); }
+/* The attack order slip (STYLE.md §6): telegram paper, typed text, red stamp. */
+.order-slip {
+  margin: 0 0 var(--gap); padding: 14px 14px 12px;
+  background: var(--telegram); color: var(--ink);
+  border-radius: 2px; box-shadow: 0 2px 8px var(--leather);
+  font-family: var(--font-type); font-size: 0.95rem;
+}
+.slip-kicker { margin: 0; letter-spacing: 0.2em; font-weight: 700; }
+.slip-title { margin: 4px 0 2px; font: 700 1.05rem var(--font-type); }
+.slip-defenders, .slip-section, .slip-note { margin: 4px 0; }
+.slip-note { color: var(--stamp-red); }
+.slip-warning { margin: 8px 0; padding: 6px 8px; border: 1px dashed var(--stamp-red); color: var(--stamp-red); }
+.slip-unit {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: var(--tap);
+  margin: 0 0 4px; padding: 4px 8px; background: transparent; color: var(--ink);
+  border: 1px dashed var(--ink-faded); border-radius: 2px; font: inherit; text-align: left;
+  cursor: pointer; touch-action: manipulation;
+}
+.slip-unit[aria-pressed="true"] { border: 1px solid var(--ink); background: var(--paper); }
+.slip-munitions { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
+.slip-step { min-width: var(--tap); padding: 6px 0; color: var(--ink); border-color: var(--ink); }
+.slip-mun-text { flex: 1; }
+.slip-lines { margin: 6px 0; }
+.slip-line { display: flex; align-items: baseline; gap: 4px; }
+.slip-dots { flex: 1; border-bottom: 1px dotted var(--ink-faded); transform: translateY(-3px); }
+.slip-value { text-align: right; }
+.slip-label { flex: none; max-width: 65%; }
+.slip-stamp {
+  display: inline-block; margin: 8px 0 4px; padding: 4px 10px;
+  border: 3px double var(--front-red); color: var(--front-red);
+  font: 700 1.2rem var(--font-type); letter-spacing: 0.12em; transform: rotate(-3deg);
+}
+.slip-stamp.failed { border-color: var(--stamp-red); color: var(--stamp-red); }
+.slip-buttons { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+.order-slip .btn:not(.btn-primary) { color: var(--ink); border-color: var(--ink); }
+
 /* The dispatches log: typed, like a signals message pad. */
 .dispatches { border-top: 1px solid var(--brass); padding-top: 8px; margin-bottom: var(--gap); }
 .dispatch-list { list-style: none; margin: 0; padding: 0; font-family: var(--font-type); font-size: 0.95rem; color: var(--paper); }
