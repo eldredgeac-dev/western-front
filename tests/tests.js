@@ -1265,12 +1265,15 @@ test('computer: plays its own phases and stops at the player\'s', () => {
   check(phaseOf(u, bundle()).id === 'germany-move' && u.turn === 2, 'the Entente turn played itself');
 });
 
-test('computer: moves units up to fill threatened, empty front boxes', () => {
+test('computer: moves units up to fill threatened, empty front boxes (reserves gather there)', () => {
   const s = atWar('1915-04', 'germany');
   s.phase = phaseIndex('entente-move'); s.controllers = { germany: 'human', entente: 'ai' };
   s.units = s.units.filter((u) => u.id !== 'fra-03');                        // the Somme E1 is now empty
   aiMove(s, bundle(), 'entente');
-  check(unitsIn(s, 'l06-e1').length === 1, 'someone moved into the empty front box');
+  // the front is ranked once (as tools/wfsim.py), so more than one reserve goes to the
+  // most threatened territory, up to the stacking limit
+  const n = unitsIn(s, 'l06-e1').length;
+  check(n >= 2 && n <= data.unitTypes.stackLimit, `reserves gathered in the empty front box: ${n}`);
   check(frontBoxes(s, bundle(), 'entente').includes('l06-e1'), 'it is a front box');
 });
 

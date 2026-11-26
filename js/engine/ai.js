@@ -3,7 +3,7 @@
 // balance-tested, with its weights in data/ai.json.
 //   1. Repair: replacements already go to the weakest units in the most threatened
 //      boxes (systems/replacements.js).
-//   2. Defend (move phase): fill the most threatened front boxes, by road, then rail.
+//   2. Defend (move phase): fill the most threatened front boxes (ranked once), by road, then rail.
 //   3. Attack (attack phase): score every possible attack and make the best ones while
 //      the score is above 0, at 2:1 or better, until expected losses pass RP + 2.
 //   Questions (U-boats, the Hindenburg Line) are answered in events.js.
@@ -87,14 +87,18 @@ export function aiMove(state, data, side, record = null) {
   const mine = state.units.filter((u) => sideOfNation(data, u.nation) === side &&
     !(nationOf(data, u.nation).traits || []).some((t) => t.kind === 'cannot-attack'));
   aiMerge(state, data, side, record);
+  // Rank the front by threat ONCE, at the start of the move phase, as tools/wfsim.py
+  // does (DECISIONS.md 127–128). Reserves then go down this list, so they gather in the
+  // most threatened territories (up to 3 pieces) instead of spreading one per territory.
+  // (Each territory's threat is still checked live before a piece goes there.)
+  const ranked = [...front].sort((a, b) => threat(state, data, b) - threat(state, data, a));
   for (const unitRef of mine) {
     const u = state.units.find((x) => x.id === unitRef.id);
     if (!u || u.moved) continue;
     const here = u.box;
     // a unit in a front box stays unless it has company and the box is quiet
     if (front.has(here) && (unitsIn(state, here).length <= 1 || threat(state, data, here) > cfg.keepThreatAbove)) continue;
-    const order = [...front].sort((a, b) => threat(state, data, b) - threat(state, data, a));
-    const target = order.find((b) => b !== here && stackRoom(state, data, b) > 0 && threat(state, data, b) > cfg.fillThreatAbove);
+    const target = ranked.find((b) => b !== here && stackRoom(state, data, b) > 0 && threat(state, data, b) > cfg.fillThreatAbove);
     if (!target) continue;
     const note = (kind, to) => { if (record) record({ kind, side, unit: u.id, from: here, to }, state); };
     const road = moveTargets(state, data, u.id);       // up to 2 territories (RULES.md §8)
