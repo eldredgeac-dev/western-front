@@ -19,7 +19,8 @@ import { runEvents, chooseOption, pendingChoice, eventDue, replacedByResearch } 
 import { aiMove, aiAttack, frontBoxes } from '../js/engine/ai.js';
 import { SILHOUETTES, mix, isDark } from '../js/ui/counters.js';
 import { queueCheck, addOrder, cancelOrder, commitOrders, attackBoard, stagingBox, ordersPhase } from '../js/engine/orders.js';
-import { recordMonth, casualties, ledger } from '../js/engine/history.js';
+import { recordMonth, casualties, ledger, effectsOf, scoreReason } from '../js/engine/history.js';
+import { unseenTelegrams, markSeen, openQuestion, fill } from '../js/engine/telegrams.js';
 import { rollOutcomes, attackAdvice, bestAttacks, battleReport, phaseGuide, phaseSummary, attackableBoxes } from '../js/engine/explain.js';
 import { tutorialPlan } from '../js/engine/tutorial.js';
 import { addOrder as queueOrder, commitOrders as commitQueued } from '../js/engine/orders.js';
@@ -1122,6 +1123,120 @@ test('events: Vimy makes 2 British units Elite; stormtroopers; the Kaiserschlach
   check(s.will.ger === before - 2 - 15, 'no attack Apr–Oct 1918: −15 (and Hunger −2)');
   s = monthStart('1918-11'); s.attacks = [{ side: 'germany', month: '1918-05' }]; before = s.will.ger; runEvents(s, bundle());
   check(s.will.ger === before - 2, 'an attack in May 1918 avoids it');
+});
+
+// ---------------------------------------------------------------- Milestone 9: event telegrams
+const telegramsOf = (s, key) => (s.telegrams || []).filter((t) => t.key === key);
+
+test('telegrams: every dated event sends its telegram in its month, with what it means', () => {
+  for (const e of data.events.events.filter((x) => x.month && !x.choice)) {
+    const s = monthStart(e.month); s.attacks = [];
+    runEvents(s, bundle());
+    const t = telegramsOf(s, e.id);
+    check(t.length === 1, `${e.id}: one telegram in ${e.month} (got ${t.length})`);
+    check(t[0].month === e.month && t[0].title && t[0].text && t[0].meaning, `${e.id}: date, title, text and meaning`);
+  }
+});
+
+test('telegrams: none before an event is due; repeating drains send one only in their first month', () => {
+  let s = monthStart('1915-03'); runEvents(s, bundle());
+  check(telegramsOf(s, 'gas').length === 0, 'no gas telegram in March 1915');
+  s = monthStart('1916-01'); runEvents(s, bundle());
+  check(telegramsOf(s, 'blockade').length === 0, 'blockade not due in January 1916');
+  s = monthStart('1916-02'); runEvents(s, bundle());
+  check(telegramsOf(s, 'blockade').length === 1, 'blockade telegram in February 1916');
+  s.turn += 2; s.eventsDone = []; runEvents(s, bundle());
+  check(currentMonth(s) === '1916-04' && telegramsOf(s, 'blockade').length === 1, 'not again in April');
+  s = monthStart('1918-11'); s.attacks = [{ side: 'germany', month: '1918-05' }]; runEvents(s, bundle());
+  check(telegramsOf(s, 'kaiserschlacht').length === 0, 'no Kaiserschlacht penalty telegram when Germany attacked');
+});
+
+test('telegrams: the computer\'s choices are telegraphed ("Germany has declared …")', () => {
+  let s = monthStart('1917-02', { germany: 'ai', entente: 'human' }); runEvents(s, bundle());
+  const u = telegramsOf(s, 'u-boats:unrestricted');
+  check(u.length === 1 && /declared unrestricted submarine warfare/.test(u[0].text), 'U-boat telegram: ' + JSON.stringify(u));
+  check(/2 Will each month for 6 months/.test(u[0].meaning) && /April 1917/.test(u[0].meaning), 'says what it means');
+  check(telegramsOf(s, 'u-boats').length === 0 && !openQuestion(s), 'no question for the computer');
+  s = monthStart('1917-03', { germany: 'ai', entente: 'human' }); runEvents(s, bundle());
+  check(telegramsOf(s, 'hindenburg-line:withdraw').length === 1, 'Hindenburg Line telegram');
+});
+
+test('telegrams: a player\'s question waits on its telegram; the answer\'s effects apply and are recorded', () => {
+  let s = monthStart('1917-02'); runEvents(s, bundle());
+  const q = openQuestion(s);
+  check(q && q.key === 'u-boats' && q.choice.options.length === 2, 'a question telegram with two answers');
+  check(q.choice.options.every((o) => o.label && o.text), 'each answer says its consequences');
+  s = markSeen(s, 999);
+  check(unseenTelegrams(s).some((t) => t.n === q.n), 'an unanswered question can\'t be dismissed');
+  s = chooseOption(s, bundle(), 'restricted');
+  check(!openQuestion(s) && s.telegrams.find((t) => t.n === q.n).choice.answer === 'restricted', 'answer recorded');
+  check(s.usaEntry === '1918-01' && s.will.gbr === 85, 'restricted: its effects');
+  check(unseenTelegrams(s).length === 0, 'nothing left to read');
+  s = playTo(s, '1918-01');
+  const usa = telegramsOf(s, 'usa-entry');
+  check(usa.length === 1 && usa[0].month === '1918-01' && /August 1918/.test(usa[0].meaning), 'USA entry telegram: ' + JSON.stringify(usa));
+  let r = monthStart('1917-02'); runEvents(r, bundle()); r = chooseOption(r, bundle(), 'unrestricted');
+  check(r.will.gbr === 85 - 2 && r.usaEntry === '1917-04', 'unrestricted: its effects');
+  r = playTo(r, '1917-04');
+  check(/November 1917/.test(telegramsOf(r, 'usa-entry')[0].meaning), 'US troops in November 1917');
+});
+
+test('telegrams: the French mutinies start and end with a telegram', () => {
+  const s = copyOf(started());
+  s.will.fra = 34; willPhase(s, bundle());
+  const start = telegramsOf(s, 'mutiny-start');
+  check(start.length === 1 && /3 months/.test(start[0].meaning) && /10 Will/.test(start[0].meaning), 'start: ' + JSON.stringify(start));
+  for (let i = 0; i < 3; i++) { s.lostThisTurn = {}; willPhase(s, bundle()); }
+  check(telegramsOf(s, 'mutiny-end').length === 1, 'end telegram');
+});
+
+test('telegrams: old saves get an empty list; a waiting question becomes a telegram', () => {
+  const old = monthStart('1917-02'); runEvents(old, bundle());
+  delete old.telegrams; delete old.telegramsSeen; old.version = 5;
+  const m = migrateState(old, data.scenario, bundle());
+  check(m.version === STATE_VERSION && openQuestion(m) && openQuestion(m).key === 'u-boats', 'question kept');
+  check(game().telegrams.length === 0 && game().telegramsSeen === 0, 'a new game starts with none');
+  check(fill('in {n} months', { n: 7 }) === 'in 7 months', 'placeholders');
+});
+
+test('telegrams: wording uses dates in words, never 1917-04 (STYLE.md §10)', () => {
+  const texts = [];
+  for (const e of data.events.events) {
+    if (e.telegram) texts.push(e.telegram.title, e.telegram.text, e.telegram.meaning);
+    for (const o of (e.choice || { options: [] }).options) if (o.telegram) texts.push(o.telegram.text, o.telegram.meaning);
+  }
+  check(texts.length > 20 && texts.every((t) => t && !/\d{4}-\d{2}/.test(t)), 'bad date');
+});
+
+test('nations screen: active effects, Will history, countdowns and why someone is ahead', () => {
+  const ger = data.nations.nations.find((n) => n.id === 'ger');
+  let s = monthStart('1916-02'); runEvents(s, bundle());
+  const fx = effectsOf(s, bundle(), ger, '1916-02');
+  const status = (name) => (fx.find((x) => x.name === name) || {}).status;
+  check(status('Blockade') === 'active' && status('Heavy howitzers') === 'ended' && status('Exhaustion') === 'coming', JSON.stringify(fx));
+  // U-boats on Britain and its countdown
+  s = monthStart('1917-02'); runEvents(s, bundle()); s = chooseOption(s, bundle(), 'unrestricted');
+  let l = ledger(s, bundle());
+  const gbr = l.nations.find((n) => n.id === 'gbr');
+  check(gbr.effects.some((x) => x.name === 'The U-boat decision' && /5 more months/.test(x.text)), 'U-boat effect on Britain');
+  check(l.countdowns.some((c) => c.key === 'ongoing-gbr' && c.months === 5), 'U-boat countdown');
+  check(l.countdowns.some((c) => c.key === 'us-troops' && c.months === 9), 'US troops expected in 9 months (Nov 1917)');
+  check(gbr.willSeries.length >= 1 && gbr.willSeries[gbr.willSeries.length - 1].will === s.will.gbr, 'Will history ends this month');
+  check(l.others.some((n) => n.id === 'bel' && n.countsAgainst === 'fra'), 'Belgium has a page');
+  // the Kaiserschlacht deadline
+  s = monthStart('1918-06'); s.attacks = [];
+  let k = ledger(s, bundle()).countdowns.find((c) => c.key === 'kaiserschlacht');
+  check(k && k.months === 4 && /October 1918/.test(k.note), 'Kaiserschlacht countdown: ' + JSON.stringify(k));
+  s.attacks = [{ side: 'germany', month: '1918-04' }];
+  k = ledger(s, bundle()).countdowns.find((c) => c.key === 'kaiserschlacht');
+  check(/no penalty/.test(k.note), 'no penalty once Germany attacked');
+  check(!ledger(monthStart('1916-06'), bundle()).countdowns.some((c) => c.key === 'kaiserschlacht'), 'not shown in 1916');
+  // who's ahead and why
+  s = monthStart('1916-06'); s.will.fra = 31;
+  check(/France|French/.test(scoreReason(s, bundle(), armisticeScore(s, bundle()))) &&
+    /Germany is ahead, mainly because French Will \(31\) is low/.test(scoreReason(s, bundle(), armisticeScore(s, bundle()))), 'reason names France');
+  s.will.ger = 0 + Math.round((s.will.fra + s.will.gbr) / 2);
+  check(/^Too close to call/.test(scoreReason(s, bundle(), armisticeScore(s, bundle()))), 'close');
 });
 
 // ---------------------------------------------------------------- Milestone 9: the computer opponent

@@ -9,6 +9,7 @@
 //   Then the victory check: sudden victory, or the Armistice Score after the last turn.
 
 import { addLog } from '../moves.js';
+import { sendTelegram } from '../telegrams.js';
 
 const nationsOf = (data) => data.nations.nations;
 
@@ -37,11 +38,13 @@ function mutinies(state, data) {
         state.will[n.id] += n.mutiny.willAfter;
         delete state.cannotAttack[n.id];
         addLog(state, `The ${n.mutiny.name} are over. ${n.name} gains ${n.mutiny.willAfter} Will.`);
+        if (n.mutiny.telegram) sendTelegram(state, 'mutiny-end', n.mutiny.telegram.end, n.mutiny);
       }
     } else if (!m && state.will[n.id] < n.mutiny.belowWill) {
       state.mutinies[n.id] = { left: n.mutiny.turns, month: state.turn };
       state.cannotAttack[n.id] = n.mutiny.name;
       addLog(state, `${n.mutiny.name.toUpperCase()}: ${n.adjective || n.name} units refuse to attack for ${n.mutiny.turns} turns.`);
+      if (n.mutiny.telegram) sendTelegram(state, 'mutiny-start', n.mutiny.telegram.start, n.mutiny);
     }
   }
 }

@@ -3,6 +3,7 @@
 // during a game lives here; everything that never changes lives in data/*.json.
 
 import { resourcesFor, applyDifficulty } from './resources.js';
+import { questionTelegram } from './telegrams.js';
 
 // Bump this whenever the shape of the state changes, so old saves can be
 // recognised and upgraded (Milestone 8).
@@ -10,7 +11,8 @@ import { resourcesFor, applyDifficulty } from './resources.js';
 //   2: units, Will, resources, the dice, the phase and the log (Milestones 3–5)
 //   3: queued orders   4: the War Office's records
 //   5: the war economy (RULES.md §19): the munitions stockpile, research, budgets
-export const STATE_VERSION = 5;
+//   6: event telegrams (js/engine/telegrams.js) and how many the player has read
+export const STATE_VERSION = 6;
 
 // Build a brand-new game from a scenario (data/scenarios/*.json).
 //   seed — any whole number; it drives every dice roll (js/engine/rng.js)
@@ -58,6 +60,8 @@ export function newGame(scenario, seed, data = {}, options = {}) {
     research: {},             // IP put into each tech so far (js/engine/systems/economy.js)
     techs: [],                // techs researched (bought) in this game
     budget: {},               // this month's War Office budget per nation
+    telegrams: [],            // every event telegram sent (js/engine/telegrams.js)
+    telegramsSeen: 0,         // how many of them the player has read
     autoAllocate: {},         // per side: spend the budget automatically each month?
     log: [],
   };
@@ -172,6 +176,14 @@ export function migrateState(saved, scenario, data) {
     state.techs = [];
     state.budget = {};
     state.autoAllocate = Object.fromEntries(Object.keys(state.controllers || {}).map((side) => [side, true]));
+  }
+  if (version < 6) {
+    // Version 6 added event telegrams. Older games start with none, except a question
+    // that's waiting for an answer, which becomes a telegram so it can be answered.
+    state.telegrams = [];
+    state.telegramsSeen = 0;
+    const waiting = state.pendingChoice && data.events ? data.events.events.find((e) => e.id === state.pendingChoice.event) : null;
+    if (waiting) questionTelegram(state, waiting);
   }
   state.version = STATE_VERSION;
   return state;
