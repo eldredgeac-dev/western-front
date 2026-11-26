@@ -525,6 +525,15 @@ export function createMapView(container, svg, { nations, boxNameFn, noteNameFn, 
     for (const o of list) drawArrow(suggestLayer, o.from, o.to, 'attack suggest', { label: o.label });
   }
 
+  // The guided first turn's arrows: what the coach wants you to do next.
+  //   list: [{ from, to, kind: 'move' | 'attack' }]
+  const coachLayer = svgEl('g', { id: 'coach-arrows' });
+  suggestLayer.after(coachLayer);
+  function showCoach(list) {
+    coachLayer.replaceChildren();
+    for (const o of list) drawArrow(coachLayer, o.from, o.to, `${o.kind} coach`);
+  }
+
   // ---- playing a turn back (js/ui/animate.js uses these)
   // Where a territory's stack stands now (map units): its town plus the stack's offset.
   const spotOffset = {};
@@ -572,5 +581,5 @@ export function createMapView(container, svg, { nations, boxNameFn, noteNameFn, 
   function clearEffects() { effects.replaceChildren(); for (const g of unitsLayer.querySelectorAll('.ghost')) g.remove(); }
 
   return { svg, update, select, declutter, frontBounds, showPlannedAttack, clearPlannedAttack,
-    drawUnits, layout, showTargets, showSuggestions, drawOrders, standPoint, ghostPiece, puffs, floatText, clearEffects };
+    drawUnits, layout, showTargets, showSuggestions, showCoach, drawOrders, standPoint, ghostPiece, puffs, floatText, clearEffects };
 }

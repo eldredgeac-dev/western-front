@@ -20,7 +20,9 @@ import { aiMove, aiAttack, frontBoxes } from '../js/engine/ai.js';
 import { SILHOUETTES, mix, isDark } from '../js/ui/counters.js';
 import { queueCheck, addOrder, cancelOrder, commitOrders } from '../js/engine/orders.js';
 import { recordMonth, casualties, ledger } from '../js/engine/history.js';
-import { rollOutcomes, attackAdvice, bestAttacks } from '../js/engine/explain.js';
+import { rollOutcomes, attackAdvice, bestAttacks, battleReport, phaseGuide, attackableBoxes } from '../js/engine/explain.js';
+import { tutorialPlan } from '../js/engine/tutorial.js';
+import { addOrder as queueOrder, commitOrders as commitQueued } from '../js/engine/orders.js';
 import { columnAverages, ratioColumn, planAttack, oddsPreview, resolveAttack, applyCombatResult,
   barrageMax, eligibleAttackers } from '../js/engine/combat.js';
 
@@ -1704,6 +1706,62 @@ test('explain: Best attacks picks the stacked Somme attack with a full barrage',
   check(best[0].pTake >= best[1].pTake && best[1].pTake >= best[2].pTake, 'ranked');
 });
 
+test('explain: the battle report says what happened (taken)', () => {
+  let found = null;
+  for (let seed = 1; seed < 80 && !found; seed++) { const o = attackOutcome(seed); if (o.r.taken) found = o; }
+  const rep = battleReport(eco(), { side: 'entente', target: 'l06-g1', result: found.r, after: found.after });
+  const text = rep.lines.join(' ');
+  check(rep.taken && rep.title.includes('attack on'), rep.title);
+  check(/Rolled \d \+ \d = \d+ on column 3:1/.test(text), text);
+  check(text.includes('Advanced into') && text.includes('The front line moved'), text);
+  if (found.r.retreats.length) check(text.includes('Fell back to'), text);
+});
+
+test('explain: the battle report says what happened (repulsed)', () => {
+  let found = null;
+  for (let seed = 1; seed < 80 && !found; seed++) { const o = attackOutcome(seed); if (!o.r.taken) found = o; }
+  const rep = battleReport(eco(), { side: 'entente', target: 'l06-g1', result: found.r, after: found.after });
+  check(!rep.taken && rep.lines.includes('The line held.') && !rep.lines.join(' ').includes('Advanced'), rep.lines.join(' | '));
+});
+
+test('explain: the phase guide says what to do, with what\'s left', () => {
+  const s = turnOneAttack(4);
+  const g = phaseGuide(s, eco());
+  check(g.startsWith('Entente attack') && g.includes('OP left: France 2 · Britain 1') && g.includes('Munitions: France 2'), g);
+  const m = copyOf(s); m.phase = phaseIndex('entente-move');
+  check(phaseGuide(m, eco()).includes('Rail moves left: France 2 · Britain 1'), phaseGuide(m, eco()));
+  check(attackableBoxes(s, eco(), 'entente').includes('l06-g1'), 'l06-g1 can be attacked');
+  const ai = copyOf(s); ai.controllers.entente = 'ai';
+  check(phaseGuide(ai, eco()) === '', 'nothing in the computer\'s phase');
+});
+
+test('tutorial: the guided first turn picks a good attack and its steps work', () => {
+  const tut = data.tutorial;
+  let s = newGame(data.scenario, tut.seed, eco(), { player: tut.side, level: tut.level });
+  s.autoAllocate[tut.side] = true;
+  s = beginGame(s, eco());
+  check(phaseOf(s, eco()).id === 'entente-move' && !s.pendingBudget, 'starts at the Entente move, no budget page');
+  const p = tutorialPlan(s, eco());
+  check(p && p.target === 'l06-g1' && p.front === 'l06-e1', JSON.stringify(p));
+  s = queueOrder(s, eco(), { kind: 'move', unit: p.support.unit, to: p.front });
+  s = queueOrder(s, eco(), { kind: 'move', unit: p.side.unit, to: p.front });
+  s = queueOrder(s, eco(), { kind: 'move', unit: p.reserve.unit, to: p.side.box });   // a rail move
+  s = endPhase(commitQueued(s, eco()).state, eco());
+  check(phaseOf(s, eco()).id === 'entente-attack', 'attack phase');
+  const units = eligibleAttackers(s, eco(), p.target);
+  check(units.length === 3 && !units.includes(p.reserve.unit), 'three attackers; the railed reserve can\'t attack');
+  const odds = oddsPreview(s, eco(), { target: p.target, units, munitions: 2 });
+  check(odds.plan.columnLabel === '3:1' && Math.round(odds.pTake * 100) === 58, odds.plan.columnLabel);
+  const out = commitQueued(queueOrder(s, eco(), { kind: 'attack', target: p.target, units, munitions: 2 }), eco());
+  check(out.state.boxes[p.target].owner === 'entente', 'with this seed, the attack succeeds');
+  // every placeholder in the steps is a role in the plan
+  for (const step of tut.steps) for (const [, role] of step.text.matchAll(/\{(\w+)\}/g)) check(p[role], `${step.id}: {${role}}`);
+});
+
+test('help: every How to Play section has a title and text', () => {
+  check(data.help.sections.length >= 6 && data.help.sections.every((x) => x.title && x.paragraphs.length), 'sections');
+});
+
 // ---------------------------------------------------------------- pieces (STYLE.md §5)
 test('rule: every unit type has a silhouette for its piece', () => {
   const types = data.unitTypes.types;
@@ -1738,6 +1796,8 @@ export async function runAll(loadJson, loadText) {
     data.ai = await loadJson('data/ai.json');
     data.headlines = await loadJson('data/headlines.json');
     data.economy = await loadJson('data/economy.json');
+    data.tutorial = await loadJson('data/tutorial.json');
+    data.help = await loadJson('data/help.json');
   } catch (err) {
     results.push({ name: 'load data files', ok: false, error: err.message });
     return results;

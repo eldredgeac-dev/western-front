@@ -23,6 +23,9 @@ import { ledger } from './engine/history.js';
 import { attackAdvice, bestAttacks, phaseGuide, attackableBoxes, battleReport } from './engine/explain.js';
 import { showLedger } from './ui/ledger.js';
 import { showBudget } from './ui/budget.js';
+import { showHelp } from './ui/help.js';
+import { createCoach } from './ui/tutorial.js';
+import { tutorialPlan } from './engine/tutorial.js';
 import { threat } from './engine/systems/replacements.js';
 import { inSupply } from './engine/supply.js';
 
@@ -101,7 +104,7 @@ async function loadJson(path) {
 
 // Load all the data files the game needs, and check the map makes sense.
 async function loadData() {
-  const [map, terrainData, nations, scenario, quotes, unitTypes, phases, combat, victory, events, ai, commanders, economy] = await Promise.all([
+  const [map, terrainData, nations, scenario, quotes, unitTypes, phases, combat, victory, events, ai, commanders, economy, help, tutorial] = await Promise.all([
     loadJson('./data/boxes-west.json'),
     loadJson('./data/terrain.json'),
     loadJson('./data/nations.json'),
@@ -115,13 +118,15 @@ async function loadData() {
     loadJson('./data/ai.json'),
     loadJson('./data/commanders.json'),
     loadJson('./data/economy.json'),
+    loadJson('./data/help.json'),
+    loadJson('./data/tutorial.json'),
   ]);
   const problems = checkMap(map, terrainData);
   if (problems.length > 0) throw new Error('The map data has problems: ' + problems.join('; '));
   const mapSvg = await loadMapSvg(`${map.mapSvg}?v=${VERSION}`);
   // `engine` is the bundle of data files the game engine (js/engine/) works with.
   const engine = { map, terrain: terrainData, nations, unitTypes, phases, combat, victory, events, ai, commanders, economy };
-  return { map, terrainData, nations, scenario, quotes, unitTypes, phases, engine, mapSvg, boxesById: indexBoxes(map) };
+  return { map, terrainData, nations, scenario, quotes, unitTypes, phases, engine, mapSvg, help, tutorial, boxesById: indexBoxes(map) };
 }
 
 // Show one screen and hide the other.
@@ -731,6 +736,7 @@ function redraw() {
   refreshTargets();
   if (state.pendingChoice) openSheet(true);
   showPendingBudget();
+  if (coach) coach.update(state, Boolean(playback && playback.isPlaying()));
 }
 
 // ---------------------------------------------------------------- the War Office budget
@@ -853,6 +859,15 @@ function openWarOffice() {
   box.scrollTop = 0;
 }
 
+// How to Play (data/help.json): a page over whichever screen is showing.
+function openHelp() {
+  if (!data || (playback && playback.isPlaying())) return;
+  const box = $('help');
+  showHelp(box, data.help, () => { box.hidden = true; });
+  box.hidden = false;
+  box.scrollTop = 0;
+}
+
 // New Campaign: show the side and difficulty choices (RULES.md §13).
 const setup = { player: 'entente', level: 'regular' };
 const LEVEL_NOTES = {
@@ -877,14 +892,21 @@ function refreshSetup() {
     : LEVEL_NOTES[setup.level];
 }
 
-// Start a new game and show the map.
-function startGame() {
+// The guided first turn's coach (js/ui/tutorial.js), or null.
+let coach = null;
+
+// Start a new game and show the map. With `guided`, the guided first turn
+// (data/tutorial.json): the Entente on Regular, a fixed seed and Auto-allocate on.
+async function startGame(guided = false) {
   if (!data) return;
+  if (coach) coach.stop();
+  if (guided) { setup.player = data.tutorial.side; setup.level = data.tutorial.level; }
   $('setup').hidden = true;
   document.querySelector('.title-buttons').hidden = false;
   // The seed only has to be different each game; every roll then goes
   // through the seeded rng.js (from Milestone 5).
-  state = newGame(data.scenario, Date.now() % 2147483647, data.engine, { ...setup });
+  state = newGame(data.scenario, guided ? data.tutorial.seed : Date.now() % 2147483647, data.engine, { ...setup });
+  if (guided) state.autoAllocate[setup.player] = true;
   selectedBox = null;
   selectedUnit = null;
   attack = null;
@@ -894,7 +916,24 @@ function startGame() {
   state = beginGame(state, orderData(), { record: (action, s) => opening.push({ ...action, after: snapshot(s) }) });
   playState(state);
   persist();
-  if (opening.length && !demoAttack) playTurn(opening);
+  if (opening.length && !demoAttack) await playTurn(opening);
+  if (guided) startCoach();
+}
+
+// Begin coaching, with territories picked from the board as it is now.
+function startCoach() {
+  const plan = tutorialPlan(state, data.engine);
+  if (!plan) { orderError = 'The guided turn could not find a good attack this time. Try How to Play instead.'; refreshPanel(); return; }
+  if (!coach) {
+    coach = createCoach({
+      strip: $('coach'), mapView,
+      names: { place: placeName },
+      phaseId: (s) => (phaseOf(s, orderData()) || {}).id,
+      onEnd: () => { redraw(); },
+    });
+  }
+  coach.start(data.tutorial.steps, plan);
+  coach.update(state);
 }
 
 // Show the game screen for a state (new, continued or imported).
@@ -939,17 +978,20 @@ async function boot() {
   $('version-note').textContent = VERSION_LABEL;
   updateContinueButton();
   newGameButton.addEventListener('click', showSetup);
-  $('btn-begin').addEventListener('click', startGame);
+  $('btn-begin').addEventListener('click', () => startGame(false));
+  $('btn-tutorial').addEventListener('click', () => startGame(true));
   for (const b of document.querySelectorAll('[data-side]')) b.addEventListener('click', () => { setup.player = b.dataset.side; refreshSetup(); });
   for (const b of document.querySelectorAll('[data-level]')) b.addEventListener('click', () => { setup.level = b.dataset.level; refreshSetup(); });
   continueButton.addEventListener('click', continueGame);
   $('btn-export').addEventListener('click', exportSave);
   $('btn-import').addEventListener('click', () => $('import-file').click());
   $('import-file').addEventListener('change', (e) => importSave(e.target));
-  $('btn-back').addEventListener('click', () => { $('war-office').hidden = true; $('budget').hidden = true; budgetShown = null; showScreen(titleScreen); updateContinueButton(); });
+  $('btn-back').addEventListener('click', () => { if (coach) coach.stop(); $('war-office').hidden = true; $('budget').hidden = true; budgetShown = null; showScreen(titleScreen); updateContinueButton(); });
   $('btn-end-phase').addEventListener('click', () => { if (state) commit(); });
   $('btn-war-office').addEventListener('click', openWarOffice);
   $('btn-best').addEventListener('click', () => { if (state) toggleBest(); });
+  $('btn-help').addEventListener('click', openHelp);
+  $('btn-title-help').addEventListener('click', openHelp);
   wireSheet();
 
   newGameButton.disabled = true;   // until the data has loaded
