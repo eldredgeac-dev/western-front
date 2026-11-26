@@ -279,6 +279,9 @@ function suggestionsSection(list, onPick) {
   const section = el('section', 'orders');
   section.appendChild(el('h3', 'panel-subtitle', 'Best attacks this phase'));
   if (!list.length) section.appendChild(el('p', 'unit-hint', 'None of your units can attack anything now.'));
+  else if (list.every((o) => o.chance < 0.1)) {
+    section.appendChild(el('p', 'unit-hint', 'None of these is likely to work. Next move phase, stack up to 3 units in one front territory, then attack from there.'));
+  }
   for (const o of list) {
     const b = el('button', 'order-row suggestion', `${o.index + 1}. ${o.text}`);
     b.type = 'button';

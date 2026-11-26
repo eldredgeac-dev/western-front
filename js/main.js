@@ -413,6 +413,7 @@ function toggleBest() {
     return { from: lead.box, to: o.target, label: `${o.columnLabel} · ${pct(o.pTake)}` };
   }));
   $('btn-best').setAttribute('aria-pressed', 'true');
+  if (suggestions.length) focusOn(...suggestions.map((o) => o.target));   // bring the arrows into view
   refreshPanel();
   openSheet(true);
 }
@@ -434,7 +435,7 @@ function useSuggestion(i) {
 function suggestionsInfo() {
   if (!suggestions) return null;
   return suggestions.map((o, i) => ({
-    index: i,
+    index: i, chance: o.pTake,
     text: `${placeName(o.target)}: ${o.units.length} unit${o.units.length === 1 ? '' : 's'}, barrage ${o.munitions} → ${o.columnLabel}, ${Math.round(o.pTake * 100)}% to take it`,
   }));
 }

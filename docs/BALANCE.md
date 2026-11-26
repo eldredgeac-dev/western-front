@@ -171,6 +171,39 @@ Germany 48%, Entente 39%, draw 14%, matching ECONOMY.md. Everything stays inside
 ranges below; a passive Germany still wins about 22% (ECONOMY.md's "watch in playtesting"
 note still applies).
 
+## One move per turn (26 November 2026)
+The simulator broke RULES.md §8: it moved units in two passes, so a unit could move two
+territories a turn. `tools/wfsim.py` now moves each unit once (`move_passes=1`; the old
+behaviour is `move_passes=2`). **No [balanced] number has been changed.** These are the
+results under the rules as written, and they lean to Germany:
+
+| Matchup (200 games) | Germany | Entente | Draw | Before (2 moves) |
+|---|---|---|---|---|
+| Standard vs Standard | 56% | 34% | 10% | 40 / 43 / 18 |
+| Expert vs Expert | 50% | 36% | 13% | 45 / 42 / 13 |
+| Turtle Germany vs Standard | 34% | 58% | 8% | 22 / 46 / 32 |
+| Standard vs Turtle Entente | 100% | 0% | 0% | 100 / 0 / 0 |
+| Beginner Germany vs Standard | 11% | 74% | 15% | 12 / 70 / 18 |
+| Standard vs Beginner Entente | 75% | 18% | 6% | 46 / 48 / 7 |
+| Reckless Germany vs Standard | 0% | 100% | 0% | 0 / 100 / 0 |
+| Standard vs Reckless Entente | 68% | 32% | 0% | 57 / 42 / 0 |
+
+| Level (80 games, player win %) | Careful as GER | Careful as ENT | Beginner as GER | Beginner as ENT |
+|---|---|---|---|---|
+| Recruit | 75% | 80% | 70% | 48% |
+| Regular | 57% | 36% | 9% | 20% |
+| Veteran | 44% | 29% | 2% | 19% |
+| Field Marshal | 15% | 14% | 0% | 8% |
+
+Outside the healthy ranges: a passive Germany wins 34% (target under 20%), and a
+beginner Entente wins only 20% on Regular. Choosing a fix is a rules decision, so it's a
+question in DECISIONS.md (104).
+
+**The game's engine** (`node tools/js-sim.mjs 50`) still gives Germany 70%, Entente 10%,
+draw 20%. The simulator with one move and no commanders gives 59 / 29 / 12. Commanders
+are in the simulator but not yet in the game (milestone 12). The rest of the gap: in
+1915–16 the game's computer attacks about half as often (DECISIONS.md 100–101).
+
 ## How to re-test after changing a rule
 On the Mac, in the repo folder:
 ```
