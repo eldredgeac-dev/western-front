@@ -577,6 +577,93 @@ I'll change it.
      the phone, so the BEST ATTACKS button was cut off. The screen's single column can now
      shrink, so the line ends in "…" instead.
 
+### Milestone 12: commander cards (Version 11.0, RULES.md Version 1.7)
+120. **How it's built.** `js/engine/commanders.js` reads the effects written in
+     `data/commanders.json`; no commander is named in the code. Each nation holds one card
+     (`state.commanders`), and Foch is held by the Entente side, "alongside" the national
+     cards. A new **Commanders** step comes straight after Events each month (RULES.md
+     §7): cards that arrive on their dates (Foch, Pershing), the computer's historical
+     changes, and your "Replace X with Y?" questions. The month's OP, Manpower and rail
+     moves include the cards once no question is waiting. Saves are now version 7;
+     older saves get the historical cards for their date.
+121. **Interpretations I had to make** (all written into RULES.md §15.2 and §15.2a; tell
+     me if any is wrong):
+     - **"Keep" comes back every 3 turns**, and also in a month when a successor's own
+       date arrives. That's how "skip Nivelle and Pétain is offered in May 1917" works.
+     - **Sacking needs an available successor.** Nivelle only in his window, Pétain only
+       from December 1916; Haig and Hindenburg & Ludendorff at any time. So you can sack
+       Sir John French or Falkenhayn early (−5 Will), but not Joffre before December 1916.
+       It's done from the commander card on the Nations screen, with a second tap to
+       confirm.
+     - **A sacked commander's replacement** brings its Will flaws and combat rules at once,
+       but its OP, Manpower, Industry and rail only from next month (this month's were
+       already handed out).
+     - **Nivelle's +2** is a toggle on the order slip of a French-paid attack. It isn't
+       spent on an empty territory. If the attack fails, the mutinies start at once (so
+       later French attacks that month are cancelled), unless they already happened.
+     - **"No French attack" (Joffre) / "no German attack" (H&L)** count coalition attacks
+       with that nation's units.
+     - **Mutiny length under Pétain** is counted in turns served: 2 instead of 3, decided
+       by whoever is in command at each Will phase. The simulator used a slightly
+       different check (it only shortened a mutiny that started on a Will phase); I
+       changed `tools/wfsim.py` to match the game, so both now do the same thing.
+     - **Nivelle's "+1 munition"** in `data/commanders.json` became "+1 Industry", as
+       RULES.md §15.1 and §19.2 say (decision 94). Data wording only.
+122. **The computer follows history**: it appoints the historical successor on the date,
+     never keeps or sacks, and uses the Nivelle Method on its best French attack in
+     April 1917, like `tools/wfsim.py`.
+123. **The card screens (STYLE.md §6, §12.7).** A card is cream card stock with a brass
+     hairline: a portrait oval in the nation's colour with an ink head-and-shoulders
+     silhouette and a monogram band (no photographs), the name in IM Fell, a real
+     nickname in italics, the dates in Courier, and the Strength and Flaw in two ruled
+     boxes with small brass ribbons (the Flaw box is dashed). The history note from
+     `data/commanders.json` is underneath in italic IM Fell.
+     - **A question** ("Replace Sir John French with Haig?") fills the screen: the new
+       card(s), each with a brass APPOINT button, then the old card small with KEEP and
+       its cost. COMMIT stays grey until you answer.
+     - **A card that arrives** (Foch, Pershing, or any change on the computer's side)
+       shows full screen once, after the turn's playback, before the telegrams.
+     - **The Nations screen** shows each nation's card under its figures, with Foch on
+       every Entente page from April 1918, and the sack button (or why you can't yet).
+     - Checked against STYLE.md §11: palette colours only, no emoji or clip art, IM Fell
+       + Source Serif + Courier, nothing animates, readable at 390 px wide.
+124. **A bug fixed on the way: answering an event question skipped that month's War
+     Office budget.** After the U-boat or Hindenburg Line answer, COMMIT stepped past the
+     budget phase, so Germany got no munitions or research that month (February and
+     March 1917 for a German player). Answering now carries the turn on through the
+     Commanders step and the budget, like SIGN THE ESTIMATES does. A test covers it.
+
+### Balance after the commanders, Kaiserschlacht −20, and the counting tool
+125. **The new numbers** (tables in BALANCE.md). The game's engine with commanders:
+     Germany 56%, Entente 30%, draw 14% (it was 46 / 22 / 32 without them). Raising the
+     Kaiserschlacht penalty to −20 changed **nothing** in 50 wars or in the simulator's
+     200-game tables (same seeds, same results): a careful computer Germany always
+     attacks in 1918.
+126. **The simulator never applied the Kaiserschlacht gamble.** Its check was nested
+     inside an old Entente setting that is switched off. Fixed. With the gamble really
+     in, a passive Germany wins 0% (was 24%), Standard vs Standard is 48 / 38 / 14, and
+     every healthy range holds. A beginner Germany on Recruit falls to 16% (was 71%),
+     because the beginner stand-in rarely attacks in 1918; a person gets a warning
+     telegram and a countdown. Worth watching in playtesting.
+127. **The counting tool** (`tools/count.py`, `tools/count.mjs`) answers decision 82: the
+     French aren't held back (17.3 French units in the line a month in both) and the
+     trenches aren't deeper. The game's computer spreads its reserves one per territory
+     because it re-ranks the front after every move; the simulator ranks once and stacks
+     them. So France gets a third fewer 2:1 attacks.
+128. **The one fix I propose (not applied):** rank the front once per move phase, as
+     the simulator does. 50 wars: Germany 56 → 28%, Entente 30 → 44%, draw 14 → 28%. It
+     fixes the Entente but overshoots on Germany and draws, so I'd approve it and then
+     re-run 200 wars before touching anything else. Your call.
+129. **`tools/matchups.py`** prints BALANCE.md's matchups table (there was no script for
+     it). `turn.js` gained an optional "probe" for the counting tool; it only looks.
+
+## Questions for you (milestone 12)
+5. **Approve the AI fix in decision 128?** (Rank the front once per move phase.) If yes,
+   I'll apply it and re-run 200 wars before anything else.
+6. **Are the interpretations in decision 121 right?** Especially: sacking needs an
+   available successor (so Joffre can't be sacked before December 1916), and a sacked
+   commander's OP, Manpower and rail count from next month.
+
 ## Questions for you (answered)
 1. **Combat table — answered: RULES.md is right.**
    - The balance tests used `tools/t2.py`, which patched the simulator's 1:2 and 1:1
@@ -743,3 +830,31 @@ I'll change it.
       - Tap **France**, **Britain** … or swipe sideways: one page per nation, with its Will
         chart (tap it to read a month) and "In effect" (NOW / COMING / OVER).
       - Fold and unfold the phone with it open: the page should re-fit.
+- [ ] **Commander cards (Version 11.0).** Check the title screen says "Version 11.0".
+      - **Nations screen:** start a New Campaign as the Entente and tap the brass
+        **Nations** button. On France's page, under the figures, there's Joffre's card:
+        an oval portrait with a silhouette and a "J" band, "Papa Joffre", "December 1914 –
+        November 1916", a STRENGTH box (Offensive drive) and a dashed FLAW box (Attaque à
+        outrance). Under it: "Sacking: … first 3 months". Swipe to Britain: Sir John
+        French. Your two British pieces should show the Elite star (Old Contemptibles).
+      - **The first question:** play on to December 1915. Before your turn a full-screen
+        page asks "Replace Sir John French with Haig?" with Haig's card and a brass
+        APPOINT HAIG button, then Sir John French's card small and KEEP SIR JOHN FRENCH
+        ("−3 Britain Will now; you'll be asked again in 3 months"). COMMIT is grey until you
+        answer. Try KEEP once in a test game: British Will drops by 3 and the question comes
+        back in March 1916.
+      - **December 1916:** "Replace Joffre with Nivelle or Pétain?", with both cards.
+      - **The Nivelle Method:** with Nivelle in command, tap a German territory next to
+        French units. Under the barrage buttons there's a button "THE NIVELLE METHOD: +2
+        COLUMNS" with a warning about the mutinies. Tap it: the chance to take it jumps.
+        After one use it's gone.
+      - **Sacking:** as Germany, in April 1915 or later, open Nations → Germany. Under
+        Falkenhayn's card: "Sack Falkenhayn: appoint Hindenburg & Ludendorff". Tap once
+        (it asks you to confirm), then again: German Will −5 and the new card shows.
+      - **The enemy's commanders:** as Germany, in December 1916 a full-screen card says
+        "Nivelle replaces Joffre", with TO THE MAP. In April 1918, as either side, "Foch
+        takes command".
+      - **Folded phone:** are the cards easy to read? Are the buttons easy to tap?
+- [ ] **After answering the U-boat question (Version 11.0):** as Germany in February 1917,
+      answer the U-boat telegram. The War Office budget should still happen that month
+      (Nations → Germany: the stockpile was topped up in February).

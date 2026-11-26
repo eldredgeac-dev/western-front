@@ -1122,7 +1122,7 @@ test('events: Vimy makes 2 British units Elite; stormtroopers; the Kaiserschlach
   s = monthStart('1918-01'); runEvents(s, bundle());
   check(s.units.filter((u) => u.type === 'stormtroopers').length === 4, 'four stormtrooper units');
   s = monthStart('1918-11'); s.attacks = []; let before = s.will.ger; runEvents(s, bundle());
-  check(s.will.ger === before - 2 - 15, 'no attack Apr–Oct 1918: −15 (and Hunger −2)');
+  check(s.will.ger === before - 2 - 20, 'no attack Apr–Oct 1918: −20 (and Hunger −2)');
   s = monthStart('1918-11'); s.attacks = [{ side: 'germany', month: '1918-05' }]; before = s.will.ger; runEvents(s, bundle());
   check(s.will.ger === before - 2, 'an attack in May 1918 avoids it');
 });
