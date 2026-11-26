@@ -1,4 +1,4 @@
-# Rules — Western Front 1914–18 (Version 1.5)
+# Rules — Western Front 1914–18 (Version 1.6)
 
 These rules are the source of truth. The code must do what this file says.
 
@@ -7,7 +7,9 @@ Voices (§15–18). Version 1.3 adds the war economy: Manpower and Industry, the
 stockpile, research and industrial cities (§19). Version 1.4 lets road moves go up to 2
 territories and lets you split and merge pieces (§8). Version 1.5 turns Auto-allocate
 on by default and shows the budget screen only when there's a real choice (§19.4);
-that changes no numbers, so the balance results stand. It has been **balance-tested**: thousands of simulated computer-vs-computer games
+that changes no numbers, so the balance results stand. Version 1.6 gives each side one
+orders phase: you order moves and attacks together and commit once (§7); moves still
+happen first, so the balance results stand. It has been **balance-tested**: thousands of simulated computer-vs-computer games
 (see `docs/BALANCE.md`). Numbers marked **[balanced]** were tuned by that testing. Change
 them only if playtesting shows a problem, and then re-run `tools/wfsim.py`.
 
@@ -155,6 +157,16 @@ Industry here is before industrial cities (§19.3) and research (§19.5).
    - Then the **War Office budget** (§19.4): each nation spends its Industry.
 2. **German turn:** move (§8), then attack (§9).
 3. **Entente turn:** move, then attack.
+   - **One orders phase:** a player gives a side's move orders **and** attack orders
+     together, then commits once (like an Axis & Allies combat move). The moves are
+     carried out first, in order, then the attacks, in order. Each attack is checked
+     against the board as it will be after the moves (so a unit that moves up by road
+     can attack; a unit that comes by rail can't). The computer plays the same two
+     steps.
+   - **Move in to attack:** with a unit selected, tapping an enemy territory it can't
+     reach yet, but could stand next to after a road move this turn, orders that road
+     move for you (to the territory next to the target with the most of your steps in
+     it), then opens the attack. Either order can be changed or cancelled before COMMIT.
 4. **Supply:** out-of-supply units lose 1 step.
 5. **Dig in:** every box with units that was **not attacked** gains +1 trench, up to its
    maximum (§9.5).

@@ -1,11 +1,11 @@
 {
-  "_about": "The phases of each turn, in order (RULES.md §7). 'side' + 'kind' phases wait for orders (move or attack); 'auto' phases run by themselves when End Phase reaches them. Some auto phases only log a note until their milestone arrives (see 'until'). See docs/DATA.md.",
+  "_about": "The phases of each turn, in order (RULES.md §7). 'side' + 'kind' phases wait for orders (move or attack); 'auto' phases run by themselves when End Phase reaches them. Some auto phases only log a note until their milestone arrives (see 'until'). See docs/DATA.md. A move phase with 'attackPhase' is one orders phase for a player: moves and attacks are queued together and carried out with one COMMIT (moves first, then that attack phase's attacks); 'ordersName' is what the screen calls it (RULES.md §7).",
   "phases": [
     {"id": "events", "name": "Events and reinforcements", "auto": true},
     {"id": "war-office", "name": "War Office budget", "auto": true},
-    {"id": "germany-move", "name": "German move", "side": "germany", "kind": "move"},
+    {"id": "germany-move", "name": "German move", "side": "germany", "kind": "move", "attackPhase": "germany-attack", "ordersName": "German turn"},
     {"id": "germany-attack", "name": "German attack", "side": "germany", "kind": "attack"},
-    {"id": "entente-move", "name": "Entente move", "side": "entente", "kind": "move"},
+    {"id": "entente-move", "name": "Entente move", "side": "entente", "kind": "move", "attackPhase": "entente-attack", "ordersName": "Entente turn"},
     {"id": "entente-attack", "name": "Entente attack", "side": "entente", "kind": "attack"},
     {"id": "supply", "name": "Supply", "auto": true},
     {"id": "dig-in", "name": "Dig in", "auto": true},

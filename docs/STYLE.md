@@ -122,6 +122,16 @@ The map is the most important thing in the game. Spend effort here.
     - Pinch to zoom from about 1× to 6×, and pan by dragging. (Front-line territories
       are only 5–15 km wide, so they need about 6× to be big enough to tap.)
     - Labels and counters stay crisp; that's why it's SVG.
+12. **The board (the main playing view, milestone 10f):** the same territories as a
+    General Staff sector diagram on the same map paper. Each lane is a row (north at the
+    top), each depth column a square (Entente rear on the left, German rear on the
+    right), with the lane's number and name above the row and the column labels (E3 …
+    G3) along the top. A square shows its short name in IM Fell, a front-red VP ring for
+    cities, the map's own terrain textures, a star-fort for fortresses, a thin ink rule
+    round it, and its owner's colour wash. The front line, trenches, pencil arrows and
+    battle scars are drawn exactly as on the map. A square is about 64 × 62 px on a
+    phone, so the whole square is an easy tap target. The **Map** button (above the zoom
+    buttons) switches to the campaign map; the locator always shows the campaign map.
 
 ## 5. Unit counters
 Style counters like real board-wargame pieces (think a cardboard counter or a wooden
@@ -160,8 +170,10 @@ block), not cartoon soldiers.
   the strongest unit's piece with the territory's **total steps**, a thin edge behind it
   for each extra piece, and the number of pieces on a brass tab ("×3"). Tapping the
   territory lists every piece in the panel.
-- **Size:** at least 44 px wide on screen at the normal and close zooms (a finger's
-  width); smaller only on the zoomed-out overview.
+- **Size:** on the campaign map, at least 44 px wide on screen at the normal and close
+  zooms (a finger's width); smaller only on the zoomed-out overview. On the board a piece
+  is a fixed 38 board units (about 38 px on a phone) in the middle of its square, and
+  the whole square is the tap target.
 - **Where they stand:** beside the town name, never on top of it or of the town dot,
   the city label or the VP ring. Each territory has a "unit spot" worked out by the map
   builder.

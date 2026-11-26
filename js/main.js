@@ -7,6 +7,7 @@ import { newGame, currentMonth, monthLabel } from './engine/state.js';
 import { loadMapSvg, createMapView } from './ui/map.js';
 import { enableZoom } from './ui/zoom.js';
 import { createLocator } from './ui/locator.js';
+import { buildBoardSvg, BOARD_PREFIX, BOARD_PIECE } from './ui/board.js';
 import { showPanel } from './ui/panel.js';
 import { battleCounts, bigBattles, scarLevel, shortMonth } from './engine/battles.js';
 import { applyDemo } from './ui/demo.js';
@@ -17,7 +18,7 @@ import { moveTargets, railTargets, phaseAllows, splitUnit, splitReason, mergeUni
 import { beginGame, endPhase, phaseOf, submitBudget } from './engine/turn.js';
 import { oddsPreview, eligibleAttackers, barrageMax } from './engine/combat.js';
 import { frontBoxes } from './engine/ai.js';
-import { queueCheck, addOrder, cancelOrder, commitOrders, snapshot } from './engine/orders.js';
+import { queueCheck, addOrder, cancelOrder, commitOrders, snapshot, attackBoard, stagingBox, ordersPhase } from './engine/orders.js';
 import { createPlayback } from './ui/animate.js';
 import { ledger } from './engine/history.js';
 import { attackAdvice, bestAttacks, phaseGuide, phaseSummary, attackableBoxes, battleReport } from './engine/explain.js';
@@ -46,7 +47,12 @@ const sheetHandle = $('sheet-handle');
 let data = null;
 // The game being played (null until New Campaign is tapped).
 let state = null;
-// The drawn map and its zoom controls (made once, on the first New Campaign).
+// The two views of the war (made once, on the first New Campaign): the board
+// (js/ui/board.js) and the campaign map. `viewName` says which is on screen.
+// `mapView` and `zoom` always mean the one on screen: they pass every call on to it,
+// so the playback, the tutorial and the arrows follow the Board | Map switch.
+const views = {};
+let viewName = null;
 let mapView = null;
 let zoom = null;
 // The planned attack shown in demo mode, or null.
@@ -320,7 +326,9 @@ function unitRule(unit) {
     const rail = (state.resources[unit.nation] || {}).rail || 0;
     return `Road: up to 2 territories through your own lines (3 pieces at most where it stops). Rail: any distance through your own ` +
       `connected territory; ${nation.name} has ${rail} rail move${rail === 1 ? '' : 's'} left, and a unit that goes by rail can\u2019t attack this turn. ` +
-      'You can also split a piece to leave a few steps behind, or merge two pieces.';
+      'You can also split a piece to leave a few steps behind, or merge two pieces.' +
+      (ordersPhase(state, orderData()) ? ' Attack: tap an enemy territory outlined in red; if the unit has to step up first, ' +
+        'that road move is ordered for you. All moves happen before the attacks.' : '');
   }
   if (unit.railed) return 'It came by rail this turn, so it can\u2019t attack until next month.';
   if (unit.attacked) return 'It has already attacked this turn.';
@@ -408,6 +416,14 @@ function selectUnit(unitId) {
   refreshPanel();
 }
 
+// Can the player give attack orders now: in their attack phase, or in one orders
+// phase (moves and attacks together, RULES.md §7)?
+function attackOrdersNow(phase = humanPhase()) {
+  return Boolean(phase) && (phase.kind === 'attack' || ordersPhase(state, orderData()));
+}
+// The board the next attack order would find (after the queued moves, in the attack phase).
+const attackState = () => attackBoard(state, orderData());
+
 // ---------------------------------------------------------------- what the map outlines
 // The human side whose orders phase it is, or null.
 function humanPhase() {
@@ -421,11 +437,22 @@ function refreshTargets() {
   if (!mapView) return;
   if (selectedUnit) {
     const pv = previewFor(selectedUnit);
-    mapView.showTargets(moveTargets(pv, orderData(), selectedUnit), railTargets(pv, orderData(), selectedUnit));
+    mapView.showTargets(moveTargets(pv, orderData(), selectedUnit), railTargets(pv, orderData(), selectedUnit), unitAttackTargets(selectedUnit));
     return;
   }
   const phase = humanPhase();
-  mapView.showTargets([], [], phase && phase.kind === 'attack' ? attackableBoxes(state, orderData(), phase.side) : []);
+  mapView.showTargets([], [], attackOrdersNow(phase) ? attackableBoxes(state, orderData(), phase.side) : []);
+}
+// The enemy territories a unit could attack this turn: from where it stands (after its
+// queued move), or after stepping up by road (C1: move into an enemy territory to attack).
+function unitAttackTargets(unitId) {
+  const phase = humanPhase();
+  if (!attackOrdersNow(phase)) return [];
+  const board = attackState();
+  const pv = previewFor(unitId);
+  return data.map.boxes.filter((b) => state.boxes[b.id].owner !== phase.side &&
+    (eligibleAttackers(board, orderData(), b.id).includes(unitId) || stagingBox(pv, orderData(), unitId, b.id)))
+    .map((b) => b.id);
 }
 
 // ---------------------------------------------------------------- Best attacks
@@ -434,7 +461,7 @@ let suggestions = null;
 function toggleBest() {
   const phase = humanPhase();
   if (suggestions || !phase) { clearSuggestions(); refreshPanel(); return; }
-  if (phase.kind !== 'attack') {
+  if (!attackOrdersNow(phase)) {
     orderError = 'Best attacks works in your attack phase. Now, in the move phase, stack up to 3 units in one front territory: more steps mean better odds.';
     refreshPanel(); openSheet(true);
     return;
@@ -487,6 +514,7 @@ function tapBox(boxId) {
   if (playback && playback.isPlaying()) { playback.tap(); return; }   // a tap skips the animation
   selectedOrder = null;
   if (isAttackTarget(boxId)) {
+    if (selectedUnit) stepUpFor(selectedUnit, boxId);
     selectBox(boxId);
     openAttack(boxId);
     refreshPanel();
@@ -516,15 +544,40 @@ function tapBox(boxId) {
 
 // ---------------------------------------------------------------- attacks
 // Is it an attack phase, and is this territory an enemy of the side attacking?
+// In one orders phase it must have units that can attack it, or the selected unit
+// must be able to step up to it (C1).
 function isAttackTarget(boxId) {
-  const phase = phaseOf(state, orderData());
-  return !state.over && phase && phase.kind === 'attack' && state.boxes[boxId].owner !== phase.side;
+  const phase = humanPhase();
+  if (!attackOrdersNow(phase) || state.boxes[boxId].owner === phase.side) return false;
+  if (phase.kind === 'attack') return true;
+  if (eligibleAttackers(attackState(), orderData(), boxId).length) return true;
+  return Boolean(selectedUnit && stagingBox(previewFor(selectedUnit), orderData(), selectedUnit, boxId));
+}
+// C1, move in to attack: if the selected unit isn't next to the target yet, queue the
+// road move that brings it next to it (it can be changed or cancelled like any order).
+function stepUpFor(unitId, target) {
+  if (eligibleAttackers(attackState(), orderData(), target).includes(unitId)) return;
+  const pv = previewFor(unitId);
+  const stage = stagingBox(pv, orderData(), unitId, target);
+  if (!stage) return;
+  const queued = queuedMove(unitId);
+  try {
+    if (stage === pv.units.find((u) => u.id === unitId).box) {
+      if (queued) state = cancelOrder(state, queued.index);       // stay put: drop its move away
+    } else {
+      state = addOrder(state, orderData(), { kind: 'move', unit: unitId, to: stage });
+    }
+  } catch (err) {
+    orderError = err.message;
+  }
+  persist();
+  redraw();
 }
 
 // Open the order slip for an attack on this territory, with every unit that can
 // attack it already chosen.
 function openAttack(boxId) {
-  attack = { target: boxId, units: eligibleAttackers(planned().state, orderData(), boxId), munitions: 0 };
+  attack = { target: boxId, units: eligibleAttackers(attackState(), orderData(), boxId), munitions: 0 };
   showAttackArrow();
 }
 
@@ -538,7 +591,7 @@ function showAttackArrow() {
 
 // Everything the order slip shows, worked out by the combat engine.
 function attackSlip() {
-  const pv = planned().state;          // after the queued orders (OP and munitions set aside)
+  const pv = attackState();            // after the queued orders (OP and munitions set aside), in the attack phase
   const box = data.boxesById[attack.target];
   const order = { target: attack.target, units: attack.units, munitions: attack.munitions };
   const defenders = unitsIn(state, attack.target);
@@ -571,6 +624,7 @@ function attackSlip() {
     slip.ratioText = `${plan.attackSteps} steps against ${plan.defendSteps} \u2192 ${data.engine.combat.columns[plan.ratioColumn].label}`;
     slip.finalLabel = plan.columnLabel;
     slip.pTake = odds.pTake; slip.attackerLoss = odds.attackerLoss; slip.defenderLoss = odds.defenderLoss;
+    slip.attackSteps = plan.attackSteps; slip.defendSteps = plan.defendSteps;
     // the plain-English explanation: roll needed, why, what would help (explain.js)
     slip.advice = attackAdvice(pv, orderData(), order);
     // The Recruit advisor (RULES.md §13): warn before a futile attack.
@@ -628,7 +682,7 @@ function ordersInfo() {
   const list = orders.map((o, i) => ({ index: i, text: orderText(o, checks[i]), ok: checks[i].ok, reason: checks[i].reason, selected: i === selectedOrder }));
   const left = phase ? data.engine.nations.nations.filter((n) => n.side === phase.side && pv.resources[n.id] && (state.will[n.id] !== undefined))
     .map((n) => `${n.name} ${pv.resources[n.id].op} OP, ${pv.resources[n.id].munitions} munitions`) : [];
-  return { list, left: phase && phase.kind === 'attack' ? left.join(' \u00b7 ') : '' };
+  return { list, left: attackOrdersNow() ? left.join(' \u00b7 ') : '' };
 }
 // One order in plain words.
 function orderText(o, check) {
@@ -732,23 +786,12 @@ function selectBox(boxId) {
 // Draw the map the first time; afterwards just repaint it for the new state.
 function showMap() {
   if (!mapView) {
-    mapView = createMapView(mapHolder, data.mapSvg, {
-      nations: data.nations,
-      boxNameFn: (id) => boxName(data.map, data.boxesById[id]),
-      // pencil notes use the box's name, or its town if it has none ("Thiepval")
-      noteNameFn: (id) => data.boxesById[id].name || data.boxesById[id].anchor.town,
-      shortMonthFn: shortMonth,
-    });
-    const vb = mapView.svg.viewBox.baseVal;
-    const mapSize = { w: vb.width, h: vb.height };          // the whole map, in map units
-    zoom = enableZoom(mapView.svg, {
-      onTap: tapBox,
-      onTapOrder: showOrder,
-      onViewChange: (k) => { mapView.declutter(); mapView.layout(k); showLocator(zoom.current()); },
-      home: mapView.frontBounds,
-      start: startPoint,
-    });
-    showLocator = createLocator($('locator'), mapSize, (x, y) => zoom.centreOn(x, y));
+    viewName = settings.view === 'map' ? 'map' : 'board';
+    mapView = new Proxy({}, { get: (_, key) => views[viewName].view[key] });
+    zoom = new Proxy({}, { get: (_, key) => views[viewName].zoom[key] });
+    makeView('map');                 // first, so the locator's <use> finds the map's layers
+    makeView('board');
+    showLocator = createLocator($('locator'), views.map.size, jumpTo);
     playback = createPlayback({
       mapView, mapArea: $('map-area'), bar: $('playback'), barLabel: $('playback-label'), skip: $('btn-skip'),
       slip: $('playback-slip'), showBoard, lookFor, describe: describeAction, fast: () => Boolean(settings.fast),
@@ -757,30 +800,109 @@ function showMap() {
     $('btn-zoom-in').addEventListener('click', () => zoom.zoomIn());
     $('btn-zoom-out').addEventListener('click', () => zoom.zoomOut());
     $('btn-zoom-fit').addEventListener('click', () => zoom.fit());
+    $('btn-view').addEventListener('click', () => setView(viewName === 'map' ? 'board' : 'map'));
+    showActiveView();
   }
   redraw();
   mapView.select(null);
   refreshTargets();
   if (demoAttack) mapView.showPlannedAttack(...demoAttack);
   else mapView.clearPlannedAttack();
-  zoom.startView();
+  for (const v of Object.values(views)) v.zoom.startView();
+}
+
+// Make one view ('map' or 'board') in its own layer of the map area, with its zoom.
+function makeView(name) {
+  const holder = document.createElement('div');
+  holder.className = 'view-holder';
+  mapHolder.appendChild(holder);
+  const board = name === 'board';
+  const svg = board ? buildBoardSvg(data.map, data.terrainData, data.mapSvg) : data.mapSvg;
+  const view = createMapView(holder, svg, {
+    nations: data.nations,
+    boxNameFn: (id) => boxName(data.map, data.boxesById[id]),
+    // pencil notes use the box's name, or its town if it has none ("Thiepval")
+    noteNameFn: (id) => data.boxesById[id].name || data.boxesById[id].anchor.town,
+    shortMonthFn: shortMonth,
+    prefix: board ? BOARD_PREFIX : '',
+    pieceSize: board ? BOARD_PIECE : null,
+  });
+  const vb = view.svg.viewBox.baseVal;
+  const size = { w: vb.width, h: vb.height };            // the whole view, in map units
+  const z = enableZoom(view.svg, {
+    onTap: tapBox,
+    onTapOrder: showOrder,
+    onViewChange: (k) => { view.declutter(); view.layout(k); if (name === viewName) showLocator(locatorArea()); },
+    home: view.frontBounds,
+    start: () => startPoint(view),
+    startZoom: board ? 0 : undefined,                    // the board starts filling the width
+  });
+  views[name] = { view, zoom: z, holder, size };
+}
+
+// Board | Map: show the chosen view (remembered on this phone).
+function setView(name) {
+  if (!views[name] || name === viewName || (playback && playback.isPlaying())) return;
+  // tidy the old view: its arrows and outlines would be stale when it comes back
+  clearSuggestions();
+  mapView.clearPlannedAttack();
+  mapView.showTargets([], []);
+  mapView.drawOrders([]);
+  viewName = name;
+  settings.view = name;
+  saveSettings();
+  showActiveView();
+  redraw();
+  mapView.select(selectedBox);
+  if (attack) showAttackArrow();
+  if (selectedBox) focusOn(selectedBox);
+  showLocator(locatorArea());
+}
+function showActiveView() {
+  for (const [n, v] of Object.entries(views)) v.holder.classList.toggle('inactive', n !== viewName);
+  // the button offers the other view
+  $('btn-view').textContent = viewName === 'map' ? 'Board' : 'Map';
+  $('btn-view').setAttribute('aria-label', viewName === 'map' ? 'Show the board' : 'Show the campaign map');
+}
+
+// The locator always shows the campaign map. On the board, it outlines where on the
+// real map the squares on screen are.
+function locatorArea() {
+  const area = zoom.current();
+  if (viewName === 'map') return area;
+  const [x, y, w, h] = area;
+  const board = views.board.view; const map = views.map.view;
+  const seen = board.boxIds().filter((id) => { const [ax, ay] = board.anchorOf(id); return ax >= x && ax <= x + w && ay >= y && ay <= y + h; });
+  if (!seen.length) return [0, 0, 0, 0];
+  const pts = seen.map((id) => map.anchorOf(id));
+  const xs = pts.map((p) => p[0]); const ys = pts.map((p) => p[1]); const pad = 25;
+  const x0 = Math.min(...xs) - pad; const y0 = Math.min(...ys) - pad;
+  return [x0, y0, Math.max(...xs) + pad - x0, Math.max(...ys) + pad - y0];
+}
+// A tap on the locator (a point on the campaign map): go there. On the board, go to
+// the square of the nearest territory.
+function jumpTo(x, y) {
+  if (viewName === 'map') { zoom.centreOn(x, y); return; }
+  const map = views.map.view;
+  const dist = (id) => { const [ax, ay] = map.anchorOf(id); return (ax - x) ** 2 + (ay - y) ** 2; };
+  const nearest = map.boxIds().reduce((a, b) => (dist(b) < dist(a) ? b : a));
+  zoom.centreOn(...views.board.view.anchorOf(nearest));
 }
 
 let showLocator = () => {};      // set up in showMap() (js/ui/locator.js)
 
-// Where the map starts: your most threatened front-line territory (RULES.md §14's
+// Where a view starts: your most threatened front-line territory (RULES.md §14's
 // threat score), or the middle of the front when you play both sides.
-function startPoint() {
+function startPoint(view) {
   const humans = Object.entries(state.controllers || {}).filter(([, who]) => who === 'human').map(([side]) => side);
   if (humans.length === 1) {
     const boxes = frontBoxes(state, data.engine, humans[0]);
     if (boxes.length) {
       const worst = boxes.reduce((a, b) => (threat(state, data.engine, b) > threat(state, data.engine, a) ? b : a));
-      const t = document.getElementById(worst);
-      return [Number(t.dataset.x), Number(t.dataset.y)];
+      return view.anchorOf(worst);
     }
   }
-  const b = mapView.frontBounds();
+  const b = view.frontBounds();
   return b ? [b[0] + b[2] / 2, b[1] + b[3] / 2] : null;
 }
 
@@ -791,9 +913,12 @@ function redraw() {
   const record = { counts: battleCounts(state), big: bigBattles(state), scarLevel };
   mapView.update(state, month, monthLabel(month), record);
   mapView.drawUnits(state.units, lookFor);
+  // the locator shows the campaign map, so keep its colours and front line up to date
+  if (viewName !== 'map') views.map.view.update(state, month, monthLabel(month), null);
   gameTitle.textContent = monthLabel(month);
   const phase = phaseOf(state, orderData());
-  $('phase-label').textContent = state.over ? 'The war is over' : (phase ? phase.name : '');
+  $('phase-label').textContent = state.over ? 'The war is over'
+    : (phase ? (phase.ordersName && humanPhase() ? phase.ordersName : phase.name) : '');
   const n = (state.orders || []).length;
   $('commit-count').textContent = n ? String(n) : '';
   $('btn-end-phase').disabled = state.over || Boolean(state.pendingChoice) || Boolean(state.pendingBudget) ||
@@ -803,8 +928,8 @@ function redraw() {
   $('phase-guide').textContent = phaseGuide(state, orderData());
   toggleGuide(!$('phase-guide').hidden);
   const human = humanPhase();
-  $('btn-best').hidden = !human || human.kind !== 'attack';   // it only helps in your attack phase
-  if (!human || human.kind !== 'attack') clearSuggestions();
+  $('btn-best').hidden = !attackOrdersNow(human);   // it only helps when you can attack
+  if (!attackOrdersNow(human)) clearSuggestions();
   refreshTargets();
   if (state.pendingChoice) openSheet(true);
   showPendingBudget();
@@ -911,7 +1036,7 @@ function focusOn(...ids) {
     ? window.innerHeight - sheet.offsetHeight : Infinity;
   const covered = Math.max(0, Math.min(area.height, area.bottom - sheetTop)) / area.height;
   const seenH = h * (1 - covered);                 // the visible part, in map units
-  const pts = ids.filter(Boolean).map((id) => { const t = document.getElementById(id); return [Number(t.dataset.x), Number(t.dataset.y)]; });
+  const pts = ids.filter(Boolean).map((id) => mapView.anchorOf(id));
   const margin = 0.15;
   const seen = (p) => p[0] > x + w * margin && p[0] < x + w * (1 - margin) && p[1] > y + seenH * margin && p[1] < y + seenH * (1 - margin);
   if (!pts.length || pts.every(seen)) return;

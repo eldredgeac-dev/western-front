@@ -120,6 +120,12 @@ piece takes the lower one.
 when End Phase reaches it). `until` notes the milestone where an automatic phase starts
 doing something.
 
+A `move` phase may name its side's attack phase in `attackPhase` (e.g.
+`"entente-attack"`). For a player that makes it **one orders phase**: moves and attacks
+are queued together and one COMMIT carries out the moves, then that attack phase's
+attacks (js/engine/orders.js). `ordersName` is what the top bar calls it ("Entente
+turn"). The computer still plays the two phases one after the other.
+
 ## `victory.json`: how the war is won (RULES.md §11) [balanced]
 | Field | Meaning |
 |---|---|

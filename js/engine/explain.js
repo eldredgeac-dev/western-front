@@ -11,7 +11,7 @@ import { findUnit, nationOf } from './units.js';
 import { currentMonth } from './state.js';
 import { boxName } from './boxes.js';
 import { unitLabel } from './moves.js';
-import { queueCheck } from './orders.js';
+import { attackBoard } from './orders.js';
 
 const pct = (p) => `${Math.round(p * 100)}%`;
 const monthNumber = (month) => Number(month.slice(5, 7));
@@ -129,7 +129,7 @@ export function attackAdvice(state, data, order) {
 // all of them together, with every barrage it can afford, and keeps the best.
 // Ranked by the chance of taking it, then by losses (theirs minus ours).
 export function bestAttacks(state, data, side, n = 3) {
-  const s = queueCheck(state, data).state;
+  const s = attackBoard(state, data);      // after the queued moves, in the attack phase
   const month = currentMonth(s);
   const found = [];
   const score = (o) => o.pTake * 100 + (o.defenderLoss - o.attackerLoss);
@@ -171,6 +171,11 @@ export function phaseGuide(state, data) {
   const nations = data.nations.nations.filter((n) => n.side === phase.side && state.will[n.id] !== undefined &&
     !(n.traits || []).some((t) => t.kind === 'cannot-attack'));
   const left = (key) => nations.map((n) => `${n.name} ${(state.resources[n.id] || {})[key] || 0}`).join(' · ');
+  if (phase.kind === 'move' && phase.attackPhase) {
+    return `${side.name} turn: tap a unit, then a territory: brass = road (up to 2), blue = rail (left: ${left('rail')}), ` +
+      `red = attack it (OP: ${left('op')}; munitions: ${left('munitions')}). Moves happen first, then attacks. ` +
+      'Up to 3 units in one territory attack together. Then COMMIT.';
+  }
   if (phase.kind === 'move') {
     return `${side.name} move: tap a unit, then a territory: brass = road (up to 2), blue = rail (left: ${left('rail')}). ` +
       'Stack up to 3 in one front territory to attack. Then COMMIT.';
@@ -193,19 +198,21 @@ export function phaseSummary(state, data) {
   const nations = data.nations.nations.filter((n) => n.side === phase.side && state.will[n.id] !== undefined &&
     !(n.traits || []).some((t) => t.kind === 'cannot-attack'));
   const left = (key) => nations.map((n) => `${n.short} ${(state.resources[n.id] || {})[key] || 0}`).join(' · ');
+  if (phase.kind === 'move' && phase.attackPhase) return `${side.name} turn · OP: ${left('op')} · rail: ${left('rail')}`;
   return phase.kind === 'move' ? `${side.name} move · rail left: ${left('rail')}` : `${side.name} attack · OP: ${left('op')}`;
 }
 
 // The territories a side can attack right now (after its queued orders).
 export function attackableBoxes(state, data, side) {
-  const s = queueCheck(state, data).state;
+  const s = attackBoard(state, data);
   return data.map.boxes.filter((b) => s.boxes[b.id].owner !== side && eligibleAttackers(s, data, b.id).length > 0).map((b) => b.id);
 }
 
 // ---------------------------------------------------------------- battle reports
 // A plain-English report of one attack after it happened, for the panel's "Battle
 // reports". `action` is a recorded attack (js/engine/orders.js / ai.js):
-// { side, target, result, after }. Returns { box, title, lines: [..], taken }.
+// { side, target, result, after }. Returns { box, title, lines: [..], taken, tally }, where
+// tally = { ours: { steps, lost }, theirs: { steps, lost } } (null if no one held it).
 export function battleReport(data, action) {
   const r = action.result;
   const nation = (id) => data.nations.nations.find((n) => n.id === id);
@@ -240,5 +247,11 @@ export function battleReport(data, action) {
   const will = Object.entries(r.will || {}).filter(([, v]) => v);
   if (r.futile) lines.push(`A futile attack at bad odds: ${nation(r.plan.payer).name} −${data.combat.futile.will} Will.`);
   if (will.length) lines.push(`Will: ${will.map(([n, v]) => `${nation(n).name} ${v > 0 ? '+' : '−'}${Math.abs(v)}`).join(', ')}.`);
-  return { box: action.target, title: `${sideName} attack on ${place(action.target)}`, lines, taken: Boolean(r.taken) };
+  // the tally, for drawing each side's steps with the lost ones crossed out (A&A style)
+  const theirLost = total(r.defenderLost) + total(r.retreatLost);
+  const tally = r.empty ? null : {
+    ours: { steps: r.plan.attackSteps, lost: Math.min(r.plan.attackSteps, total(r.attackerLost)) },
+    theirs: { steps: r.plan.defendSteps, lost: Math.min(r.plan.defendSteps, theirLost) },
+  };
+  return { box: action.target, title: `${sideName} attack on ${place(action.target)}`, lines, taken: Boolean(r.taken), tally };
 }

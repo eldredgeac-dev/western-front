@@ -20,7 +20,8 @@ const reduceMotion = () => typeof matchMedia === 'function' && matchMedia('(pref
 //   home()            — the area [x, y, w, h] the "Front" button shows (the front line)
 //   start()           — the point [x, y] to start on (map units), or null for home
 //   onTapOrder(i)     — a queued order's arrow was tapped (i = its place in the queue)
-export function enableZoom(svg, { onTap, onTapOrder = () => {}, onViewChange = () => {}, home = null, start = null }) {
+//   startZoom         — screen pixels per map unit at the start (the board uses 0: fill the screen)
+export function enableZoom(svg, { onTap, onTapOrder = () => {}, onViewChange = () => {}, home = null, start = null, startZoom = START_ZOOM }) {
   const vb = svg.viewBox.baseVal;
   const W = vb.width; const H = vb.height;     // the whole map, in map units
   let view = { x: 0, y: 0, k: 1 };            // top-left corner (map units) and zoom
@@ -83,7 +84,7 @@ export function enableZoom(svg, { onTap, onTapOrder = () => {}, onViewChange = (
     const at = start && start();
     if (!at) { fit(); return; }
     const s = size();
-    view.k = Math.max(START_ZOOM, minK());
+    view.k = Math.max(startZoom, minK());
     view.x = at[0] - s.w / view.k / 2; view.y = at[1] - s.h / view.k / 2;
     apply();
   }

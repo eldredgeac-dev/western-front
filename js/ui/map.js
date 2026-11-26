@@ -2,9 +2,11 @@
 // and paints the game onto it: who owns each territory, the front line, trenches,
 // the selected territory and the date. The look follows docs/STYLE.md §4.
 //
-// The SVG file already holds the geography. Each territory is an element whose id
-// is the box id (like "l07-e3"), and every border between two neighbours is a
-// <path class="edge" data-a="…" data-b="…">.
+// The SVG file already holds the geography. Each territory is an element with
+// data-box set to the box id (like "l07-e3"), and every border between two neighbours
+// is a <path class="edge" data-a="…" data-b="…">. The same view also draws the board
+// (js/ui/board.js), which builds an SVG with the same layers; its shapes and patterns
+// have ids starting "b-" so the two can sit on the page together.
 
 import { stackSvg, STACK_STEP } from './counters.js';
 
@@ -121,12 +123,15 @@ function trenchNetwork(samples, side, level) {
 
 // ---------------------------------------------------------------- the map view
 // Put the map into `container` and return an object to update it.
-//   svg            — from loadMapSvg()
+//   svg            — from loadMapSvg(), or the board from js/ui/board.js
 //   nations        — data/nations.json (owner colours)
 //   boxNameFn(id)  — the territory's full name, for screen readers
 //   noteNameFn(id) — the place name used in pencil notes (e.g. "Verdun")
 //   shortMonthFn(m)— "1916-02" → "Feb 1916"
-export function createMapView(container, svg, { nations, boxNameFn, noteNameFn, shortMonthFn }) {
+//   prefix         — what the ids of shapes, clips and patterns start with ("b-" on the board)
+//   pieceSize      — the board only: a piece's width in map units (it grows and shrinks
+//                    with the board and stands in the middle of its square)
+export function createMapView(container, svg, { nations, boxNameFn, noteNameFn, shortMonthFn, prefix = '', pieceSize = null }) {
   svg.removeAttribute('width');
   svg.removeAttribute('height');
   svg.classList.add('map-svg');
@@ -137,7 +142,9 @@ export function createMapView(container, svg, { nations, boxNameFn, noteNameFn, 
   for (const s of nations.sides) sideColor[s.id] = s.color;
   const layer = (id) => svg.querySelector('#' + id);
   const territories = [...svg.querySelectorAll('.territory')];
-  const byId = Object.fromEntries(territories.map((t) => [t.id, t]));
+  const boxOf = (t) => t.dataset.box;
+  const byId = Object.fromEntries(territories.map((t) => [boxOf(t), t]));
+  const shapeRef = (id) => `#${prefix}shape-${id}`;      // href of a territory's shape
   const edges = [...svg.querySelectorAll('.edge')];
   // A hidden path we use to measure along borders.
   const ruler = svgEl('path', { visibility: 'hidden' });
@@ -148,7 +155,7 @@ export function createMapView(container, svg, { nations, boxNameFn, noteNameFn, 
   for (const t of territories) {
     t.setAttribute('tabindex', '0');
     t.setAttribute('role', 'button');
-    t.setAttribute('aria-label', boxNameFn(t.id));
+    t.setAttribute('aria-label', boxNameFn(boxOf(t)));
   }
 
   // The front line, the simple trench marks (far/mid zoom) and the full trench
@@ -198,8 +205,8 @@ export function createMapView(container, svg, { nations, boxNameFn, noteNameFn, 
     g.setAttribute('class', 'lod-far');                      // only when zoomed out
     for (const t of territories) {
       g.appendChild(svgEl('use', {
-        href: '#shape-' + t.id, 'clip-path': `url(#clip-${t.id})`, class: 'region-edge',
-        stroke: sideColor[owner(t.id)],
+        href: shapeRef(boxOf(t)), 'clip-path': `url(#${prefix}clip-${boxOf(t)})`, class: 'region-edge',
+        stroke: sideColor[owner(boxOf(t))],
       }));
     }
   }
@@ -211,7 +218,7 @@ export function createMapView(container, svg, { nations, boxNameFn, noteNameFn, 
     for (const [id, count] of Object.entries(counts)) {
       const level = scarLevelFn(count);
       if (level > 0 && byId[id]) {
-        scars.appendChild(svgEl('use', { href: '#shape-' + id, fill: `url(#pat-scar${level})`, class: 'scar' }));
+        scars.appendChild(svgEl('use', { href: shapeRef(id), fill: `url(#${prefix}pat-scar${level})`, class: 'scar' }));
       }
     }
   }
@@ -255,7 +262,7 @@ export function createMapView(container, svg, { nations, boxNameFn, noteNameFn, 
   //   record — { counts, big, scarLevel } from js/engine/battles.js
   function update(state, month, monthName, record) {
     const owner = (id) => state.boxes[id].owner;
-    for (const t of territories) t.style.fill = sideColor[owner(t.id)];
+    for (const t of territories) t.style.fill = sideColor[owner(boxOf(t))];
     drawRegionEdges(owner);
     drawFront(state);
     if (record) {
@@ -275,7 +282,7 @@ export function createMapView(container, svg, { nations, boxNameFn, noteNameFn, 
   function select(boxId) {
     const sel = layer('selection');
     sel.replaceChildren();
-    if (boxId) sel.appendChild(svgEl('use', { href: '#shape-' + boxId, class: 'selected-outline' }));
+    if (boxId) sel.appendChild(svgEl('use', { href: shapeRef(boxId), class: 'selected-outline' }));
   }
 
   // The shape of a grease-pencil arrow from inside `fromId` into `toId`, crossing
@@ -459,6 +466,7 @@ export function createMapView(container, svg, { nations, boxNameFn, noteNameFn, 
   // Size the pieces for the zoom and move every stack to a free spot beside its town.
   function layout(k) {
     if (k) zoomK = k;
+    if (pieceSize) { layoutBoard(); return; }
     const level = svg.classList.contains('near') ? 'near' : svg.classList.contains('far') ? 'far' : 'mid';
     const px = PIECE_PX[level] / 30;              // screen pixels per piece unit
     const scale = px / zoomK;                     // map units per piece unit
@@ -484,7 +492,7 @@ export function createMapView(container, svg, { nations, boxNameFn, noteNameFn, 
       // that covers least (names and symbols count a hundred times more than village names).
       // A stack must stand in its own territory: a spot whose middle is outside it is
       // never used if there's another, and corners sticking out cost a little.
-      const shape = svg.getElementById('shape-' + spot.dataset.box);
+      const shape = svg.getElementById(`${prefix}shape-${spot.dataset.box}`);
       const inside = (px2, py2) => { const p = svg.createSVGPoint(); p.x = (px2 - ctm.e) / ctm.a; p.y = (py2 - ctm.f) / ctm.d; return shape.isPointInFill(p); };
       const outside = (rect) => {
         if (!shape || !shape.isPointInFill) return 0;
@@ -505,15 +513,26 @@ export function createMapView(container, svg, { nations, boxNameFn, noteNameFn, 
     }
   }
 
-  // Outline where the selected unit can go: brass for a normal move, dashed brass
-  // for rail. Pass empty lists to clear.
+  // The board: every stack is the same size (pieceSize map units wide) and stands
+  // centred on its territory's anchor, the middle of its square (js/ui/board.js).
+  function layoutBoard() {
+    const scale = pieceSize / 29;                 // map units per piece unit (the face is 29 wide)
+    lastScale = scale;
+    for (const spot of unitsLayer.querySelectorAll('.unit-spot')) {
+      const [L, T, R, B] = stackBox(Number(spot.dataset.count));
+      const ox = -((L + R) / 2) * scale; const oy = -((T + B) / 2) * scale;
+      spotOffset[spot.dataset.box] = [ox, oy]; lastOffset = [ox, oy];
+      spot.firstChild.setAttribute('transform', `translate(${ox.toFixed(2)},${oy.toFixed(2)}) scale(${scale.toFixed(4)})`);
+    }
+  }
+
   // Outline where things can happen: moveIds by road (brass), railIds by rail (river
   // blue, dashed), attackIds the enemy territories you can attack (front-red, dashed).
   function showTargets(moveIds, railIds, attackIds = []) {
     targetsLayer.replaceChildren();
-    for (const id of attackIds) targetsLayer.appendChild(svgEl('use', { href: '#shape-' + id, class: 'target attackable' }));
-    for (const id of railIds) if (!moveIds.includes(id)) targetsLayer.appendChild(svgEl('use', { href: '#shape-' + id, class: 'target rail' }));
-    for (const id of moveIds) targetsLayer.appendChild(svgEl('use', { href: '#shape-' + id, class: 'target move' }));
+    for (const id of attackIds) targetsLayer.appendChild(svgEl('use', { href: shapeRef(id), class: 'target attackable' }));
+    for (const id of railIds) if (!moveIds.includes(id)) targetsLayer.appendChild(svgEl('use', { href: shapeRef(id), class: 'target rail' }));
+    for (const id of moveIds) targetsLayer.appendChild(svgEl('use', { href: shapeRef(id), class: 'target move' }));
   }
 
   // The Best attacks helper: an arrow with its odds for each suggestion.
@@ -581,5 +600,6 @@ export function createMapView(container, svg, { nations, boxNameFn, noteNameFn, 
   function clearEffects() { effects.replaceChildren(); for (const g of unitsLayer.querySelectorAll('.ghost')) g.remove(); }
 
   return { svg, update, select, declutter, frontBounds, showPlannedAttack, clearPlannedAttack,
-    drawUnits, layout, showTargets, showSuggestions, showCoach, drawOrders, standPoint, ghostPiece, puffs, floatText, clearEffects };
+    drawUnits, layout, showTargets, showSuggestions, showCoach, drawOrders, standPoint, ghostPiece, puffs, floatText, clearEffects,
+    anchorOf: anchor, boxIds: () => Object.keys(byId) };
 }

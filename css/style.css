@@ -195,7 +195,7 @@ html, body {
   overflow: hidden;
   background: var(--leather);
 }
-.map-holder { position: absolute; inset: 0; }
+.map-holder { position: absolute; inset: 0; z-index: 0; }   /* its own layer: the views stay under the buttons */
 .zoom-buttons {
   position: absolute;
   right: max(10px, env(safe-area-inset-right));
@@ -814,3 +814,42 @@ body.coaching .locator { display: none; }
 .split-merge { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 12px; }
 .split-merge .btn { min-height: var(--tap); }
 .split-label { font-size: 0.85rem; color: var(--paper-dark); }
+
+/* ---------- The board view (js/ui/board.js): the territories as a grid of squares on
+   map paper, like a General Staff sector diagram. Sizes are in board units (≈ px). ---------- */
+.view-holder { position: absolute; inset: 0; }
+/* The view not on screen stays drawn but see-through (the locator shows the campaign
+   map through <use>, and masks inside a visibility:hidden view would vanish), and
+   nothing in it can be tapped. */
+.view-holder.inactive { opacity: 0; z-index: 0; }
+.view-holder.inactive, .view-holder.inactive * { pointer-events: none !important; }
+.view-holder:not(.inactive) { z-index: 1; }
+.board-paper { fill: var(--paper); }
+.board-cell { fill: none; stroke: var(--ink-faded); stroke-width: 0.6; pointer-events: none; }
+.board-svg #edges { display: none; }
+.board-svg .board-heads, .board-svg #towns { pointer-events: none; }
+.board-col { font: 9px var(--font-type); fill: var(--ink-faded); letter-spacing: 0.08em; }
+.board-lane { font: 9.5px var(--font-place-sc); fill: var(--ink); letter-spacing: 0.04em; }
+.board-name { font: 9.5px var(--font-place); fill: var(--ink); }
+.board-name.city { font-weight: 700; }
+.board-vp { fill: var(--paper); stroke: var(--front-red); stroke-width: 1; }
+.board-vp-text { font: 700 8px var(--font-type); fill: var(--front-red); }
+.board-fort { fill: var(--paper); stroke: var(--ink); stroke-width: 0.8; }
+/* on the board the pieces are always the full ones (the board is never "zoomed out") */
+.board-svg.far .piece-full { display: inline; }
+.board-svg .piece-simple { display: none; }
+
+/* ---------- Losses, the Axis & Allies way: each side's steps as squares, the lost ones
+   crossed out in red (the attack slip: expected; battle reports: what happened). ---------- */
+.loss-tally { margin: 6px 0; display: grid; gap: 4px; }
+.loss-row { display: grid; grid-template-columns: 4.2em 1fr; align-items: center; column-gap: 8px; }
+.loss-label { font-weight: 700; }
+.loss-pips { display: flex; flex-wrap: wrap; gap: 3px; }
+.loss-words { grid-column: 2; font-size: 0.85rem; color: var(--ink-faded); }
+.loss-pip { position: relative; width: 14px; height: 14px; border: 1.5px solid var(--ink); border-radius: 2px; background: var(--paper); }
+.loss-pip.lost { border-color: var(--front-red); background: var(--telegram); }
+.loss-pip.lost::before, .loss-pip.lost::after {
+  content: ""; position: absolute; left: -2px; right: -2px; top: 50%; height: 2px; margin-top: -1px; background: var(--front-red);
+}
+.loss-pip.lost::before { transform: rotate(45deg); }
+.loss-pip.lost::after { transform: rotate(-45deg); }

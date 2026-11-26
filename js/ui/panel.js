@@ -131,7 +131,7 @@ function unitChips(info, onUnit, onCancelOrder, actions = {}) {
     return section;
   }
   const hint = u.moves || u.rails
-    ? 'Tap a territory outlined in brass (road) or dashed blue (rail).'
+    ? 'Tap brass (road) or dashed blue (rail) to move it, or red to attack.'
     : (u.why || 'This unit can\u2019t move now.');
   const line = el('p', 'unit-hint');
   line.appendChild(el('strong', 'unit-title', `${u.title}, ${u.quality.toLowerCase()}. `));
@@ -182,6 +182,30 @@ function slipLine(parent, label, value, cls = '') {
 }
 const signed = (n) => (n > 0 ? `+${n}` : n < 0 ? `\u2212${-n}` : '0');
 const pct = (p) => `${Math.round(p * 100)}%`;
+
+// One side's steps as a row of squares, the lost ones crossed out in red (like the
+// casualties set aside in Axis & Allies). `lost` may be an expected number (2.4): it's
+// rounded for the picture, and the exact figure is in the words.
+function lossStrip(label, steps, lost, words) {
+  const row = el('div', 'loss-row');
+  row.setAttribute('role', 'img');
+  row.setAttribute('aria-label', `${label}: ${words}`);
+  row.appendChild(el('span', 'loss-label', label));
+  const pips = el('span', 'loss-pips');
+  const crossed = Math.min(steps, Math.round(lost));
+  for (let i = 0; i < steps; i++) pips.appendChild(el('i', 'loss-pip' + (i >= steps - crossed ? ' lost' : '')));
+  row.appendChild(pips);
+  row.appendChild(el('span', 'loss-words', words));
+  return row;
+}
+// Both sides: ours and theirs.
+function lossTally(ours, theirs, expected) {
+  const box = el('div', 'loss-tally');
+  const say = (n) => (expected ? `about ${n.toFixed(1)} lost` : `${n} lost`);
+  box.appendChild(lossStrip('Ours', ours.steps, ours.lost, say(ours.lost)));
+  box.appendChild(lossStrip('Theirs', theirs.steps, theirs.lost, say(theirs.lost)));
+  return box;
+}
 
 // The explanation under the odds (js/engine/explain.js): the roll needed, a strip
 // showing what each roll of two dice would do, why, and what would help.
@@ -263,7 +287,7 @@ function orderSlip(slip, actions) {
     odds.appendChild(el('span', 'slip-chance', pct(slip.pTake)));
     odds.appendChild(el('span', 'slip-chance-text', 'chance to take it'));
     card.appendChild(odds);
-    card.appendChild(el('p', 'slip-losses', `Expected losses: ours ${slip.attackerLoss.toFixed(1)} \u00b7 theirs ${slip.defenderLoss.toFixed(1)} steps`));
+    card.appendChild(lossTally({ steps: slip.attackSteps, lost: slip.attackerLoss }, { steps: slip.defendSteps, lost: slip.defenderLoss }, true));
   }
   if (slip.warning) card.appendChild(el('p', 'slip-warning', slip.warning));
   for (const r of slip.reasons || []) card.appendChild(el('p', 'slip-note', r));
@@ -356,6 +380,7 @@ function reportsSection(reports, onShow, onClose) {
     const card = el('article', 'order-slip report-card');
     card.appendChild(el('p', 'slip-kicker', 'BATTLE REPORT'));
     card.appendChild(el('h4', 'slip-title', r.title));
+    if (r.tally) card.appendChild(lossTally(r.tally.ours, r.tally.theirs, false));
     for (const line of r.lines) card.appendChild(el('p', 'report-line', line));
     card.appendChild(el('p', 'slip-stamp' + (r.taken ? '' : ' failed'), r.taken ? 'OBJECTIVE TAKEN' : 'REPULSED'));
     const show = el('button', 'btn btn-small', 'Show on map');
