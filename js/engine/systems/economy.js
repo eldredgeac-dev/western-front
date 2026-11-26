@@ -18,6 +18,7 @@ import { currentMonth, addMonths } from '../state.js';
 import { scheduleValue } from '../resources.js';
 import { placeUnit, applyEffect } from '../events.js';
 import { addLog } from '../moves.js';
+import { cardValue } from '../commanders.js';
 
 const nationOf = (data, id) => data.nations.nations.find((n) => n.id === id);
 const techOf = (data, id) => data.economy.techs.find((t) => t.id === id);
@@ -87,11 +88,12 @@ export function cityEffects(state, data) {
 }
 
 // Manpower this month (§19.1): the nation's replacements schedule, times the
-// difficulty multiplier (§13), rounded.
+// difficulty multiplier (§13), rounded, then the commander's change (§15: Hindenburg &
+// Ludendorff +1, Haig −1 in Jan–Apr 1918), never below 0.
 export function manpower(state, data, nationId, month = currentMonth(state)) {
   const n = nationOf(data, nationId);
   const mult = (state.resourceMult || {})[n.side] || 1;
-  return Math.round(scheduleValue((n.resources || {}).rp || [], month) * mult);
+  return Math.max(0, Math.round(scheduleValue((n.resources || {}).rp || [], month) * mult) + cardValue(state, data, 'rp', nationId, month));
 }
 
 // Industry this month (§19.2), piece by piece:
@@ -99,6 +101,7 @@ export function manpower(state, data, nationId, month = currentMonth(state)) {
 //   bonus    — the war-economy bonus (not multiplied)
 //   cities   — industrial cities lost or taken (§19.3)
 //   research — techs that add Industry (the Heavy artillery programme)
+//   commander — the commander card's change (§15: Nivelle +1)
 //   total    — the sum, never below 0
 export function industryParts(state, data, nationId, month = currentMonth(state)) {
   const n = nationOf(data, nationId);
@@ -111,7 +114,8 @@ export function industryParts(state, data, nationId, month = currentMonth(state)
   for (const t of data.economy.techs) {
     if (t.effect.kind === 'industry' && t.effect.nation === nationId && techResearched(state, t.id)) research += t.effect.value;
   }
-  return { base, bonus, cities, research, total: Math.max(0, base + bonus + cities + research) };
+  const commander = cardValue(state, data, 'industry', nationId, month);
+  return { base, bonus, cities, research, commander, total: Math.max(0, base + bonus + cities + research + commander) };
 }
 export const industry = (state, data, nationId, month) => industryParts(state, data, nationId, month).total;
 

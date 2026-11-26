@@ -73,7 +73,7 @@ function researchCell(e, monthName) {
 // One nation's page: a ruled table of its figures (Will with its gauge and chart,
 // the economy, OP and rail, units, cities, casualties, commander), then everything
 // affecting it now, each with a one-line explanation.
-function nationPage(n, l, monthName, nameOf) {
+function nationPage(n, l, monthName, nameOf, commanders) {
   const page = el('section', 'nation-page');
   page.id = `nation-${n.id}`;
   page.setAttribute('role', 'tabpanel');
@@ -131,6 +131,9 @@ function nationPage(n, l, monthName, nameOf) {
   }
   row('Orders from the front', n.cannotAttack ? el('td', 'ledger-text ledger-warn', `No attacks: ${n.cannotAttack}`) : el('td', 'ledger-text', 'Can attack'));
   page.appendChild(table);
+  // the commander card(s), with the sack control (js/ui/commander.js, RULES.md §15.3)
+  const cards = commanders ? commanders(n.id) : null;
+  if (cards) page.appendChild(cards);
   page.appendChild(effectsList(n.effects));
   return page;
 }
@@ -191,7 +194,7 @@ function willChart(series, monthName) {
 // The nation pages: a row of name tabs and the pages side by side, swiped sideways
 // (CSS scroll-snap). Tapping a tab scrolls to its page; the tab of the page in view
 // is underlined.
-function nationPages(l, monthName, nameOf) {
+function nationPages(l, monthName, nameOf, commanders) {
   const box = el('section', 'ledger-section nations');
   const nations = [...l.nations, ...(l.others || [])];
   const tabs = el('div', 'nation-tabs');
@@ -209,7 +212,7 @@ function nationPages(l, monthName, nameOf) {
     });
     buttons.push(b);
     tabs.appendChild(b);
-    strip.appendChild(nationPage(n, l, monthName, nameOf));
+    strip.appendChild(nationPage(n, l, monthName, nameOf, commanders));
   }
   // underline the tab of the page in view, and fit the strip to that page's height
   // (otherwise a short page sits above a gap as tall as the longest page)
@@ -362,7 +365,7 @@ function strengthChart(l, sides, monthName) {
 //   l          — ledger() from js/engine/history.js
 //   monthName  — "1916-03" → "March 1916"
 //   nameOf(id), adjectiveOf(id) — a nation's name ("France") and adjective ("French")
-export function showLedger(container, l, { monthName, nameOf, adjectiveOf, onClose }) {
+export function showLedger(container, l, { monthName, nameOf, adjectiveOf, onClose, commanders = null }) {
   const page = el('div', 'ledger-page');
   const top = el('div', 'ledger-top');
   const close = el('button', 'btn btn-small', '‹ The map');
@@ -374,7 +377,7 @@ export function showLedger(container, l, { monthName, nameOf, adjectiveOf, onClo
   page.appendChild(el('h2', 'ledger-title', `The state of the war, ${monthName(l.month)}`));
   page.appendChild(scoreSection(l));
   page.appendChild(countdownSection(l, adjectiveOf));
-  page.appendChild(nationPages(l, monthName, nameOf));
+  page.appendChild(nationPages(l, monthName, nameOf, commanders));
   page.appendChild(strengthChart(l, l.sides, monthName));
   page.appendChild(citiesSection(l));
   if (l.industrialCities && l.industrialCities.length) page.appendChild(industrySection(l, nameOf));

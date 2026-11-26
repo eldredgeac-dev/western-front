@@ -169,7 +169,7 @@ Do one milestone per Claude Code session. For each one:
   - We list everything that was boring or confusing, then fix it.
   - Every screen passes the "Is it cheesy?" checklist in docs/STYLE.md §11.
 
-- [ ] **12. Commander cards**
+- [ ] **12. Commander cards** (built in Version 11.0; tick after the phone checks)
   - Each nation shows its current commander card (silhouette portrait, name, Strength,
     Flaw) on the Nations screen.
   - All the effects in RULES.md §15 work, each with a test.
@@ -212,7 +212,7 @@ Gaps in RULES.md found in the first session. Each has a suggested fix that match
 `tools/wfsim.py` where the simulator covers it. **Not agreed yet:** when we reach the
 milestone in brackets, confirm the fix, then update RULES.md and the code together.
 
-4. **[5, 12] Commander bonuses stack.** Haig's "+1 OP from 1916" and Hindenburg &
+4. **[5, 12] Commander bonuses stack.** *(Built in milestone 12, RULES.md §15.2a.)* Haig's "+1 OP from 1916" and Hindenburg &
    Ludendorff's "+1 RP" are added on top of the §6 table (so GBR has 3 OP in 1916–17).
 5. **[5] Mixed stacks and the French 75s.** The trait applies if any French unit is in
    the defending box.
@@ -242,8 +242,9 @@ milestone in brackets, confirm the fix, then update RULES.md and the code togeth
     US Will is 0.
 17. **[9, 12] Match RULES.md to the simulator.**
     - The AI stops attacking at "this turn's RP + 2", not next turn's.
-    - The Kaiserschlacht gamble (−15) and H&L's "last gamble" (−3 a month) both apply in
-      Mar–Jul 1918.
+    - The Kaiserschlacht gamble (now −20) and H&L's "last gamble" (−3 a month) both apply in
+      1918. *(Built in milestone 12; the simulator now really applies the gamble,
+      DECISIONS.md 121.)*
 
 ## Later ideas
 - Let the player choose which unit takes each step loss (see pending fix 10).
@@ -264,4 +265,8 @@ milestone in brackets, confirm the fix, then update RULES.md and the code togeth
   fixed spot; the map could get the same from tools/build-map.mjs.
 - On a folded phone the locator covers the board's top-left square until you scroll;
   it could shrink or tuck away on the board.
+- While a commander question or budget waits, the phase label shows the next phase
+  ("War Office budget") rather than "Commanders"; it could name the question instead.
+- Commander cards in the newspaper ("NIVELLE OUT — PÉTAIN TAKES COMMAND") come with
+  milestone 13, and the wax seal on the cards with milestone 6.
 (Claude Code: add ideas here instead of building them.)

@@ -4,6 +4,7 @@
 
 import { resourcesFor, applyDifficulty } from './resources.js';
 import { questionTelegram } from './telegrams.js';
+import { historicalCommanders } from './commanders.js';
 
 // Bump this whenever the shape of the state changes, so old saves can be
 // recognised and upgraded (Milestone 8).
@@ -12,7 +13,8 @@ import { questionTelegram } from './telegrams.js';
 //   3: queued orders   4: the War Office's records
 //   5: the war economy (RULES.md §19): the munitions stockpile, research, budgets
 //   6: event telegrams (js/engine/telegrams.js) and how many the player has read
-export const STATE_VERSION = 6;
+//   7: commander cards (js/engine/commanders.js) and the new Commanders phase
+export const STATE_VERSION = 7;
 
 // Build a brand-new game from a scenario (data/scenarios/*.json).
 //   seed — any whole number; it drives every dice roll (js/engine/rng.js)
@@ -63,6 +65,10 @@ export function newGame(scenario, seed, data = {}, options = {}) {
     telegrams: [],            // every event telegram sent (js/engine/telegrams.js)
     telegramsSeen: 0,         // how many of them the player has read
     autoAllocate: {},         // per side: spend the budget automatically each month?
+    commanders: {},           // the commander card in command per nation (js/engine/commanders.js)
+    cardNews: [],             // commander cards that arrived, for the full-screen card
+    cardNewsSeen: 0,          // how many of them the player has seen
+    lostDefending: {},        // steps lost defending each box this month (Falkenhayn's card)
     log: [],
   };
   if (data.nations) {
@@ -184,6 +190,16 @@ export function migrateState(saved, scenario, data) {
     state.telegramsSeen = 0;
     const waiting = state.pendingChoice && data.events ? data.events.events.find((e) => e.id === state.pendingChoice.event) : null;
     if (waiting) questionTelegram(state, waiting);
+  }
+  if (version < 7) {
+    // Version 7 added commander cards, and a Commanders phase after the events (so
+    // every later phase moved up one). The cards in command are the historical ones.
+    if (state.phase >= 1) state.phase += 1;
+    state.commanders = {};
+    state.cardNews = [];
+    state.cardNewsSeen = 0;
+    state.lostDefending = {};
+    historicalCommanders(state, data);
   }
   state.version = STATE_VERSION;
   return state;

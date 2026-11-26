@@ -1,8 +1,9 @@
 // combat.js — attacks (RULES.md §9): finding the column, the odds before you
 // commit, and rolling and applying the result.
 //
-// An attack ORDER is { target: boxId, units: [unitId, …], munitions: 0, extraShifts: [] }.
+// An attack ORDER is { target: boxId, units: [unitId, …], munitions: 0, extraShifts: [], cardShift: false }.
 //   extraShifts are shifts from events (e.g. the April 1915 gas attack): [{label, value}].
+//   cardShift: true uses the commander's once-only shift (the Nivelle Method, RULES.md §15).
 // Everything the rules need (the table, terrain, traits, costs) is read from the data
 // files, so this file never names a nation or a place.
 // Every function that changes the game returns a NEW state.
@@ -15,6 +16,8 @@ import { inSupply } from './supply.js';
 import { phaseAllows, addLog, unitLabel } from './moves.js';
 import { scheduleValue } from './resources.js';
 import { techResearched } from './systems/economy.js';
+import { onceShift, cardCombatRules } from './commanders.js';
+import { startMutiny } from './systems/will.js';
 
 // ---------------------------------------------------------------- the table
 // "A1 D3 R" → { a: 1, d: 3, r: true }
@@ -125,7 +128,14 @@ export function planAttack(state, data, order) {
   const empty = defenders.length === 0;
   const nations = [...new Set(attackers.map((u) => u.nation))];
   const payer = attackers.length ? leadNation(attackers) : null;
-  const opCost = empty ? table.opCost.emptyBox : nations.length > 1 ? table.opCost.coalition : table.opCost.single;
+  // commander cards (RULES.md §15): who may attack together, and Foch's coalition cost
+  const cards = side ? cardCombatRules(state, data, side, nations, month) : { reasons: [], opCost: null };
+  reasons.push(...cards.reasons);
+  const coalitionCost = cards.opCost !== null ? cards.opCost : table.opCost.coalition;
+  const opCost = empty ? table.opCost.emptyBox : nations.length > 1 ? coalitionCost : table.opCost.single;
+  // (an empty territory needs no dice, so the shift isn't spent on it)
+  const shift = order.cardShift && payer && !empty ? onceShift(state, data, payer) : null;
+  if (order.cardShift && !empty && !shift) reasons.push('That commander’s once-only attack bonus isn’t available.');
   const munitions = empty ? 0 : (order.munitions || 0);
   if (payer && state.resources[payer] && state.resources[payer].op < opCost) {
     reasons.push(`Not enough Offensive Points (needs ${opCost}).`);
@@ -142,6 +152,7 @@ export function planAttack(state, data, order) {
     ok: false, reasons, order, side, payer, nations, opCost, munitions, empty,
     attackers: attackers.map((u) => u.id), defenders: defenders.map((u) => u.id),
     attackSteps, defendSteps, shifts: [], ratioColumn: null, finalColumn: null, columnLabel: null,
+    cardShift: shift,
   };
   if (empty) {
     plan.columnLabel = 'empty';
@@ -200,6 +211,9 @@ export function planAttack(state, data, order) {
   (state.eventShifts || []).forEach((e, i) => {
     if (e.side === side && e.uses > 0 && (!e.lanes || e.lanes.includes(lane))) { add(e.label, e.shift); plan.eventShiftsUsed.push(i); }
   });
+
+  // The commander's once-only shift, if this order uses it (the Nivelle Method).
+  if (shift) add(shift.name, shift.value);
 
   // 3. Clamp to the table (1:2 … 4:1).
   const total = shifts.reduce((s, x) => s + x.value, 0);
@@ -371,6 +385,10 @@ export function applyCombatResult(state, data, plan, cell) {
     taken = true;
   }
   const will = taken ? capture(state, data, plan, moves) : {};
+  // steps each nation lost defending this box this month (Falkenhayn's card)
+  state.lostDefending = state.lostDefending || {};
+  const here = state.lostDefending[target] = state.lostDefending[target] || {};
+  for (const lost of [defenderLost, retreatLost]) for (const [nat, n] of Object.entries(lost)) here[nat] = (here[nat] || 0) + n;
   const sum = (o) => Object.values(o).reduce((s, x) => s + x, 0);
   const stepsLost = sum(attackerLost) + sum(defenderLost) + sum(retreatLost);
   // A futile attack (RULES.md §9.4): final column 1:1 or worse and the box not taken.
@@ -388,6 +406,12 @@ export function applyCombatResult(state, data, plan, cell) {
     ownerBefore: defenderSide, ownerAfter: state.boxes[target].owner, ...moves };
 }
 
+// Does a card's Flaw start the mutinies when its once-only attack fails?
+function cardFlawMutiny(data, cardId) {
+  const card = data.commanders.cards.find((c) => c.id === cardId);
+  return Boolean(card && card.flaw && (card.flaw.effects || []).some((e) => e.kind === 'mutiny-if-once-attack-fails'));
+}
+
 // Carry out an attack: check it, pay for it, roll the dice and apply the result.
 // Returns { state, result }. Throws an Error with the reasons if it isn't allowed.
 export function resolveAttack(state, data, order) {
@@ -399,6 +423,7 @@ export function resolveAttack(state, data, order) {
   for (const id of plan.attackers) findUnit(next, id).attacked = true;
   if (!next.attackedBoxes.includes(order.target)) next.attackedBoxes.push(order.target);
   for (const i of plan.eventShiftsUsed || []) next.eventShifts[i].uses -= 1;
+  if (plan.cardShift) next.commanders[plan.cardShift.key].shiftUsed = true;   // once only
   next.attacks = [...(next.attacks || []), { side: plan.side, nations: plan.nations, month: currentMonth(next), box: order.target }];
   const name = boxName(data.map, boxesOf(data)[order.target]);
 
@@ -416,6 +441,10 @@ export function resolveAttack(state, data, order) {
   const cell = tableResult(data.combat, dice.total, plan.finalColumn);
   addLog(next, `Attack on ${name} at ${plan.columnLabel}: rolled ${dice.total}.`);
   const result = applyCombatResult(next, data, plan, cell);
+  // Nivelle's "Broken promise": if his attack fails, the mutinies start at once (§15).
+  if (plan.cardShift && !result.taken && cardFlawMutiny(data, plan.cardShift.card)) {
+    result.mutiny = startMutiny(next, data, plan.payer, `${plan.cardShift.name} failed`);
+  }
   return { state: next, result: { plan, roll: dice.total, dice: dice.dice, cell, ...result } };
 }
 

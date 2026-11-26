@@ -87,6 +87,7 @@ function nationCard(state, data, nationId, plan, names) {
   if (ip.bonus) parts.push(`${signed(ip.bonus)} war economy`);
   if (ip.cities) parts.push(`${signed(ip.cities)} cities`);
   if (ip.research) parts.push(`${signed(ip.research)} research`);
+  if (ip.commander) parts.push(`${signed(ip.commander)} commander`);
   ipLine.appendChild(document.createTextNode(` (${parts.join(', ')})`));
   card.appendChild(ipLine);
 

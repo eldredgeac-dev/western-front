@@ -1,4 +1,4 @@
-# Rules — Western Front 1914–18 (Version 1.6)
+# Rules — Western Front 1914–18 (Version 1.7)
 
 These rules are the source of truth. The code must do what this file says.
 
@@ -9,7 +9,9 @@ territories and lets you split and merge pieces (§8). Version 1.5 turns Auto-al
 on by default and shows the budget screen only when there's a real choice (§19.4);
 that changes no numbers, so the balance results stand. Version 1.6 gives each side one
 orders phase: you order moves and attacks together and commit once (§7); moves still
-happen first, so the balance results stand. It has been **balance-tested**: thousands of simulated computer-vs-computer games
+happen first, so the balance results stand. Version 1.7 puts the commander cards in the
+game (§15: the replace / keep / sack choices, a Commanders step in each month, §7) and
+raises the Kaiserschlacht penalty from −15 to −20 (§10). It has been **balance-tested**: thousands of simulated computer-vs-computer games
 (see `docs/BALANCE.md`). Numbers marked **[balanced]** were tuned by that testing. Change
 them only if playtesting shows a problem, and then re-run `tools/wfsim.py`.
 
@@ -154,6 +156,8 @@ Industry here is before industrial cities (§19.3) and research (§19.5).
 
 ## 7. Turn sequence (each month)
 1. **Events and reinforcements** (§10).
+   - Then **commanders** (§15): cards that arrive on their dates, and any "Replace X
+     with Y?" question. The month's OP, Manpower and rail moves include the cards.
    - Then the **War Office budget** (§19.4): each nation spends its Industry.
 2. **German turn:** move (§8), then attack (§9).
 3. **Entente turn:** move, then attack.
@@ -298,7 +302,7 @@ E1 and G1 boxes start at trench 1; all other boxes start at 0.
 | first time FRA Will < 35 | **French mutinies** | French units can't attack for 3 turns, then FRA +10 Will. Happens once. |
 | Dec 1917 | **Russia leaves the war** | GER +10 Will. Eastern transfers begin. |
 | Jan 1918 | **Stormtroopers** | GER converts up to 4 infantry units (unless it already researched them, §19.5). |
-| Apr–Oct 1918 | **Kaiserschlacht gamble** | If Germany makes **no attack** between Apr and Oct 1918, GER −15 Will at the end of Oct. [balanced] Germany must strike before the Americans arrive in force. |
+| Apr–Oct 1918 | **Kaiserschlacht gamble** | If Germany makes **no attack** between Apr and Oct 1918, GER −20 Will at the end of Oct (was −15 before Version 1.7). [balanced] Germany must strike before the Americans arrive in force. |
 | Aug 1918 | **German exhaustion** | See §4. |
 | Nov 1918 | **Armistice** | The game ends after this turn (§11). |
 
@@ -441,15 +445,42 @@ a say (§15.2). The computer always follows history.
   next card and ask **"Replace [old] with [new]?"**
   - **Accept:** the new card takes over.
   - **Keep the old commander:** costs −3 Will now, and the question comes back every 3
-    turns.
+    turns. It also comes back in a month when a successor's own historical date arrives
+    (that's how Pétain is offered in May 1917).
   - Nivelle can only be appointed while his window is open (Dec 1916 – Apr 1917). If you
     skip him, Pétain is offered in May 1917.
 - **Sacking:** you may sack your commander early and bring in the next card on the list
   if it's available. That costs −5 Will. You can't sack a commander in their first 3
-  turns.
+  turns. "Available" means: Nivelle only in his window, and Pétain (the alternative to
+  Nivelle) only from Dec 1916; the other successors at any time. So Sir John French and
+  Falkenhayn can be sacked early; Joffre can't be before Dec 1916. Sacking happens on
+  the Nations screen in your own turn. The new card's Will flaws and combat rules work
+  at once; its OP, Manpower, Industry and rail moves count from next month.
 - **Order of succession:** FRA Joffre → Nivelle → Pétain (Pétain is also available instead
   of Nivelle from Dec 1916). GBR French → Haig. GER Falkenhayn → Hindenburg & Ludendorff.
 - **Foch** and **Pershing** arrive on their dates and can't be sacked.
+- **The computer** always appoints the historical successor on its date and never
+  keeps or sacks. It uses the Nivelle Method in April 1917.
+
+### 15.2a How the cards work in play
+- **"+1 OP" and "+1 RP / MP"** are added to the §6 and §19 tables (so GBR has 3 OP in
+  1916–17 under Haig). Pétain's "OP max 1" and Falkenhayn's "max 2 rail moves" are
+  applied after any bonus.
+- **"No French attack"** (Joffre) and **"no German attack"** (Hindenburg & Ludendorff)
+  mean no attack that month with any unit of that nation in it, coalition attacks
+  included. Checked in the National Will phase.
+- **The Nivelle Method** is chosen on the order slip of one attack whose paying nation
+  is France. It isn't spent on an empty territory. If that attack doesn't take its
+  territory, the French mutinies start at once (rest of the month included), unless
+  they have already happened.
+- **Mutiny length under Pétain:** each National Will phase after the mutinies start is
+  one turn served. They end when the turns served reach 3, or 2 if Pétain is in
+  command at that moment; then France gains +10 Will, or +15 under Pétain.
+- **Falkenhayn's Verdun bonus** counts the French steps lost defending Verdun (losses and
+  units cut off in its retreat) that month, rounded down per 4 steps.
+- **Prickly ally / No amalgamation** forbid the coalition attack outright.
+- **Old Contemptibles:** the 2 starting British units are Elite from the start, and
+  stay Elite (pending rule fix 12).
 
 ### 15.3 Where to show it
 - Show the current commander card for each nation on the Nations screen.
@@ -561,8 +592,8 @@ multiplier applies to the **base** only (rounded to the nearest whole number); t
 war-economy bonus, cities and research are then added unmultiplied. Industry never goes
 below 0.
 
-Commanders (§15) change these once the commander cards are built (milestone 12):
-Hindenburg & Ludendorff +1 MP, Nivelle +1 IP, Haig −1 MP in Jan–Apr 1918.
+Commanders (§15) change these: Hindenburg & Ludendorff +1 MP, Nivelle +1 IP, Haig −1 MP
+in Jan–Apr 1918. A commander's change is added after the difficulty multiplier.
 
 ### 19.3 Industrial cities
 Owning these named territories changes Industry each month:

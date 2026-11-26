@@ -38,11 +38,13 @@ export function casualties(data, steps) {
   return { casualties: round(steps * b.casualtiesPerStep), killed: round(steps * b.casualtiesPerStep * b.killedShare) };
 }
 
-// The commander of a nation this month, by the historical dates in
-// data/commanders.json (their effects arrive with the Commander cards milestone).
-function commanderOf(data, nation, month) {
+// The commander card in command for a nation (js/engine/commanders.js). Older states
+// without cards (some tests) fall back to the historical one for the date.
+function commanderOf(state, data, nation, month) {
   const cards = (data.commanders && data.commanders.cards) || [];
-  return cards.find((c) => c.nation === nation && c.from <= month && month <= c.to) || null;
+  const now = (state.commanders || {})[nation];
+  if (now) return cards.find((c) => c.id === now.card) || null;
+  return cards.find((c) => c.nation === nation && c.from <= month && (!c.to || month <= c.to)) || null;
 }
 
 // A nation's war economy for the War Office (RULES.md §19.6): Manpower and Industry
@@ -187,7 +189,7 @@ export function ledger(state, data) {
   const nations = data.nations.nations.filter((n) => state.will[n.id] !== undefined).map((n) => {
     const lostMonth = state.lostThisTurn[n.id] || 0;
     const lostTotal = ((state.lossesTotal || {})[n.id] || 0) + lostMonth;
-    const card = commanderOf(data, n.id, month);
+    const card = commanderOf(state, data, n.id, month);
     return {
       id: n.id, name: n.name, side: n.side, color: n.color,
       will: state.will[n.id],
@@ -198,7 +200,7 @@ export function ledger(state, data) {
       units: state.units.filter((u) => u.nation === n.id).length,
       steps: stepsOf(state, n.id),
       bill: { month: casualties(data, lostMonth), total: casualties(data, lostTotal) },
-      commander: card ? { name: card.name, nickname: card.nickname || null, title: card.title || null } : null,
+      commander: card ? { id: card.id, name: card.name, nickname: card.nickname || null, title: card.title || null } : null,
       cannotAttack: (state.cannotAttack || {})[n.id] || null,
       economy: hasEconomy(data) ? economyOf(state, data, n.id, last) : null,
       effects: effectsOf(state, data, n, month),

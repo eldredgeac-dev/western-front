@@ -274,3 +274,112 @@ confirm: `python3 tools/levels.py` gave the **same table as above to the percent
 Marshal 9 / 18 / 0 / 16), and `node tools/js-sim.mjs 50` gave the same **46% / 22% / 32%**.
 **No [balanced] number was changed.** (The "move in to attack" helper only queues a road
 move the player could already have ordered.)
+
+## Commander cards in the game, and Kaiserschlacht −20 (Version 1.7, 26 November 2026)
+**Two simulator fixes first** (`tools/wfsim.py`, no rule change):
+- **The Kaiserschlacht gamble never happened in the simulator.** Its check sat inside
+  `if mandate:`, and `mandate` (an old Entente setting) is 0. So every table above was
+  made without the gamble. It now applies as RULES.md §10 says.
+- **Pétain's shorter mutinies** are now counted the way the game counts them (turns
+  served, RULES.md §15.2a). Small effect.
+
+Then the Kaiserschlacht penalty went from −15 to −20 (DECISIONS.md 105, your answer).
+`python3 tools/matchups.py 200` (new: it prints the matchups table) gave **exactly the
+same table at −15 and at −20** (same seeds): a careful Germany always attacks in 1918, and
+a passive Germany now loses every game even at −15, because the gamble really fires.
+
+| Matchup (200 games) | Germany | Entente | Draw | Before (road moves table) |
+|---|---|---|---|---|
+| Standard vs Standard | 48% | 38% | 14% | 50 / 34 / 15 |
+| Expert vs Expert | 50% | 39% | 11% | 46 / 38 / 16 |
+| Turtle Germany vs Standard | 0% | 100% | 0% | 24 / 45 / 31 |
+| Standard vs Turtle Entente | 100% | 0% | 0% | 100 / 0 / 0 |
+| Beginner Germany vs Standard | 4% | 92% | 4% | 10 / 76 / 14 |
+| Standard vs Beginner Entente | 50% | 46% | 4% | 56 / 40 / 4 |
+| Reckless Germany vs Standard | 0% | 100% | 0% | 0 / 100 / 0 |
+| Standard vs Reckless Entente | 60% | 40% | 0% | 60 / 40 / 0 |
+
+| Level (80 games, player win %) | Careful as GER | Careful as ENT | Beginner as GER | Beginner as ENT |
+|---|---|---|---|---|
+| Recruit | 74% | 81% | **16%** | 79% |
+| Regular | 50% | 34% | 2% | 39% |
+| Veteran | 34% | 28% | 1% | 38% |
+| Field Marshal | 9% | 18% | 0% | 16% |
+
+Every healthy range now holds in the simulator: Standard vs Standard 48 / 38 / 14, and
+passive and reckless play win 0%. **One thing to watch:** a beginner Germany on Recruit
+fell from 71% to 16%. With the gamble switched off it's 71% again, so the gamble is the
+cause: the beginner stand-in makes no attack from April to October 1918 in 23 games out
+of 30. A person gets the April 1918 telegram and the countdown on the Nations screen, so
+real beginners should do much better than this stand-in.
+
+**The game's own engine** (`node tools/js-sim.mjs 50`, Standard vs Standard):
+
+| | Germany | Entente | Draw | Mutinies | Attacks a war |
+|---|---|---|---|---|---|
+| Before milestone 12 (no commanders) | 46% | 22% | 32% | — | — |
+| Commanders, Kaiserschlacht −15 | 56% | 30% | 14% | 64% | 60 |
+| Commanders, Kaiserschlacht −20 | 56% | 30% | 14% | 64% | 60 |
+
+The commanders cut draws from 32% to 14% (Joffre's and Haig's extra OP, Nivelle, the
+mutinies), but the Entente still wins only 30% (target 35–55%).
+
+### The counting tool (DECISIONS.md 82)
+`python3 tools/count.py 50` and `node tools/count.mjs 50` count the same things in each
+engine, per month, at the start of the Entente attack phase (50 wars, Standard vs
+Standard):
+
+| Year | French units in the front line (sim / game) | 2:1-or-better French attacks on offer | French attacks made |
+|---|---|---|---|
+| 1915 | 17.3 / 17.3 | 1.72 / 1.30 | 0.74 / 0.59 |
+| 1916 | 16.9 / 17.6 | 2.25 / 1.38 | 0.61 / 0.43 |
+| 1917 | 15.6 / 15.5 | 1.73 / 1.20 | 0.43 / 0.43 |
+| 1918 | 16.2 / 15.6 | 1.15 / 0.80 | 0.20 / 0.26 |
+
+| Per German territory France can reach (sim / game) | French steps next to it | Defending steps | Trench | Odds before shifts* |
+|---|---|---|---|---|
+| December 1914 | 5.3 / 4.0 | 4.5 / 5.0 | 0.96 / 1.00 | 1.34 / 0.75 |
+| 1915 | 6.8 / 6.0 | 5.5 / 5.7 | 1.49 / 1.48 | 1.52 / 1.24 |
+| 1916 | 7.4 / 7.2 | 5.8 / 6.8 | 2.41 / 2.45 | 1.66 / 1.24 |
+
+*0 = 1:2, 1 = 1:1, 2 = 3:2, 3 = 2:1.
+
+**What it shows:** the game's French stand in the line in the same numbers as in the
+simulator, and the trenches are as deep, so neither of the causes decision 82 suspected
+is it. The difference is **how the pieces are spread**: fewer French steps next to each
+target and more German steps in it, already in December 1914, before many battles. So
+the odds start almost half a column worse, and France gets a third fewer 2:1 attacks.
+
+**The cause:** both computers fill "the most threatened front territories first". The
+simulator ranks the front once and sends reserves down that list, so they pile up in
+the top territories (up to 3 pieces). The game's computer ranks again after every
+single move: the first piece to arrive lowers that territory's threat, so the next goes
+elsewhere. The reserves end up one per territory.
+
+### The fix (approved and applied)
+**The computer ranks its front once at the start of its move phase, as the simulator
+does** (`js/engine/ai.js`, about 3 lines; no RULES.md number changes; it fits RULES.md
+§14 step 3 as written). Measured with a temporary switch, then removed:
+
+| `node tools/js-sim.mjs 50` | Germany | Entente | Draw | Mutinies | Attacks a war | Captures |
+|---|---|---|---|---|---|---|
+| Now | 56% | 30% | 14% | 64% | 60 | 42.2 |
+| With the fix | 28% | 44% | 28% | 76% | 67 | 47.6 |
+
+It brings the Entente into range, but it overshoots: Germany drops to 28% (target 35–55%)
+and draws rise to 28% (target under 25%). With 50 wars each number is ±14 points, so a
+200-war run should come next. The count moves the right way (2:1 attacks on offer in
+1916–17: 1.38 → 1.59 and 1.20 → 1.43), but the German computer changes too, because it
+uses the same move code.
+
+**Applied, and re-run with 200 wars** (`node tools/js-par.mjs 200`, a new tool that runs
+js-sim on every processor core):
+
+| `node tools/js-par.mjs 200` | Germany | Entente | Draw | Mutinies | Attacks a war | Captures |
+|---|---|---|---|---|---|---|
+| Before the fix | 57% | 33% | 11% | 63% | 61 | 42.6 |
+| After the fix | **45%** | **37%** | **18%** | 74% | 66 | 46.7 |
+
+With 200 wars each figure is good to about ±7 points. The 50-war run (28 / 44 / 28) was
+mostly bad luck in those 50 seeds. **The game's engine is now inside every healthy range
+for even games** and close to the simulator (48 / 38 / 14).

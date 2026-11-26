@@ -1,5 +1,5 @@
 {
-  "_about": "Commander cards (RULES.md §15) [balanced]. Each card has its dates, a nickname only if the commander really had one (otherwise null), a Strength and a Flaw (with 'effects' written as data the game code will read in Milestone 12), and a short history note from docs/HISTORY.md. Months are 'YYYY-MM'; 'months' lists months of the year (3 = March). Don't change the effects without changing RULES.md. See docs/DATA.md.",
+  "_about": "Commander cards (RULES.md §15) [balanced]. Each card has its dates, a nickname only if the commander really had one (otherwise null), a Strength and a Flaw (with 'effects' written as data the game code reads: js/engine/commanders.js), and a short history note from docs/HISTORY.md. Months are 'YYYY-MM'; 'months' lists months of the year (3 = March). Don't change the effects without changing RULES.md. See docs/DATA.md.",
   "rules": {
     "keepOldCommanderWill": -3,
     "askAgainEveryTurns": 3,
@@ -27,8 +27,8 @@
     {
       "id": "nivelle", "name": "Nivelle", "nickname": null, "nation": "fra",
       "from": "1916-12", "to": "1917-04", "onlyBetween": ["1916-12", "1917-04"], "next": ["petain"],
-      "strength": {"name": "The Nivelle Method", "text": "France gets +1 munition per turn. Once, one French attack gets +2 columns (you choose which).",
-        "effects": [{"kind": "munitions", "nation": "fra", "value": 1}, {"kind": "once-attack-shift", "nation": "fra", "value": 2}]},
+      "strength": {"name": "The Nivelle Method", "text": "France gets +1 Industry per turn. Once, one French attack gets +2 columns (you choose which).",
+        "effects": [{"kind": "industry", "nation": "fra", "value": 1}, {"kind": "once-attack-shift", "nation": "fra", "value": 2}]},
       "flaw": {"name": "Broken promise", "text": "If that +2 attack fails to take its box, the French mutinies start immediately.",
         "effects": [{"kind": "mutiny-if-once-attack-fails", "nation": "fra"}]},
       "history": "Nivelle rose through successful counter-attacks at Verdun and claimed to have \"the formula\" for a quick breakthrough on the Chemin des Dames. Its failure in April 1917 set off the mutinies, and Pétain replaced him."

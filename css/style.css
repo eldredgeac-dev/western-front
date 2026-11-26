@@ -962,3 +962,53 @@ body.coaching .locator { display: none; }
 .will-chart { max-width: 420px; }
 .will-chart .chart-tick { font-size: 10px; }
 .will-chart .chart-label { font-size: 11px; }
+
+/* ---------- Commander cards (RULES.md §15, STYLE.md §6, js/ui/commander.js): cream card
+   stock, a portrait oval with a silhouette and monogram, the name in IM Fell, the
+   dates, and the Strength and Flaw in two boxes with small brass ribbons. ---------- */
+.card-host { z-index: 22; }
+.card-screen { max-width: 520px; margin: 0 auto; padding: 8px 4px 16px; color: var(--telegram); }
+.card-kicker { margin: 4px 0 0; font: 700 0.85rem var(--font-type); letter-spacing: 0.25em; color: var(--brass); }
+.card-heading { margin: 6px 0 4px; font: 400 1.6rem/1.2 var(--font-place); color: var(--telegram); }
+.card-sub { margin: 0 0 12px; font-size: 1rem; color: var(--paper-dark); }
+.card-keep-head { margin: 18px 0 8px; }
+.commander-card {
+  margin: 10px 0 8px; padding: 14px 14px 12px;
+  background: var(--telegram); color: var(--ink);
+  border: 1px solid var(--brass); border-radius: var(--radius);
+  box-shadow: 0 2px 8px var(--leather);
+}
+.commander-card.compact { padding: 10px 12px; }
+.card-head { display: flex; gap: 12px; align-items: center; }
+.card-portrait { flex: 0 0 auto; width: 76px; height: auto; color: var(--ink); }
+.compact .card-portrait { width: 58px; }
+.card-silhouette { fill: var(--ink); }
+.card-band { fill: var(--paper); stroke: var(--ink); stroke-width: 1; }
+.card-monogram { font: 12px var(--font-place-sc); fill: var(--ink); letter-spacing: 0.08em; }
+.card-who { min-width: 0; }
+.card-name { margin: 0; font: 400 1.5rem/1.15 var(--font-place); }
+.compact .card-name { font-size: 1.25rem; }
+.card-nickname { margin: 2px 0 0; font: italic 1.05rem var(--font-place); }
+.card-title { margin: 2px 0 0; font: 1rem var(--font-place-sc); letter-spacing: 0.04em; }
+.card-dates { margin: 4px 0 0; font: 0.95rem var(--font-type); color: var(--ink-faded); }
+.card-box { position: relative; margin: 14px 0 0; padding: 14px 10px 8px; border: 1px solid var(--ink); border-radius: 2px; }
+.card-ribbon {
+  position: absolute; top: -10px; left: 8px; padding: 1px 8px;
+  background: var(--brass); color: var(--leather);
+  font: 700 0.75rem var(--font-type); letter-spacing: 0.2em;
+}
+.card-flaw { border-style: dashed; }
+.card-quality-name { margin: 0 0 2px; font: 400 1.1rem var(--font-place); }
+.card-text { margin: 0; font-size: 0.98rem; line-height: 1.4; }
+.card-history { margin: 12px 0 0; padding-top: 8px; border-top: 1px solid var(--ink-faded); font: italic 1rem/1.45 var(--font-place); }
+.card-button { display: flex; flex-direction: column; align-items: flex-start; width: 100%; min-height: var(--tap); margin: 4px 0 6px; text-align: left; }
+.card-keep, .card-sack { color: var(--telegram); }
+.card-keep-text { font-size: 0.92rem; font-weight: 400; color: var(--paper-dark); }
+.card-section .commander-card { box-shadow: none; }
+.card-section .card-sack { color: var(--ink); border-color: var(--ink); }
+.card-section .card-keep-text { color: var(--ink-faded); }
+.card-sack-note { color: var(--ink-faded); }
+/* the once-only commander bonus on the order slip (the Nivelle Method) */
+.slip-card-shift { display: flex; flex-direction: column; align-items: flex-start; width: 100%; margin: 8px 0 0; text-align: left; color: var(--ink); border-color: var(--ink); }
+.slip-card-shift[aria-pressed="true"] { background: var(--brass); color: var(--leather); }
+.slip-card-shift-text { font-size: 0.9rem; font-weight: 400; }

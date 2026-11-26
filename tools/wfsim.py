@@ -60,7 +60,7 @@ DEFAULT = dict(
   loss_div={'GER':3,'FRA':2,'GBR':2,'USA':3},             # §4, §11: 1 Will per 3 (GER, USA) or 2 (FRA, GBR) steps
   commanders=True,                                         # §15 commander cards
   fail_mode='futile', futile_pen=3,                        # §9.4 futile attacks cost 3 Will
-  mandate=0, mandate_ger=15,                               # §10 Kaiserschlacht gamble: GER −15 if no attack Apr–Oct 1918
+  mandate=0, mandate_ger=20,                               # §10 Kaiserschlacht gamble: GER −20 if no attack Apr–Oct 1918 (−15 before v1.7)
   score_end=True, avg_score=True, draw_margin=2,           # §11 Armistice Score (GER − FRA/GBR average), ±2 is a draw
   end_ger_will=25, end_boxes=3,                            # (old ending, unused while score_end is on)
   res_mult={'G':1.0,'E':1.0}, will_bonus={'G':0,'E':0},    # §13 difficulty (set by levels.py)
@@ -170,7 +170,7 @@ class Game:
         self.will['GER'] += self.cfg['will_bonus']['G']
         self.will['FRA'] += self.cfg['will_bonus']['E']; self.will['GBR'] += self.cfg['will_bonus']['E']
         self.pool = {'GER':0,'FRA':0,'GBR':0,'USA':0,'BEL':0}
-        self.us_declare = None; self.mutiny_left = 0; self.mutinied = False
+        self.us_declare = None; self.mutiny_left = 0; self.mutiny_served = 0; self.mutinied = False
         self.uboat_left = 0; self.result = None; self.t = 0
         self.stats = dict(caps={'G':0,'E':0}, attacks={'G':0,'E':0}, will_hist=[])
         for l in range(12): self.add('GER','inf',(l,3))
@@ -475,6 +475,32 @@ class Game:
                     rails[u['nat']] -= 1; u['box'] = tgt; u['moved_rail'] = True; continue
                 nb = self.path_step(u, tgt, s)
                 if nb and len(self.at(nb)) < self.cfg['stack']: u['box'] = nb; road.add(id(u))
+    def probe(self, res, sm):
+        # The counting tool (DECISIONS.md 82, tools/count.py): at the start of the Entente
+        # attack phase, how many French units stand in the front line, how many German
+        # territories French units could attack, and at how many of those the odds reach
+        # 2:1 or better (the computer's minimum) with the best barrage France can afford.
+        y = ym(self.t)[0]
+        front = set(self.front_boxes('E'))
+        P = self.stats.setdefault('probe', {}).setdefault(y, dict(months=0, front=0, frontSteps=0, targets=0, ok=0, attacks=0, op=0,
+                                                                  asteps=0, dsteps=0, ratio=0, trench=0, final=0))
+        P['months'] += 1
+        fra = [u for u in self.units if u['nat'] == 'FRA' and u['box'] in front]
+        P['front'] += len(fra); P['frontSteps'] += sum(u['steps'] for u in fra)
+        P['op'] += res['FRA'][0]
+        if self.mutiny_left > 0: return
+        mu = min(res['FRA'][1], self.max_mun('E'))
+        for tb in set(n for b in front for n in self.adj(b) if self.owner[n] != 'E'):
+            att = [u for n in self.adj(tb) if self.owner[n] == 'E' for u in self.at(n)
+                   if u['nat'] == 'FRA' and not u['attacked'] and not u['moved_rail'] and self.in_supply(u, sm)]
+            if not att: continue
+            P['targets'] += 1
+            col = self.column(att, tb, mu, 'E', 0)
+            if col is not None and col >= 3: P['ok'] += 1
+            a_ = sum(u['steps'] for u in att); d_ = sum(u['steps'] for u in self.at(tb))
+            P['asteps'] += a_; P['dsteps'] += d_; P['trench'] += self.trench[tb]
+            P['ratio'] += max([i for i, x in enumerate(RATIOS) if d_ == 0 or a_ / d_ >= x - 1e-9] or [-1])
+            P['final'] += -1 if col is None else col
     def ai_attack(self, s, lost):
         sk = self.sk[s]
         nats = ['GER'] if s == 'G' else ['FRA','GBR','USA']
@@ -482,6 +508,7 @@ class Game:
         res = {n: list(self.res(n, s)) for n in nats}
         if self.cfg.get('economy'):
             for n in nats: res[n][1] = self.stock.get(n, 0)
+        if self.cfg.get('probe') and s == 'E': self.probe(res, sm)
         failed = {n: 0 for n in nats}
         spent_loss = {n: 0.0 for n in nats}
         y, m = ym(self.t); k = mkey(self.t)
@@ -542,7 +569,7 @@ class Game:
             took = self.resolve(att, tb, mn, s, lost, gas)
             self.attacked_boxes.add(tb)
             if niv and not took and not self.mutinied:
-                self.mutinied = True; self.mutiny_left = 3
+                self.mutinied = True; self.mutiny_left = 3; self.mutiny_served = 0
             if not took:
                 fm = self.cfg.get('fail_mode', 'mun')
                 if fm == 'all' or self.cfg.get('fail_all') and fm != 'futile': failed[nat] += 1
@@ -642,6 +669,7 @@ class Game:
                 mine.sort(key=lambda u: (-(self.threat(u['box'], s)), u['steps']))
         # will
         for nat_ in lost: self.stats.setdefault('steps', {}).setdefault(nat_, 0); self.stats['steps'][nat_] += lost[nat_]
+        if self.cfg.get('probe'): self.stats['probe'][ym(self.t)[0]]['attacks'] += self.month_att.get('FRA', 0)
         for nat in ['GER','FRA','GBR','USA']:
             ld = self.cfg['loss_div'][nat]
             if nat == 'FRA' and cmdr(self, 'FRA') == 'petain': ld = 3
@@ -654,20 +682,26 @@ class Game:
         elif k >= 191701: self.will['GER'] -= self.cfg['blockade2']
         elif k >= 191601 and (self.t % self.cfg.get('blockade1_every',1) == 0): self.will['GER'] -= self.cfg['blockade1']
         if self.uboat_left > 0: self.will['GBR'] -= self.cfg['uboat_gbr']; self.uboat_left -= 1
+        # Mutinies: each Will phase after they start is a turn served; they end when the
+        # turns served reach the length under the commander then (Pétain 2, else 3),
+        # as js/engine/systems/will.js does.
         if self.mutiny_left > 0:
-            self.mutiny_left -= 1
-            if cmdr(self, 'FRA') == 'petain' and self.mutiny_left == 2: self.mutiny_left = 1
+            self.mutiny_served += 1
+            ln = 2 if cmdr(self, 'FRA') == 'petain' else 3
+            self.mutiny_left = max(0, ln - self.mutiny_served)
             if self.mutiny_left == 0: self.will['FRA'] += 15 if cmdr(self, 'FRA') == 'petain' else 10
         elif not self.mutinied and self.will['FRA'] < self.cfg['mutiny_at']:
-            self.mutinied = True; self.mutiny_left = 3
-        if self.cfg.get('mandate'):
-            if k % 100 == 4: self.season_att = {}
-            if k % 100 == 10:
+            self.mutinied = True; self.mutiny_left = 3; self.mutiny_served = 0
+        # Season mandates. The Kaiserschlacht gamble (RULES.md §10) used to sit inside
+        # "if mandate:", and mandate is 0, so it never happened (fixed 26 Nov 2026).
+        if k % 100 == 4: self.season_att = {}
+        if k % 100 == 10:
+            if self.cfg.get('mandate'):
                 for nat in (['FRA','GBR'] + (['USA'] if self.us_declare and k >= 191806 else [])):
                     if self.season_att.get(nat, 0) == 0 and not (nat == 'FRA' and self.mutinied and 191705 <= k <= 191712):
                         self.will[nat] -= self.cfg['mandate']
-                if self.cfg.get('mandate_ger') and k >= 191801 and self.season_att.get('GER', 0) == 0:
-                    self.will['GER'] -= self.cfg['mandate_ger']
+            if self.cfg.get('mandate_ger') and k >= 191801 and self.season_att.get('GER', 0) == 0:
+                self.will['GER'] -= self.cfg['mandate_ger']
         self.stats['will_hist'].append(dict(self.will))
         # victory
         if self.will['FRA'] <= 0 or self.will['GBR'] <= 0 or self.owner[PARIS] == 'G':
