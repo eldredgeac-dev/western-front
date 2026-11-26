@@ -67,7 +67,31 @@ function row(list, label, value) {
 }
 
 // The units in the territory: one button each (tap to select and see its moves).
-function unitList(info, onUnit, onCancelOrder) {
+// Split and merge buttons for the selected piece (RULES.md §8).
+function splitMerge(u, actions) {
+  const box = el('div', 'split-merge');
+  if (u.split && u.split.sizes.length) {
+    box.appendChild(el('span', 'split-label', 'Split off:'));
+    for (const n of u.split.sizes) {
+      const b = el('button', 'btn btn-small', `${n} step${n === 1 ? '' : 's'}`);
+      b.type = 'button';
+      b.setAttribute('aria-label', `Split ${n} step${n === 1 ? '' : 's'} off into a new piece here`);
+      b.addEventListener('click', () => actions.onSplit(u.id, n));
+      box.appendChild(b);
+    }
+  } else if (u.split && u.split.reason) {
+    box.appendChild(el('span', 'split-label', `Can't split: ${u.split.reason}`));
+  }
+  for (const m of u.merge || []) {
+    const b = el('button', 'btn btn-small', m.text);
+    b.type = 'button';
+    b.addEventListener('click', () => actions.onMerge(u.id, m.id));
+    box.appendChild(b);
+  }
+  return box.childNodes.length ? box : null;
+}
+
+function unitList(info, onUnit, onCancelOrder, actions = {}) {
   const section = el('section', 'unit-list');
   section.appendChild(el('h3', 'panel-subtitle', info.units.length ? 'Units here' : 'No units here'));
   for (const u of info.units) {
@@ -93,6 +117,8 @@ function unitList(info, onUnit, onCancelOrder) {
         : (u.why || 'This unit can\u2019t move now.');
       section.appendChild(el('p', 'unit-hint', u.ordered ? `${hint} Tap one to change its order.` : hint));
       if (u.rule) section.appendChild(el('p', 'unit-rule', u.rule));
+      const sm = actions.onSplit ? splitMerge(u, actions) : null;
+      if (sm) section.appendChild(sm);
       if (u.ordered && onCancelOrder) {
         const c = el('button', 'btn btn-small', 'Cancel order');
         c.type = 'button';
@@ -379,7 +405,7 @@ export function showPanel(container, info, terrainData, actions = {}) {
       terrainList.appendChild(li);
     }
     row(dl, 'Terrain', terrainList);
-    parts.push(unitList(info, actions.onUnit || (() => {}), actions.onCancelOrder));
+    parts.push(unitList(info, actions.onUnit || (() => {}), actions.onCancelOrder, actions));
     parts.push(dl);
   }
   if (actions.situation) parts.push(situationSection(actions.situation));

@@ -109,6 +109,11 @@ Copy numbers tagged [balanced] in RULES.md exactly; change them in RULES.md firs
 | `types` | `id`, `name`, `maxSteps`, `symbol` (how the counter is drawn), `rebuild` (false for tanks). Optional: `attackShift` (tanks +1), `cannotHoldAlone` (tanks), `greenTurns` (US infantry), `cancelsTrenchShift` (stormtroopers). |
 | `qualities` | `green` (`attackShiftIfMajority` −1), `regular`, `elite` (`attackShiftIfAny` +1), each with an `effect` text for the panel |
 
+## `unit-types.json`: movement and splitting (RULES.md §8)
+`roadDistance` is how many territories a road move may cover (2). A type with
+`"canSplit": true` can be split and merged (§8.1). Each quality has a `rank`; a merged
+piece takes the lower one.
+
 ## `phases.json`: the turn (RULES.md §7)
 `phases` lists each phase in order: `id`, `name`, and either `side` + `kind` (`move` or
 `attack`: the phase waits for that side's orders) or `auto: true` (it runs by itself

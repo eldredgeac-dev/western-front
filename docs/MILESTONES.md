@@ -129,6 +129,11 @@ Do one milestone per Claude Code session. For each one:
     enemy territories in red; MOVED / RAIL / ATK marks on pieces.
   - How to Play page, and a guided first turn (road move, rail move, stacked attack).
 
+- [x] **10d. Road moves of 2, split and merge** (RULES.md Version 1.4)
+  - A road move goes up to 2 territories through your own lines.
+  - In your move phase, split a piece (leave a 1–2 step picket) or merge two pieces of the
+    same nation and type. The computer merges its damaged pieces but never splits.
+
 - [ ] **11. Playtest and polish**
   - You play 3–4 full games (both sides, more than one difficulty).
   - We list everything that was boring or confusing, then fix it.

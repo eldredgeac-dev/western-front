@@ -10,9 +10,9 @@
 // Every function changes the state it is given (turn.js passes a copy).
 
 import { currentMonth, copyState } from './state.js';
-import { unitsIn, stackRoom, sideOfNation, nationOf } from './units.js';
+import { unitsIn, stackRoom, sideOfNation, nationOf, unitType } from './units.js';
 import { indexBoxes } from './boxes.js';
-import { moveUnit, railMove, railTargets } from './moves.js';
+import { moveUnit, railMove, railTargets, moveTargets, mergeUnits, mergeReason } from './moves.js';
 import { threat } from './systems/replacements.js';
 import { eligibleAttackers, oddsPreview, resolveAttack, barrageMax } from './combat.js';
 import { next as rngNext } from './rng.js';
@@ -38,8 +38,8 @@ function apply(state, fn) {
   }
 }
 
-// The next box on a path through friendly boxes from `from` towards `to`.
-function stepTowards(state, data, from, to, side) {
+// The path through friendly boxes from `from` to `to` (not including `from`), or null.
+function pathTowards(state, data, from, to, side) {
   const boxes = boxesOf(data);
   const prev = { [from]: null };
   const queue = [from];
@@ -51,9 +51,25 @@ function stepTowards(state, data, from, to, side) {
     }
   }
   if (!(to in prev)) return null;
-  let b = to;
-  while (prev[b] !== from) { b = prev[b]; if (b === null) return null; }
-  return b;
+  const path = [];
+  for (let b = to; b !== from; b = prev[b]) { if (b === null) return null; path.unshift(b); }
+  return path;
+}
+
+// Merge damaged pieces (RULES.md §14): in each territory, two of the side's pieces of
+// the same nation and type whose steps fit in one become one. The computer never splits.
+function aiMerge(state, data, side, record) {
+  for (let guard = 0; guard < 40; guard++) {
+    const mine = state.units.filter((u) => sideOfNation(data, u.nation) === side && u.steps < unitType(data, u).maxSteps);
+    let pair = null;
+    for (const a of mine) {
+      const b = mine.find((x) => x !== a && !mergeReason(state, data, a.id, x.id));
+      if (b) { pair = a.steps >= b.steps ? [a, b] : [b, a]; break; }
+    }
+    if (!pair) return;
+    if (!apply(state, (s) => mergeUnits(s, data, pair[0].id, pair[1].id))) return;
+    if (record) record({ kind: 'merge', side, unit: pair[0].id, other: pair[1].id }, state);
+  }
 }
 
 // Where each of these units is (for recording an attack: which box it came from).
@@ -69,6 +85,7 @@ export function aiMove(state, data, side, record = null) {
   const front = new Set(frontBoxes(state, data, side));
   const mine = state.units.filter((u) => sideOfNation(data, u.nation) === side &&
     !(nationOf(data, u.nation).traits || []).some((t) => t.kind === 'cannot-attack'));
+  aiMerge(state, data, side, record);
   for (const unitRef of mine) {
     const u = state.units.find((x) => x.id === unitRef.id);
     if (!u || u.moved) continue;
@@ -79,10 +96,13 @@ export function aiMove(state, data, side, record = null) {
     const target = order.find((b) => b !== here && stackRoom(state, data, b) > 0 && threat(state, data, b) > cfg.fillThreatAbove);
     if (!target) continue;
     const note = (kind, to) => { if (record) record({ kind, side, unit: u.id, from: here, to }, state); };
-    if (boxes[here].neighbours.includes(target)) { if (apply(state, (s) => moveUnit(s, data, u.id, target))) note('move', target); continue; }
+    const road = moveTargets(state, data, u.id);       // up to 2 territories (RULES.md §8)
+    if (road.includes(target)) { if (apply(state, (s) => moveUnit(s, data, u.id, target))) note('move', target); continue; }
     if (railTargets(state, data, u.id).includes(target)) { if (apply(state, (s) => railMove(s, data, u.id, target))) note('rail', target); continue; }
-    const step = stepTowards(state, data, here, target, side);
-    if (step && stackRoom(state, data, step) > 0 && apply(state, (s) => moveUnit(s, data, u.id, step))) note('move', step);
+    // otherwise as far along the way as a road move goes
+    const path = pathTowards(state, data, here, target, side) || [];
+    const step = [...path].reverse().find((b) => road.includes(b));
+    if (step && apply(state, (s) => moveUnit(s, data, u.id, step))) note('move', step);
   }
 }
 

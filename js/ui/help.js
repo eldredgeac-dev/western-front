@@ -17,7 +17,7 @@ function svgEl(tag, attrs = {}, parent = null) {
 }
 
 // Three lanes of the front, six columns each (E3 E2 E1 | G1 G2 G3). The middle lane's
-// E1 holds your unit: its road moves are outlined in brass, and the one enemy
+// E1 holds your unit: its road moves (up to 2 steps) are outlined in brass, and the one enemy
 // territory it can attack in red. No diagonals.
 function laneDiagram() {
   const cols = ['E3', 'E2', 'E1', 'G1', 'G2', 'G3'];
@@ -25,13 +25,13 @@ function laneDiagram() {
   const x = (c) => c * W + (c >= 3 ? gap : 0) + 2;
   const y = (r) => top + r * H;
   const svg = svgEl('svg', { viewBox: `0 0 ${6 * W + gap + 4} ${top + 3 * H + 4}`, class: 'help-diagram', role: 'img',
-    'aria-label': 'Your unit in the front line can move by road to the territories beside it and behind it, and can attack only the enemy territory straight ahead.' });
+    'aria-label': 'Your unit in the front line can move by road up to two territories through your own lines, and can attack only the enemy territory straight ahead.' });
   cols.forEach((c, i) => { svgEl('text', { x: x(i) + W / 2, y: 11, 'text-anchor': 'middle', class: 'help-col' }, svg).textContent = c; });
   for (let r = 0; r < 3; r++) {
     for (let c = 0; c < 6; c++) {
       let cls = c < 3 ? 'help-box own' : 'help-box enemy';
       if (r === 1 && c === 2) cls += ' unit';
-      else if ((r === 1 && c === 1) || (c === 2 && r !== 1)) cls += ' road';
+      else if (c < 3 && Math.abs(r - 1) + Math.abs(c - 2) <= 2) cls += ' road';   // up to 2 steps
       else if (r === 1 && c === 3) cls += ' target';
       svgEl('rect', { x: x(c), y: y(r), width: W - 2, height: H - 2, class: cls }, svg);
     }
@@ -41,7 +41,7 @@ function laneDiagram() {
   const box = el('figure', 'help-figure');
   box.appendChild(svg);
   box.appendChild(el('figcaption', 'ledger-sub',
-    'Your unit (YOU) can go by road to the brass territories; it can attack only the red one straight ahead. The line in the middle is no-man’s-land.'));
+    'Your unit (YOU) can go by road to the brass territories (up to 2 steps, never diagonally); it can attack only the red one straight ahead. The line in the middle is no-man’s-land.'));
   return box;
 }
 
