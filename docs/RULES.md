@@ -1,4 +1,4 @@
-# Rules — Western Front 1914–18 (Version 1.7)
+# Rules — Western Front 1914–18 (Version 1.8)
 
 These rules are the source of truth. The code must do what this file says.
 
@@ -11,7 +11,8 @@ that changes no numbers, so the balance results stand. Version 1.6 gives each si
 orders phase: you order moves and attacks together and commit once (§7); moves still
 happen first, so the balance results stand. Version 1.7 puts the commander cards in the
 game (§15: the replace / keep / sack choices, a Commanders step in each month, §7) and
-raises the Kaiserschlacht penalty from −15 to −20 (§10). It has been **balance-tested**: thousands of simulated computer-vs-computer games
+raises the Kaiserschlacht penalty from −15 to −20 (§10). Version 1.8 lets Industry buy
+new units, with a war-long limit for each nation (§19.9). It has been **balance-tested**: thousands of simulated computer-vs-computer games
 (see `docs/BALANCE.md`). Numbers marked **[balanced]** were tuned by that testing. Change
 them only if playtesting shows a problem, and then re-run `tools/wfsim.py`.
 
@@ -413,7 +414,8 @@ The AI uses the same rules and the same order format as the player.
    - Make the best attacks while their score is above 0, picking randomly among scores
      within 10% of the best.
    - Only attack at **2:1 or better** after shifts. Stop once expected losses this turn
-     exceed next turn's RP + 2.
+     exceed next turn's RP + 2. (With the war economy: this month's full Manpower,
+     counting any that went to a new unit, §19.9.)
 5. **Historical urges:** +2 to the score of these attacks:
    - Germany on Verdun, Feb–Jun 1916
    - Germany in lanes 1–6, Mar–Jun 1918
@@ -562,7 +564,7 @@ Each month every nation receives two separate resources. You decide how to spend
 | Resource | Represents | Spent on | Can you save it? |
 |---|---|---|---|
 | **Manpower (MP)** | Fresh men from the depots | Replacements (1 MP = +1 step) and rebuilding destroyed units (2 MP) | No. Unspent MP is lost. |
-| **Industry (IP)** | Factories, shells, guns | Munitions, research | Munitions bought go into a **stockpile** (max 3). Unspent IP is otherwise lost. |
+| **Industry (IP)** | Factories, shells, guns | Munitions, research, new units (§19.9) | Munitions bought go into a **stockpile** (max 3). IP put towards research or a new unit carries over. Unspent IP is otherwise lost. |
 
 Why two resources: France ran out of **men** long before it ran out of **factories**.
 Britain had plenty of men by 1916 but couldn't turn spare men into shells. Merging the
@@ -620,13 +622,18 @@ screen (styled per STYLE.md §6 as a ledger with brass sliders):
     "artillery left" number on the dashboard.
   - **Research:** IP put towards one tech at a time (§19.5). Progress carries over
     between months.
+  - **New units:** IP put towards the next new unit (§19.9). Progress carries over.
+    When a nation can do both, a second slider splits the rest between Research and
+    New units.
 - **Auto-allocate** (default **ON** at every level; the ☰ menu and a checkbox on the
-  budget screen turn it on or off): tops the stockpile up to 3 first and puts the rest
-  into the cheapest available research. The budget screen doesn't appear.
+  budget screen turn it on or off): tops the stockpile up to 3 first, puts the rest
+  into the cheapest available research, and anything still left towards a new unit
+  (a tank if the nation can buy one, otherwise infantry; it arrives in any of its rear
+  cities). The budget screen doesn't appear.
 - With Auto-allocate off, the budget screen appears before you move **only in months
-  with a real choice**: one of your nations has Industry and a tech it can research.
-  In other months there's nothing to choose (Industry can only buy munitions), so it
-  is spent automatically as above.
+  with a real choice**: one of your nations has Industry and a tech it can research or
+  a unit it can buy. In other months there's nothing to choose (Industry can only buy
+  munitions), so it is spent automatically as above.
 - Unspent Industry is lost. The stockpile starts the war empty.
 
 Barrages spend munitions from the stockpile. The per-attack maximum is still 2, or 3
@@ -667,7 +674,8 @@ The War Office dashboard (UI overhaul milestone) also shows, for each nation:
 ### 19.7 The computer opponent's spending
 - **Manpower:** repair the most threatened units first (§14).
 - **Industry:** buy munitions up to 3 in stock, then put up to 3 IP a month into the
-  cheapest available research, then put any rest into munitions.
+  cheapest available research, then put the rest towards a new unit (§19.9: a tank if
+  it can buy one, otherwise infantry, in a random rear city).
 - The computer does research. On average it gets the creeping barrage, Defence in
   depth and Landships a few months early.
 
@@ -726,3 +734,57 @@ mun_target=3, res_cap=3,
 pp_extra={'GER':(1,1), 'FRA':(0,1), 'GBR':(0,0), 'USA':(0,0)},  # (1915, 1916+)
 will GER = 108
 ```
+
+### 19.9 Buying units with Industry (Version 1.8) [balanced]
+From **January 1915** Industry can pay for new units, on top of the historical
+reinforcements (§10).
+
+| Unit | Cost | Arrives with | Who can buy it |
+|---|---|---|---|
+| **Infantry** | **6 IP + 2 MP** | 2 steps (top it up with replacements as usual) | Germany, France, Britain |
+| **Tanks** | **8 IP + 1 MP** | 2 steps (full strength) | Once the nation has its tank research: Landships (GBR), Renault FT (FRA), A7V (GER). It may have come by research or on its historical date. |
+
+**The war limit** (the men of military age a nation can spare beyond history). Each
+nation can buy at most this many units in the whole war:
+
+| Nation | Infantry | Tanks |
+|---|---|---|
+| Germany | 4 | 1 |
+| France | 2 | 3 |
+| Britain | 3 | 3 |
+| USA | 0 | 0 |
+
+The USA buys nothing: its build-up was limited by shipping, which is the arrival
+timetable in §10.
+
+**How it works:**
+1. On the War Office budget (§19.4), choose the unit and the **rear city** it should
+   arrive in, then put IP towards it. IP carries over from month to month, like research.
+2. In the month the IP reaches the unit's cost, its Manpower is taken from that month's
+   Manpower (before Replacements). If there isn't enough Manpower that month, the
+   order waits, fully paid, until a month when there is.
+3. The unit arrives at the start of the **next month** (in the War Office step), in the
+   rear city you chose. If that city has been lost or is full (3 units), it goes to a
+   random one of the nation's other rear cities with room. If none has room, it waits a
+   month.
+4. New units are Regular. They're not Green and they're not Elite.
+
+**Rear cities** (the named territories in each side's back line):
+- **Germany:** Bruges–Ghent, Cambrai, St-Quentin, Laon, Sedan–Mézières rail, Metz,
+  Strasbourg.
+- **France:** Channel Ports, Hazebrouck, Amiens, Paris, Châlons, Bar-le-Duc,
+  Nancy–Belfort.
+- **Britain:** Channel Ports, Hazebrouck, Amiens only (as for British reinforcements).
+
+If the unit chosen can no longer be bought, the IP stays put until you choose one that
+can. If you switch from tanks to infantry with more IP put in than infantry costs, the
+extra carries over to the next unit.
+
+**Why Manpower is the real limit:** testing showed France and Britain waste over 100 IP a
+year by 1917, so a price in IP alone couldn't hold them back. With no war limit, France
+raised about 14 extra infantry units and Britain about 10 extra tanks, far beyond what
+either could have manned. The 2 MP keeps 1 MP = 1 step, as for replacements. France's
+Manpower falls to 1 in 1918, so it can't buy infantry then, just as in 1918 it was
+breaking divisions up, not raising them. Tanks cost little Manpower and a lot of Industry:
+machines instead of men, which was General Estienne's case for the Renault FT.
+Balance results are in `docs/BALANCE.md` (V2a).

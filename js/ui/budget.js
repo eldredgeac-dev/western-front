@@ -3,12 +3,15 @@
 // For each of the side's nations:
 //   Manpower — goes to Replacements by itself (just shown).
 //   Industry — a brass slider splits it between Munitions (into the stockpile, max 3)
-//              and Research (into the tech you pick). What isn't spent is lost.
+//              and the rest. When a nation can both research and buy units, a second
+//              slider splits the rest between Research (the tech you pick) and New
+//              units (§19.9: the unit and the rear city you pick). What isn't spent is lost.
 // Below that, the research ledger: every tech, its progress bar, its dates and a
 // one-line history note. Every figure comes from js/engine/systems/economy.js.
 
 import { manpower, industryParts, stockpile, researchOptions, researchProgress, autoBudget,
-  checkBudget, techResearched, techActive } from '../engine/systems/economy.js';
+  checkBudget, techResearched, techActive, buyOptions, production, depotsFor } from '../engine/systems/economy.js';
+import { addMonths } from '../engine/state.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -55,30 +58,62 @@ export function progressBar(done, total, label) {
   return bar;
 }
 
-// What a plan spends: { munitions, research, tech, lost }. Research is capped at what
-// the chosen tech still needs; anything left over is lost.
+// What a plan spends: { munitions, research, tech, build, buildType, city, lost }.
+// After munitions, the rest goes to research (at most `plan.research`, and never more
+// than the tech still needs), then to the new unit (never more than it still needs).
+// Anything left over is lost.
 function spending(state, data, nationId, plan) {
   const ip = industryParts(state, data, nationId).total;
+  const rest = ip - plan.munitions;
   const tech = researchOptions(state, data, nationId).find((t) => t.id === plan.tech) || null;
-  const research = tech ? Math.max(0, Math.min(ip - plan.munitions, tech.cost - researchProgress(state, tech.id))) : 0;
-  return { munitions: plan.munitions, research, tech: research > 0 ? tech.id : null, lost: ip - plan.munitions - research };
+  const buy = buyOptions(state, data, nationId).find((o) => o.type === plan.buildType) || null;
+  const wanted = buy ? plan.research : rest;           // no unit to buy: all the rest to research
+  const research = tech ? Math.max(0, Math.min(wanted, rest, tech.cost - researchProgress(state, tech.id))) : 0;
+  const build = buy ? Math.max(0, Math.min(rest - research, buy.ip - production(state, nationId).progress)) : 0;
+  return { munitions: plan.munitions, research, tech: research > 0 ? tech.id : null,
+    build, buildType: buy ? buy.type : null, city: buy ? plan.city : null, lost: rest - research - build };
 }
 
-// One nation's budget: its Manpower line, its Industry, the slider and the tech picker.
-//   plan — { munitions, tech }, changed as the player moves the slider or picks a tech.
-// The card is built once; moving the slider only updates its figures (so the slider
+const boxNameOf = (data, id) => { const b = data.map.boxes.find((x) => x.id === id); return b.short || b.name; };
+const typeName = (type) => (type === 'tanks' ? 'Tanks' : 'Infantry');
+
+// A row of radio buttons in the ledger style (techs, unit types, cities).
+function radioGroup(label) {
+  const list = el('div', 'tech-pick');
+  list.setAttribute('role', 'radiogroup');
+  list.setAttribute('aria-label', label);
+  return list;
+}
+function radioButton(className, onPick) {
+  const b = el('button', className);
+  b.type = 'button';
+  b.setAttribute('role', 'radio');
+  b.addEventListener('click', onPick);
+  return b;
+}
+
+// One nation's budget: its Manpower line, its Industry, the sliders, the tech picker
+// and the new units.
+//   plan — { munitions, research, tech, buildType, city }, changed as the player
+//          moves a slider or picks something.
+// The card is built once; moving a slider only updates its figures (so the slider
 // isn't redrawn under the player's finger).
-function nationCard(state, data, nationId, plan, names) {
+function nationCard(state, data, nationId, plan, names, monthNow) {
   const card = el('section', 'budget-card');
   const ip = industryParts(state, data, nationId);
   const stock = stockpile(state, nationId);
   const cap = data.economy.stockCap;
   const options = researchOptions(state, data, nationId);
+  const buys = buyOptions(state, data, nationId);
+  const prod = production(state, nationId);
+  const mpNow = (state.resources[nationId] || {}).rp || 0;
   card.appendChild(el('h3', 'ledger-heading', names.nameOf(nationId)));
 
   const mp = el('p', 'ledger-line');
   mp.appendChild(el('strong', '', `Manpower ${manpower(state, data, nationId)} MP`));
-  mp.appendChild(document.createTextNode(' — goes to Replacements (1 MP = 1 step, 2 MP rebuild a unit).'));
+  mp.appendChild(document.createTextNode(buys.length
+    ? ' — goes to Replacements (1 MP = 1 step, 2 MP rebuild a unit), unless a new unit takes its men first.'
+    : ' — goes to Replacements (1 MP = 1 step, 2 MP rebuild a unit).'));
   card.appendChild(mp);
 
   const ipLine = el('p', 'ledger-line');
@@ -91,62 +126,130 @@ function nationCard(state, data, nationId, plan, names) {
   ipLine.appendChild(document.createTextNode(` (${parts.join(', ')})`));
   card.appendChild(ipLine);
 
-  // The brass slider: how much Industry goes to munitions; the rest is research.
+  // A brass slider with a figure at each end.
+  function splitRow(leftName, rightName, aria) {
+    const row = el('div', 'budget-split');
+    const slider = el('input', 'budget-slider');
+    slider.type = 'range'; slider.min = '0'; slider.step = '1';
+    slider.setAttribute('aria-label', `${names.nameOf(nationId)}: ${aria}`);
+    const left = el('span', 'ledger-num');
+    const right = el('span', 'ledger-num');
+    const l = el('p', 'budget-figure');
+    l.append(el('span', 'budget-figure-name', leftName), left);
+    const r = el('p', 'budget-figure budget-figure-right');
+    r.append(el('span', 'budget-figure-name', rightName), right);
+    row.append(l, slider, r);
+    return { row, slider, left, right };
+  }
+
+  // Slider 1: how much Industry goes to munitions; the rest is for research and units.
   const room = Math.max(0, Math.min(cap - stock, Math.floor(ip.total / data.economy.munitionCost)));
-  const row = el('div', 'budget-split');
-  const slider = el('input', 'budget-slider');
-  slider.type = 'range'; slider.min = '0'; slider.max = String(room); slider.step = '1';
-  slider.value = String(plan.munitions);
-  slider.disabled = room === 0;
-  slider.setAttribute('aria-label', `${names.nameOf(nationId)}: Industry spent on munitions`);
-  const munFigure = el('span', 'ledger-num');
-  const resFigure = el('span', 'ledger-num');
-  const munLabel = el('p', 'budget-figure');
-  munLabel.append(el('span', 'budget-figure-name', 'Munitions'), munFigure);
-  const resLabel = el('p', 'budget-figure budget-figure-right');
-  resLabel.append(el('span', 'budget-figure-name', 'Research'), resFigure);
-  row.append(munLabel, slider, resLabel);
-  card.appendChild(row);
+  const restName = options.length && buys.length ? 'The rest' : buys.length ? 'New units' : 'Research';
+  const first = splitRow('Munitions', restName, 'Industry spent on munitions');
+  first.slider.max = String(room);
+  first.slider.value = String(plan.munitions);
+  first.slider.disabled = room === 0;
+  card.appendChild(first.row);
   const stockLine = el('p', 'ledger-line budget-stock');
+  card.appendChild(stockLine);
+
+  // Slider 2 (only when both are possible): the rest between research and new units.
+  const second = options.length && buys.length ? splitRow('Research', 'New units', 'the rest between research and new units') : null;
+  if (second) card.appendChild(second.row);
   const lostLine = el('p', 'ledger-line ledger-warn');
-  card.append(stockLine, lostLine);
+  card.appendChild(lostLine);
 
   // The tech picker: one row per tech on offer, with its progress bar.
   const buttons = [];
   if (!options.length) {
     card.appendChild(el('p', 'ledger-line ledger-sub', 'Nothing can be researched this month.'));
   } else {
-    const list = el('div', 'tech-pick');
-    list.setAttribute('role', 'radiogroup');
-    list.setAttribute('aria-label', `${names.nameOf(nationId)}: research`);
+    card.appendChild(el('p', 'ledger-line budget-sub-heading', 'Research'));
+    const list = radioGroup(`${names.nameOf(nationId)}: research`);
     for (const t of options) {
-      const b = el('button', 'tech-option');
-      b.type = 'button';
-      b.setAttribute('role', 'radio');
+      const b = radioButton('tech-option', () => { plan.tech = t.id; refresh(); });
       b.dataset.tech = t.id;
       const done = researchProgress(state, t.id);
       b.appendChild(el('span', 'tech-name', t.name));
       b.appendChild(progressBar(done, t.cost, `${t.name}: ${done} of ${t.cost}`));
       b.appendChild(el('span', 'tech-figures ledger-num', `${done} / ${t.cost} IP`));
-      b.addEventListener('click', () => { plan.tech = t.id; refresh(); });
       buttons.push(b);
       list.appendChild(b);
     }
     card.appendChild(list);
   }
 
+  // New units (§19.9): which unit, and which rear city it arrives in.
+  const typeButtons = [];
+  const cityButtons = [];
+  const unitLine = el('p', 'ledger-line');
+  if (buys.length) {
+    card.appendChild(el('p', 'ledger-line budget-sub-heading', 'New units'));
+    card.appendChild(el('p', 'ledger-line ledger-sub', 'IP carries over until a unit is paid for. Then its men come from this month’s Manpower, and it arrives the month after.'));
+    const list = radioGroup(`${names.nameOf(nationId)}: new unit`);
+    for (const o of buys) {
+      const b = radioButton('tech-option', () => { plan.buildType = o.type; refresh(); });
+      b.dataset.type = o.type;
+      const done = Math.min(prod.progress, o.ip);
+      b.appendChild(el('span', 'tech-name', `${typeName(o.type)} · ${o.steps} steps`));
+      b.appendChild(progressBar(done, o.ip, `${typeName(o.type)}: ${done} of ${o.ip}`));
+      b.appendChild(el('span', 'tech-figures ledger-num', `${o.ip} IP + ${o.mp} MP · ${o.left} left`));
+      typeButtons.push(b);
+      list.appendChild(b);
+    }
+    card.appendChild(list);
+    const cities = depotsFor(state, data, nationId);
+    if (cities.length) {
+      card.appendChild(el('p', 'ledger-line ledger-sub', 'Arrives at:'));
+      const where = radioGroup(`${names.nameOf(nationId)}: where the new unit arrives`);
+      where.classList.add('city-pick');
+      for (const id of cities) {
+        const b = radioButton('tech-option city-option', () => { plan.city = id; refresh(); });
+        b.dataset.city = id;
+        b.appendChild(el('span', 'tech-name', boxNameOf(data, id)));
+        cityButtons.push(b);
+        where.appendChild(b);
+      }
+      card.appendChild(where);
+    }
+    card.appendChild(unitLine);
+  }
+
+  // What the new unit's money does this month, in one line.
+  function unitStatus(spend) {
+    const o = buys.find((x) => x.type === spend.buildType);
+    if (!o) return '';
+    const total = prod.progress + spend.build;
+    if (total < o.ip) return `${typeName(o.type)}: ${total} of ${o.ip} IP paid. ${o.ip - total} more to go.`;
+    if (mpNow < o.mp) return `${typeName(o.type)}: paid for, but it needs ${o.mp} MP and there ${mpNow === 1 ? 'is' : 'are'} only ${mpNow} this month. It waits.`;
+    const city = spend.city ? boxNameOf(data, spend.city) : 'a rear city';
+    return `${typeName(o.type)}: paid for. It takes ${o.mp} MP from Replacements now and arrives at ${city} in ${names.monthName(addMonths(monthNow, data.economy.units.arriveAfter))}.`;
+  }
+
   // Bring the figures up to date with the plan.
   function refresh() {
+    const rest = ip.total - plan.munitions;
+    if (second) {
+      second.slider.max = String(Math.max(0, rest));
+      plan.research = Math.min(plan.research, rest);
+      second.slider.value = String(plan.research);
+      second.slider.disabled = rest === 0;
+    }
     const spend = spending(state, data, nationId, plan);
-    munFigure.textContent = `${spend.munitions} IP`;
-    resFigure.textContent = `${spend.research} IP`;
+    first.left.textContent = `${spend.munitions} IP`;
+    first.right.textContent = `${spend.research + spend.build} IP`;
+    if (second) { second.left.textContent = `${spend.research} IP`; second.right.textContent = `${spend.build} IP`; }
     stockLine.replaceChildren(shellIcons(stock, cap, spend.munitions),
       document.createTextNode(` Stockpile ${stock + spend.munitions} of ${cap}${stock + spend.munitions >= cap ? ' (full)' : ''}`));
     lostLine.textContent = spend.lost > 0 ? `${spend.lost} IP unspent: it will be lost.` : '';
     lostLine.hidden = spend.lost <= 0;
+    unitLine.textContent = unitStatus(spend);
     for (const b of buttons) b.setAttribute('aria-checked', String(b.dataset.tech === plan.tech));
+    for (const b of typeButtons) b.setAttribute('aria-checked', String(b.dataset.type === plan.buildType));
+    for (const b of cityButtons) b.setAttribute('aria-checked', String(b.dataset.city === plan.city));
   }
-  slider.addEventListener('input', () => { plan.munitions = Number(slider.value); refresh(); });
+  first.slider.addEventListener('input', () => { plan.munitions = Number(first.slider.value); refresh(); });
+  if (second) second.slider.addEventListener('input', () => { plan.research = Number(second.slider.value); refresh(); });
   refresh();
   return card;
 }
@@ -188,7 +291,14 @@ export function showBudget(container, state, data, sideId, month, names, onSign)
   const plans = Object.fromEntries(nationIds.map((n) => {
     const auto = autoBudget(state, data, n);
     const first = researchOptions(state, data, n).sort((a, b) => a.cost - b.cost)[0];
-    return [n, { munitions: auto.munitions, tech: auto.tech || (first ? first.id : null) }];
+    // the new unit: the one already being paid for, else the automatic choice; the
+    // city: the one already chosen if still held, else the first rear city held
+    const prod = production(state, n);
+    const buys = buyOptions(state, data, n);
+    const buildType = (buys.find((o) => o.type === prod.type) || {}).type || auto.buildType;
+    const cities = depotsFor(state, data, n);
+    const city = cities.includes(prod.city) ? prod.city : (cities[0] || null);
+    return [n, { munitions: auto.munitions, research: auto.research, tech: auto.tech || (first ? first.id : null), buildType, city }];
   }));
   const page = el('div', 'ledger-page budget-page');
   const top = el('div', 'ledger-top');
@@ -196,14 +306,14 @@ export function showBudget(container, state, data, sideId, month, names, onSign)
   page.appendChild(top);
   page.appendChild(el('h2', 'ledger-title', `Estimates for ${names.monthName(month)}`));
   page.appendChild(el('p', 'ledger-line',
-    'Men go to the depots by themselves. Divide the factories’ output between shells for the stockpile and research. What you don’t spend is lost.'));
-  for (const n of nationIds) page.appendChild(nationCard(state, data, n, plans[n], names));
+    'Men go to the depots by themselves. Divide the factories’ output between shells for the stockpile, research and new units. What you don’t spend is lost.'));
+  for (const n of nationIds) page.appendChild(nationCard(state, data, n, plans[n], names, month));
 
   const autoRow = el('label', 'budget-auto');
   const box = el('input');
   box.type = 'checkbox';
   box.checked = Boolean((state.autoAllocate || {})[sideId]);
-  autoRow.append(box, el('span', '', 'Auto-allocate every month: top up the stockpile, the rest to the cheapest research.'));
+  autoRow.append(box, el('span', '', 'Auto-allocate every month: top up the stockpile, then the cheapest research, then new units (a tank first).'));
   page.appendChild(autoRow);
   const error = el('p', 'ledger-line ledger-warn');
   error.hidden = true;
@@ -214,11 +324,15 @@ export function showBudget(container, state, data, sideId, month, names, onSign)
     // what the first one left it needing.
     const added = {};
     const budgets = Object.fromEntries(nationIds.map((n) => {
-      const { munitions, research: wanted, tech } = spending(state, data, n, plans[n]);
+      const { munitions, research: wanted, tech, buildType, city } = spending(state, data, n, plans[n]);
       const t = tech ? data.economy.techs.find((x) => x.id === tech) : null;
       const research = t ? Math.max(0, Math.min(wanted, t.cost - researchProgress(state, t.id) - (added[t.id] || 0))) : 0;
       if (t) added[t.id] = (added[t.id] || 0) + research;
-      return [n, { munitions, research, tech: research > 0 ? tech : null }];
+      // what research didn't use still goes to the new unit, up to what it needs
+      const ip = industryParts(state, data, n).total;
+      const o = buyOptions(state, data, n).find((x) => x.type === buildType);
+      const build = o ? Math.max(0, Math.min(ip - munitions - research, o.ip - production(state, n).progress)) : 0;
+      return [n, { munitions, research, tech: research > 0 ? tech : null, build, buildType: o ? buildType : null, city: o ? city : null }];
     }));
     const problems = Object.entries(budgets).flatMap(([n, b]) => checkBudget(state, data, n, b).map((p) => `${names.nameOf(n)}: ${p}`));
     if (problems.length) { error.textContent = problems.join(' '); error.hidden = false; return; }

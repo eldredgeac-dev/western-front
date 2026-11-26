@@ -2,5 +2,5 @@
 // can check your phone has the latest one. Every release: raise VERSION here AND the
 // same "?v=" number in index.html (the stylesheet, the import map and main.js), so
 // phones fetch the new files instead of keeping old copies (tests/run.mjs checks).
-export const VERSION = '11.0';
-export const VERSION_LABEL = 'Version 11.0 · Milestone 12: commander cards · 26 November 2026';
+export const VERSION = '11.1';
+export const VERSION_LABEL = 'Version 11.1 · V2a: buying units with Industry · 26 November 2026';

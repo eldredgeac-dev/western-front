@@ -70,6 +70,21 @@ function researchCell(e, monthName) {
   return td;
 }
 
+// New units (§19.9): the one being paid for, those on their way, and how many have
+// been bought out of the war's limit.
+function unitsCell(u, monthName) {
+  const td = el('td', 'ledger-text');
+  const name = (type) => (type === 'tanks' ? 'Tanks' : 'Infantry');
+  if (u.saving) {
+    td.appendChild(el('span', 'ledger-line-tight', `${name(u.saving.type)} being paid for`));
+    td.appendChild(progressBar(u.saving.progress, u.saving.cost, `${name(u.saving.type)}: ${u.saving.progress} of ${u.saving.cost}`));
+    td.appendChild(el('span', 'ledger-sub', `${u.saving.progress} / ${u.saving.cost} IP`));
+  }
+  for (const o of u.ordered) td.appendChild(el('span', 'ledger-sub', `${name(o.type)} arriving ${monthName(o.month)}${o.city ? ` at ${o.city}` : ''}`));
+  td.appendChild(el('span', 'ledger-sub', `Bought: ${u.bought.map((b) => `${name(b.type)} ${b.n} of ${b.of}`).join(', ')}`));
+  return td;
+}
+
 // One nation's page: a ruled table of its figures (Will with its gauge and chart,
 // the economy, OP and rail, units, cities, casualties, commander), then everything
 // affecting it now, each with a one-line explanation.
@@ -109,6 +124,7 @@ function nationPage(n, l, monthName, nameOf, commanders) {
       row(RESOURCE_NAMES[key], `${r.left} left of ${r.of}`);
     }
     if (n.economy) row('Research', researchCell(n.economy, monthName));
+    if (n.economy && n.economy.units) row('New units', unitsCell(n.economy.units, monthName));
   } else {
     row('National Will', el('td', 'ledger-text', `None of its own: its losses count against ${nameOf(n.countsAgainst)}.`));
   }

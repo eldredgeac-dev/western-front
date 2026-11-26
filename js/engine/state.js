@@ -14,7 +14,8 @@ import { historicalCommanders } from './commanders.js';
 //   5: the war economy (RULES.md §19): the munitions stockpile, research, budgets
 //   6: event telegrams (js/engine/telegrams.js) and how many the player has read
 //   7: commander cards (js/engine/commanders.js) and the new Commanders phase
-export const STATE_VERSION = 7;
+//   8: buying units with Industry (RULES.md §19.9): production, purchased, ordered
+export const STATE_VERSION = 8;
 
 // Build a brand-new game from a scenario (data/scenarios/*.json).
 //   seed — any whole number; it drives every dice roll (js/engine/rng.js)
@@ -62,6 +63,9 @@ export function newGame(scenario, seed, data = {}, options = {}) {
     research: {},             // IP put into each tech so far (js/engine/systems/economy.js)
     techs: [],                // techs researched (bought) in this game
     budget: {},               // this month's War Office budget per nation
+    production: {},           // per nation: IP put towards the next new unit (§19.9)
+    purchased: {},            // per nation: units bought so far, by type
+    ordered: [],              // new units paid for, waiting to arrive
     telegrams: [],            // every event telegram sent (js/engine/telegrams.js)
     telegramsSeen: 0,         // how many of them the player has read
     autoAllocate: {},         // per side: spend the budget automatically each month?
@@ -200,6 +204,12 @@ export function migrateState(saved, scenario, data) {
     state.cardNewsSeen = 0;
     state.lostDefending = {};
     historicalCommanders(state, data);
+  }
+  if (version < 8) {
+    // Version 8 added buying units with Industry. Nothing has been bought yet.
+    state.production = {};
+    state.purchased = {};
+    state.ordered = [];
   }
   state.version = STATE_VERSION;
   return state;

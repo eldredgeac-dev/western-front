@@ -7,7 +7,7 @@ import { currentMonth, addMonths } from './state.js';
 import { resourcesFor, applyDifficulty } from './resources.js';
 import { armisticeScore, capturedVp } from './systems/will.js';
 import { eventDue, monthName } from './events.js';
-import { hasEconomy, manpower, industry, cityEffects, researchProgress, expectedMonth } from './systems/economy.js';
+import { hasEconomy, manpower, industry, cityEffects, researchProgress, expectedMonth, production, purchased, buyOptions } from './systems/economy.js';
 
 const sum = (list) => list.reduce((a, b) => a + b, 0);
 // Total steps of a nation's units on the map.
@@ -67,6 +67,24 @@ function economyOf(state, data, nationId, last) {
     research,
     researched: (state.techs || []).filter((id) => data.economy.techs.find((t) => t.id === id).nations.includes(nationId))
       .map((id) => data.economy.techs.find((t) => t.id === id).name),
+    units: unitsOf(state, data, nationId),
+  };
+}
+
+// New units (RULES.md §19.9) for the War Office: the one being paid for, those on
+// their way, and how many of each type have been bought out of the war's limit.
+function unitsOf(state, data, nationId) {
+  const u = data.economy.units;
+  if (!u) return null;
+  const limits = u.limits[nationId] || {};
+  if (!Object.values(limits).some((n) => n > 0)) return null;
+  const prod = production(state, nationId);
+  const saving = buyOptions(state, data, nationId).find((o) => o.type === prod.type) || null;
+  const boxName = (id) => (id ? data.map.boxes.find((b) => b.id === id).name : null);
+  return {
+    saving: saving ? { type: saving.type, progress: Math.min(prod.progress, saving.ip), cost: saving.ip } : null,
+    ordered: (state.ordered || []).filter((o) => o.nation === nationId).map((o) => ({ type: o.type, month: o.month, city: boxName(o.box) })),
+    bought: Object.entries(limits).filter(([, n]) => n > 0).map(([type, of]) => ({ type, n: purchased(state, nationId, type), of })),
   };
 }
 
