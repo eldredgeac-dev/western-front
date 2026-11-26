@@ -1,10 +1,11 @@
-# Rules — Western Front 1914–18 (Version 1.3)
+# Rules — Western Front 1914–18 (Version 1.4)
 
 These rules are the source of truth. The code must do what this file says.
 
 Version 1.2 added commander cards, the Butcher's Bill, the monthly newspaper and Real
 Voices (§15–18). Version 1.3 adds the war economy: Manpower and Industry, the munitions
-stockpile, research and industrial cities (§19). It has been **balance-tested**: thousands of simulated computer-vs-computer games
+stockpile, research and industrial cities (§19). Version 1.4 lets road moves go up to 2
+territories and lets you split and merge pieces (§8). It has been **balance-tested**: thousands of simulated computer-vs-computer games
 (see `docs/BALANCE.md`). Numbers marked **[balanced]** were tuned by that testing. Change
 them only if playtesting shows a problem, and then re-run `tools/wfsim.py`.
 
@@ -122,6 +123,7 @@ Each army fought differently, and the game reflects that. These traits are shown
 - **1 unit ≈ 5 infantry divisions.** Steps are max 4 (US Infantry 5, Tanks 2). Attack and
   defense strength both equal current steps.
 - **Stacking:** at most 3 units in a box.
+- A unit can be split into two smaller pieces, and two pieces merged back into one (§8).
 
 | Type | Max steps | Special |
 |---|---|---|
@@ -160,12 +162,29 @@ Industry here is before industrial cities (§19.3) and research (§19.5).
 9. **Auto-save.**
 
 ## 8. Movement
-- **Normal move:** 1 box into an adjacent friendly box, within stacking.
+- **Road move:** up to **2** boxes. Each step goes to a neighbouring box (sharing a side),
+  and every box on the way must be friendly. Only the box where the unit stops needs room
+  (stacking). This is what the balance testing assumed.
 - **Rail move:** each turn, GER may rail-move **3** units, FRA **2** and GBR **1**. A rail
   move goes any distance through connected friendly boxes. A unit that rail-moves can't
   attack this turn.
 - Enemy boxes are captured only by attacking (§9). An empty enemy box is attacked at 4:1.
 - Units that attacked can't move afterwards.
+- Each unit moves once per turn: by road or by rail.
+
+### 8.1 Splitting and merging pieces
+In its own move phase, a side may split and merge its pieces. Neither uses up a move.
+- **Split:** an Infantry, US Infantry or Stormtrooper unit with 2 or more steps, that
+  hasn't attacked this turn, splits into two units in the same box. The player divides the
+  steps (at least 1 each). Both keep the type, quality and any Green date. The box needs
+  room for the extra unit (stacking). If the unit had already moved this turn, both halves
+  count as moved; otherwise each half can make its own move.
+- **Merge:** two units of the same nation and type in the same box merge into one if their
+  steps add up to no more than the type's maximum. The merged unit takes the lower quality
+  (Green < Regular < Elite) and counts as moved (or rail-moved) if either was. The other
+  unit is simply gone: it does **not** go to the rebuild pool. Tanks can't split or merge.
+- This lets you hold a quiet box with a 1–2 step picket and send the rest elsewhere.
+  Remember that an empty box is captured without a fight (§9.4).
 
 ## 9. Combat
 ### 9.1 Declaring an attack
@@ -358,10 +377,12 @@ follows the same rules, so the levels only change the starting conditions shown 
 ## 14. Computer opponent
 The AI uses the same rules and the same order format as the player.
 1. **Repair:** RP go to the weakest units in the most threatened boxes.
-2. **Defend:** threat of a box = adjacent enemy steps − own steps − 2 × trench
+2. **Merge:** at the start of its move phase, the computer merges damaged units of the
+   same nation and type in a box when they fit in one (§8.1). It never splits units.
+3. **Defend:** threat of a box = adjacent enemy steps − own steps − 2 × trench
    + 0.3 × VP (+6 if empty). Fill the highest-threat front boxes first, using normal
    moves, then rail.
-3. **Attack:** for each possible attack and munitions spend, work out:
+4. **Attack:** for each possible attack and munitions spend, work out:
 
    `score = P(take) × (box value + depth bonus) + W × (enemy Will lost − own Will lost) × 3
             − 0.5 × expected own step losses − 0.15 × munitions`
@@ -375,11 +396,11 @@ The AI uses the same rules and the same order format as the player.
      within 10% of the best.
    - Only attack at **2:1 or better** after shifts. Stop once expected losses this turn
      exceed next turn's RP + 2.
-4. **Historical urges:** +2 to the score of these attacks:
+5. **Historical urges:** +2 to the score of these attacks:
    - Germany on Verdun, Feb–Jun 1916
    - Germany in lanes 1–6, Mar–Jun 1918
    - Britain in lane 6, Jul–Sep 1916
-5. As Germany, the AI chooses Unrestricted U-boats and takes the Hindenburg Line.
+6. As Germany, the AI chooses Unrestricted U-boats and takes the Hindenburg Line.
 
 ## 15. Commander cards [balanced]
 Each nation has one commander at a time, shown as a card with a portrait area, their

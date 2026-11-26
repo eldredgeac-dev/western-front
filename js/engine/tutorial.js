@@ -40,7 +40,8 @@ export function tutorialPlan(state, data, nation = 'fra') {
       // (the gap will be empty, so it has room)
       const reserve = state.units.find((u) => u.nation === nation && sideOfUnit(data, u) === 'entente' &&
         u.id !== support.id && ['e2', 'e3'].includes(boxes[u.box].column) && u.box !== behind.id &&
-        railTargets(state, data, u.id).length > 0 && !boxes[u.box].neighbours.includes(sideBox.id));
+        railTargets(state, data, u.id).length > 0 &&
+        !moveTargets(state, data, u.id).includes(sideBox.id));   // too far by road: it needs the rail
       if (!reserve) continue;
       options.push({ target: target.id, front: front.id, support: { unit: support.id, box: behind.id },
         side: { unit: side.id, box: sideBox.id }, reserve: { unit: reserve.id, box: reserve.box },

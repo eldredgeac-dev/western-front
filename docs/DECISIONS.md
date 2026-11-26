@@ -501,6 +501,26 @@ I'll change it.
      - **(b) Keep 1 territory** and raise the Kaiserschlacht penalty (−15 → −20), as
        ECONOMY.md suggested for a passive Germany, then re-run.
      I'd suggest (a). Tell me which, and I'll update RULES.md, the game and the tests.
+     **Answered: (a).** Road moves go up to 2 territories (RULES.md §8, Version 1.4).
+105. **The balance after (a)** (tables in BALANCE.md): the simulator gives Germany 50%,
+     Entente 34%; the game's own engine 46 / 22 / 32 (it was 70 / 10 / 20). A unit can't
+     go by road and then by rail in the same turn, because "each unit moves once" in
+     RULES.md. The old simulator allowed it, which is the main reason it isn't back to
+     40 / 43. If playtesting shows Germany still too strong or too comfortable sitting
+     tight, my suggestion is ECONOMY.md's: Kaiserschlacht −15 → −20. I haven't changed it.
+106. **Splitting and merging** (RULES.md §8.1), as you chose:
+     - Only in your move phase. It doesn't use a move.
+     - The 3-pieces-per-territory limit stays, so the new piece needs room.
+     - A piece that already moved splits into two moved halves; otherwise each half moves
+       on its own.
+     - Tanks can't split or merge.
+     - A merged piece takes the lower quality (so an Elite piece merged with a Regular one
+       becomes Regular) and the later Green date.
+     - The piece merged away **doesn't** go to the rebuild pool. Otherwise merging would
+       be free rebuilds.
+107. **The computer merges but never splits.** At the start of its move phase it merges
+     damaged pieces of the same nation and type in one territory, strongest kept. Merges
+     aren't animated in the playback, but each one is in the Dispatches.
 
 ## Questions for you (answered)
 1. **Combat table — answered: RULES.md is right.**
@@ -643,3 +663,9 @@ I'll change it.
 - [ ] **After a turn.** Watch the attacks play: defenders slide back, attackers slide in.
       Then the panel opens on the battle reports. Is anything confusing?
 - [ ] **How to Play.** On the title screen and under the date. Is anything missing?
+- [ ] **Road moves of 2 (Version 10.4).** In your move phase, tap a unit: the brass
+      outlines now reach 2 territories away through your own lines.
+- [ ] **Split and merge.** Tap a 4-step unit in your move phase. Under it: "Split off:
+      1 step / 2 steps / 3 steps". Tap "1 step": a second, 1-step piece appears in the
+      same territory (×2 on the stack). Move the big one away and leave the picket. Then
+      put two damaged pieces together and tap "Merge with the …-step piece".

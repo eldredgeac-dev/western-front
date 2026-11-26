@@ -64,7 +64,7 @@ export function createPlayback(view) {
   function groups(actions) {
     const out = [];
     for (const a of actions) {
-      if (a.kind === 'skipped') continue;
+      if (a.kind === 'skipped' || a.kind === 'merge') continue;   // merges aren't animated
       const type = a.kind === 'attack' ? 'attack' : 'move';
       const last = out[out.length - 1];
       if (last && last.side === a.side && last.type === type) last.actions.push(a);

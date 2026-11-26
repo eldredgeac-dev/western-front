@@ -5,7 +5,7 @@ import { checkMap, indexBoxes, boxName, trenchMax } from '../js/engine/boxes.js'
 import { newGame, currentMonth, monthLabel, migrateState, checkState, STATE_VERSION } from '../js/engine/state.js';
 import { battleCounts, bigBattles, scarLevel, shortMonth } from '../js/engine/battles.js';
 import { unitsIn, stepsIn, stackRoom, unitType } from '../js/engine/units.js';
-import { moveTargets, railTargets, moveUnit, railMove } from '../js/engine/moves.js';
+import { moveTargets, railTargets, moveUnit, railMove, splitUnit, splitReason, mergeUnits, mergeReason } from '../js/engine/moves.js';
 import { next as rngNext, rollD6, roll2d6 } from '../js/engine/rng.js';
 import { resourcesFor } from '../js/engine/resources.js';
 import { beginGame, endPhase, phaseOf, digIn, submitBudget } from '../js/engine/turn.js';
@@ -404,11 +404,22 @@ test('resources: follow the RULES.md §6 table through the war', () => {
   check(r('1916-06').bel.op === 0, 'BEL');
 });
 
-test('selection: a unit can move into adjacent friendly boxes with room', () => {
+test('selection: a road move reaches friendly boxes up to 2 away (RULES.md §8)', () => {
   const s = { ...game(), phase: phaseIndex('entente-move') };
   const targets = moveTargets(s, bundle(), 'fra-01').sort();   // fra-01 is in l04-e1
-  check(JSON.stringify(targets) === JSON.stringify(['l03-e1', 'l04-e2', 'l05-e1']), targets.join());
-  check(!targets.includes('l04-g1'), 'never into an enemy box');
+  check(JSON.stringify(targets) === JSON.stringify(['l02-e1', 'l03-e1', 'l03-e2', 'l04-e2', 'l04-e3', 'l05-e1', 'l05-e2', 'l06-e1']), targets.join());
+  check(!targets.some((b) => b.includes('-g')), 'never into an enemy box');
+});
+
+test('selection: a road move never passes through enemy territory; a full box on the way is fine', () => {
+  const s = copyOf({ ...game(), phase: phaseIndex('entente-move') });
+  s.boxes['l05-e1'].owner = 'germany';   // the way south along the front line is cut
+  s.units = s.units.filter((u) => u.box !== 'l05-e1');
+  check(!moveTargets(s, bundle(), 'fra-01').includes('l06-e1'), 'l06-e1 only reachable through German l05-e1');
+  const t = copyOf({ ...game(), phase: phaseIndex('entente-move') });
+  for (const id of ['fra-02', 'fra-11']) t.units.find((u) => u.id === id).box = 'l03-e1';   // l03-e1 full
+  const reach = moveTargets(t, bundle(), 'fra-01');
+  check(!reach.includes('l03-e1') && reach.includes('l02-e1'), 'through the full l03-e1 to l02-e1: ' + reach.join());
 });
 
 test('selection: a full box (3 units) is not a move target', () => {
@@ -1760,6 +1771,69 @@ test('tutorial: the guided first turn picks a good attack and its steps work', (
 
 test('help: every How to Play section has a title and text', () => {
   check(data.help.sections.length >= 6 && data.help.sections.every((x) => x.title && x.paragraphs.length), 'sections');
+});
+
+// ---------------------------------------------------------------- splitting and merging (RULES.md §8)
+const movePhase = (side = 'entente') => copyOf({ ...game(), phase: phaseIndex(side + '-move') });
+
+test('split: a piece splits in two, keeping type and quality; each half moves on its own', () => {
+  let s = movePhase();
+  unit(s, 'fra-01').quality = 'green'; unit(s, 'fra-01').greenUntil = '1915-06';
+  const out = splitUnit(s, bundle(), 'fra-01', 1);
+  s = out.state;
+  const a = unit(s, 'fra-01'); const b = unit(s, out.newId);
+  check(a.steps === 3 && b.steps === 1 && b.box === a.box && b.type === a.type && b.quality === 'green' && b.greenUntil === '1915-06', JSON.stringify(b));
+  s = moveUnit(s, bundle(), out.newId, 'l04-e2');
+  check(unit(s, out.newId).box === 'l04-e2' && moveTargets(s, bundle(), 'fra-01').length > 0, 'the picket stays, the rest can still move');
+});
+
+test('split: needs 2+ steps, room, the move phase, and a type that splits', () => {
+  const s = movePhase();
+  unit(s, 'fra-01').steps = 1;
+  check(splitReason(s, bundle(), 'fra-01') === 'It has only 1 step.', 'one step');
+  const full = movePhase();
+  for (const id of ['fra-02', 'fra-11']) unit(full, id).box = 'l04-e1';
+  check(splitReason(full, bundle(), 'fra-01').startsWith('There’s no room') || splitReason(full, bundle(), 'fra-01').startsWith("There's no room"), splitReason(full, bundle(), 'fra-01'));
+  const att = copyOf({ ...game(), phase: phaseIndex('entente-attack') });
+  check(splitReason(att, bundle(), 'fra-01').includes('move phase'), 'only in the move phase');
+  const tank = movePhase();
+  tank.units.push({ id: 'gbr-t1', nation: 'gbr', type: 'tanks', box: 'l02-e2', steps: 2, quality: 'regular', moved: false, railed: false, attacked: false });
+  check(splitReason(tank, bundle(), 'gbr-t1').includes("can't be split"), 'tanks don\'t split');
+  let threw = false; try { splitUnit(movePhase(), bundle(), 'fra-01', 4); } catch (e) { threw = true; }
+  check(threw, 'must leave at least 1 step in each');
+});
+
+test('split: halves of a piece that already moved count as moved', () => {
+  let s = movePhase();
+  s = moveUnit(s, bundle(), 'fra-01', 'l04-e2');
+  const out = splitUnit(s, bundle(), 'fra-01', 2);
+  check(unit(out.state, out.newId).moved && moveTargets(out.state, bundle(), out.newId).length === 0, 'no second move');
+});
+
+test('merge: same nation and type in one territory, within max steps; lower quality; not to the pool', () => {
+  let s = movePhase();
+  const out = splitUnit(s, bundle(), 'fra-01', 2);
+  s = out.state;
+  unit(s, out.newId).quality = 'green';
+  s.orders = [{ kind: 'move', unit: out.newId, to: 'l04-e2' }];
+  const pool = s.pool.fra;
+  s = mergeUnits(s, bundle(), 'fra-01', out.newId);
+  check(unit(s, 'fra-01').steps === 4 && !unit(s, out.newId) && unit(s, 'fra-01').quality === 'green', 'merged, lower quality');
+  check(s.pool.fra === pool && s.orders.length === 0, 'no rebuild pool entry; its orders dropped');
+  const t = movePhase();
+  check(mergeReason(t, bundle(), 'fra-01', 'fra-02').includes('same territory'), 'different boxes');
+  unit(t, 'fra-02').box = 'l04-e1';
+  check(mergeReason(t, bundle(), 'fra-01', 'fra-02').includes('8 steps'), 'too many steps');
+  unit(t, 'gbr-01').box = 'l04-e1'; unit(t, 'gbr-01').steps = 1; unit(t, 'fra-01').steps = 2;
+  check(mergeReason(t, bundle(), 'fra-01', 'gbr-01').includes('same nation'), 'different nations');
+});
+
+test('computer: merges damaged pieces and moves up to 2 territories by road', () => {
+  const s = movePhase('germany');
+  s.controllers = { germany: 'ai', entente: 'human' }; s.aiSkill = { germany: 'standard' };
+  unit(s, 'ger-01').steps = 2; unit(s, 'ger-02').steps = 1; unit(s, 'ger-02').box = unit(s, 'ger-01').box;
+  aiMove(s, bundle(), 'germany');
+  check(!unit(s, 'ger-02') && unit(s, 'ger-01').steps === 3, 'two damaged pieces became one');
 });
 
 // ---------------------------------------------------------------- pieces (STYLE.md §5)

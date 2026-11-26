@@ -13,7 +13,7 @@ import { applyDemo } from './ui/demo.js';
 import { armisticeScore } from './engine/systems/will.js';
 import { pendingChoice, chooseOption } from './engine/events.js';
 import { unitsIn, unitType, nationOf } from './engine/units.js';
-import { moveTargets, railTargets, phaseAllows } from './engine/moves.js';
+import { moveTargets, railTargets, phaseAllows, splitUnit, splitReason, mergeUnits, mergeReason } from './engine/moves.js';
 import { beginGame, endPhase, phaseOf, submitBudget } from './engine/turn.js';
 import { oddsPreview, eligibleAttackers, barrageMax } from './engine/combat.js';
 import { frontBoxes } from './engine/ai.js';
@@ -264,9 +264,41 @@ function unitInfo(unit) {
     rails: railTargets(previewFor(unit.id), orderData(), unit.id).length,
     why: whyNoOrders(unit),
     status: unitStatus(unit),
+    split: splitInfo(unit),
+    merge: mergeInfo(unit),
     rule: unitRule(unit),
     ordered: queuedMove(unit.id) ? { index: queuedMove(unit.id).index, text: `Ordered to ${placeName(queuedMove(unit.id).order.to)}` } : null,
   };
+}
+
+// Splitting (RULES.md §8): which sizes can split off this piece now, or why not.
+// Only shown in the piece's own move phase.
+function splitInfo(unit) {
+  if (!humanPhase() || !phaseAllows(state, orderData(), unit, 'move')) return null;
+  const why = splitReason(state, orderData(), unit.id);
+  return { reason: why, sizes: why ? [] : Array.from({ length: unit.steps - 1 }, (_, i) => i + 1) };
+}
+// Merging: the other pieces in this territory it can merge with now.
+function mergeInfo(unit) {
+  if (!humanPhase() || !phaseAllows(state, orderData(), unit, 'move')) return [];
+  return unitsIn(state, unit.box).filter((o) => o.id !== unit.id && !mergeReason(state, orderData(), unit.id, o.id))
+    .map((o) => ({ id: o.id, text: `Merge with the ${o.steps}-step piece` }));
+}
+// Split `steps` off the selected piece: the new piece stays here; the old one stays selected.
+function splitSelected(unitId, steps) {
+  try { state = splitUnit(state, orderData(), unitId, steps).state; } catch (err) { orderError = err.message; }
+  persist();
+  selectedUnit = null;
+  redraw();
+  selectUnit(unitId);
+}
+// Merge another piece into the selected one.
+function mergeSelected(unitId, otherId) {
+  try { state = mergeUnits(state, orderData(), unitId, otherId); } catch (err) { orderError = err.message; }
+  persist();
+  selectedUnit = null;
+  redraw();
+  selectUnit(unitId);
 }
 
 // Short marks for what a unit has done this turn (the unit list and its piece).
@@ -286,8 +318,9 @@ function unitRule(unit) {
   const nation = nationOf(data.engine, unit.nation);
   if (phase.kind === 'move') {
     const rail = (state.resources[unit.nation] || {}).rail || 0;
-    return `Road: 1 territory next door, into your own territory (3 units at most). Rail: any distance through your own ` +
-      `connected territory; ${nation.name} has ${rail} rail move${rail === 1 ? '' : 's'} left, and a unit that goes by rail can\u2019t attack this turn.`;
+    return `Road: up to 2 territories through your own lines (3 pieces at most where it stops). Rail: any distance through your own ` +
+      `connected territory; ${nation.name} has ${rail} rail move${rail === 1 ? '' : 's'} left, and a unit that goes by rail can\u2019t attack this turn. ` +
+      'You can also split a piece to leave a few steps behind, or merge two pieces.';
   }
   if (unit.railed) return 'It came by rail this turn, so it can\u2019t attack until next month.';
   if (unit.attacked) return 'It has already attacked this turn.';
@@ -357,6 +390,7 @@ const placeName = (boxId) => boxName(data.map, data.boxesById[boxId]);
 function refreshPanel() {
   showPanel(panelArea, selectedBox ? boxInfo(selectedBox) : null, data.terrainData, {
     onUnit: selectUnit, log: state.log, error: orderError, situation: situation(),
+    onSplit: splitSelected, onMerge: mergeSelected,
     choice: pendingChoice(state, data.engine), onChoose: answerChoice,
     slip: attack ? attackSlip() : null,
     onToggleUnit: toggleAttacker, onMunitions: changeMunitions, onConfirm: confirmAttack, onCancel: closeAttack,

@@ -204,6 +204,43 @@ draw 20%. The simulator with one move and no commanders gives 59 / 29 / 12. Comm
 are in the simulator but not yet in the game (milestone 12). The rest of the gap: in
 1915–16 the game's computer attacks about half as often (DECISIONS.md 100–101).
 
+## Road moves of 2 territories (RULES.md Version 1.4, 26 November 2026)
+You chose option (a) of DECISIONS 104: a road move goes up to 2 territories through your
+own lines. The simulator now moves units in 2 one-step passes. A unit that went by rail
+doesn't move again, and a unit that moved by road can't also go by rail. The old
+simulator allowed road-then-rail, and that small difference is why the numbers aren't
+quite back to 40 / 43 / 18. **No [balanced] number was changed.**
+
+| Matchup (200 games) | Germany | Entente | Draw |
+|---|---|---|---|
+| Standard vs Standard | 50% | 34% | 15% |
+| Expert vs Expert | 46% | 38% | 16% |
+| Turtle Germany vs Standard | 24% | 45% | 31% |
+| Standard vs Turtle Entente | 100% | 0% | 0% |
+| Beginner Germany vs Standard | 10% | 76% | 14% |
+| Standard vs Beginner Entente | 56% | 40% | 4% |
+| Reckless Germany vs Standard | 0% | 100% | 0% |
+| Standard vs Reckless Entente | 60% | 40% | 0% |
+
+| Level (80 games, player win %) | Careful as GER | Careful as ENT | Beginner as GER | Beginner as ENT |
+|---|---|---|---|---|
+| Recruit | 74% | 81% | 71% | 75% |
+| Regular | 52% | 32% | 6% | 38% |
+| Veteran | 35% | 28% | 1% | 38% |
+| Field Marshal | 9% | 18% | 0% | 16% |
+
+**The game's own engine** (`node tools/js-sim.mjs 50`) went from Germany 70% / Entente 10%
+/ draw 20% to **46% / 22% / 32%**, much closer to the simulator.
+
+Still a little outside the healthy ranges: the Entente wins 34% of even games (target
+35–55%), and a passive Germany wins 24% (target under 20%). The commander cards (milestone
+12) give the Entente extra attacks in the simulator but aren't in the game yet. ECONOMY.md's
+suggestion for a passive Germany (Kaiserschlacht −15 → −20) is still open; see
+DECISIONS.md 105.
+
+Splitting and merging (§8.1) aren't in the simulator. The computer only merges, and the
+engine numbers above include that; splitting is a player tool.
+
 ## How to re-test after changing a rule
 On the Mac, in the repo folder:
 ```

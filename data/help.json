@@ -14,9 +14,17 @@
       "title": "Moving: road and rail",
       "diagram": "lane",
       "paragraphs": [
-        "Road: a unit moves one territory to a neighbour that shares a side with it (not corner to corner), and only into your own territory. Tap the unit, then a territory outlined in brass.",
+        "Road: a unit moves up to 2 territories, each step to a neighbour that shares a side (not corner to corner), and only through your own territory. Tap the unit, then a territory outlined in brass.",
         "Rail: a unit can go any distance through a chain of your own territory. Tap a territory outlined in blue dashes. Each month Germany has 3 rail moves, France 2 and Britain 1. A unit that goes by rail can't attack that month, so use rail to fill gaps and bring up reserves, not to attack straight away.",
         "Each unit moves once a month. At most 3 units can stand in one territory. You never move into enemy territory: you take it by attacking."
+      ]
+    },
+    {
+      "title": "Splitting and merging pieces",
+      "paragraphs": [
+        "In your move phase you can split a piece: tap it, then 'Split off 1 step' (or 2, or 3). The new, smaller piece stays in the territory and can move on its own. Use it to leave a small picket in a quiet sector and march the rest to where the attack will be.",
+        "Two pieces of the same nation and type in one territory can merge back into one if their steps fit (4 for infantry). The merged piece takes the lower quality. The computer merges its damaged pieces but never splits.",
+        "Don't leave a territory empty: an empty territory is taken without a fight. Even a 1-step picket makes the enemy pay an attack for it."
       ]
     },
     {

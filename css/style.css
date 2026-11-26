@@ -760,3 +760,7 @@ html, body {
 .coach .btn:not(.btn-primary) { color: var(--ink); border-color: var(--ink); }
 body.coaching .locator { display: none; }
 .map-svg .arrow.coach .plan-arrow { stroke: var(--stamp-red); opacity: 0.95; }
+/* splitting and merging pieces (RULES.md §8) */
+.split-merge { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 12px; }
+.split-merge .btn { min-height: var(--tap); }
+.split-label { font-size: 0.85rem; color: var(--paper-dark); }

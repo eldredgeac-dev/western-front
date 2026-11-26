@@ -2,5 +2,5 @@
 // can check your phone has the latest one. Every release: raise VERSION here AND the
 // same "?v=" number in index.html (the stylesheet, the import map and main.js), so
 // phones fetch the new files instead of keeping old copies (tests/run.mjs checks).
-export const VERSION = '10.3';
-export const VERSION_LABEL = 'Version 10.3 · Clearer attacks and movement · 25 November 2026';
+export const VERSION = '10.4';
+export const VERSION_LABEL = 'Version 10.4 · Longer road moves, split and merge · 26 November 2026';

@@ -453,10 +453,14 @@ class Game:
         rails = {k: int(v*sk['rail_eff']+0.5) for k, v in rails.items()}
         front = set(self.front_boxes(s))
         # mobile units: units not in front, or surplus units in quiet front boxes
-        for _ in range(self.cfg.get('move_passes', 1)):   # RULES.md §8: each unit moves once a turn (the old default of 2 let units move twice; docs/BALANCE.md)
+        # RULES.md §8: a road move goes up to 2 territories through your own lines, so
+        # the AI moves in 2 passes of 1 step. A unit that went by rail moves no further;
+        # a unit that already took a road step may take a second one but not go by rail.
+        road = set()                                   # ids of units that took a road step
+        for _ in range(self.cfg.get('move_passes', 2)):
             fl = sorted(front, key=lambda b: -self.threat(b, s))
             for u in [u for u in self.units if self.side(u['nat']) == s]:
-                if u['nat'] == 'BEL': continue
+                if u['nat'] == 'BEL' or u['moved_rail']: continue
                 here = u['box']
                 if here in front:
                     stack = self.at(here)
@@ -466,11 +470,11 @@ class Game:
                     if b != here and len(self.at(b)) < self.cfg['stack'] and self.threat(b, s) > -6:
                         tgt = b; break
                 if not tgt: continue
-                if tgt in self.adj(here): u['box'] = tgt; continue
-                if rails[u['nat']] > 0 and tgt in self.supplied_boxes(s, [here]):
+                if tgt in self.adj(here): u['box'] = tgt; road.add(id(u)); continue
+                if id(u) not in road and rails[u['nat']] > 0 and tgt in self.supplied_boxes(s, [here]):
                     rails[u['nat']] -= 1; u['box'] = tgt; u['moved_rail'] = True; continue
                 nb = self.path_step(u, tgt, s)
-                if nb and len(self.at(nb)) < self.cfg['stack']: u['box'] = nb
+                if nb and len(self.at(nb)) < self.cfg['stack']: u['box'] = nb; road.add(id(u))
     def ai_attack(self, s, lost):
         sk = self.sk[s]
         nats = ['GER'] if s == 'G' else ['FRA','GBR','USA']

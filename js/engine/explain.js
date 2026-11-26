@@ -172,7 +172,7 @@ export function phaseGuide(state, data) {
     !(n.traits || []).some((t) => t.kind === 'cannot-attack'));
   const left = (key) => nations.map((n) => `${n.name} ${(state.resources[n.id] || {})[key] || 0}`).join(' · ');
   if (phase.kind === 'move') {
-    return `${side.name} move: tap a unit, then a territory: brass = road, blue = rail (left: ${left('rail')}). ` +
+    return `${side.name} move: tap a unit, then a territory: brass = road (up to 2), blue = rail (left: ${left('rail')}). ` +
       'Stack up to 3 in one front territory to attack. Then COMMIT.';
   }
   return `${side.name} attack: tap a territory outlined in red. OP: ${left('op')}. Munitions: ${left('munitions')}. Then COMMIT.`;
