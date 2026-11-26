@@ -463,6 +463,36 @@ I'll change it.
     folder deeper than ECONOMY.md said) is deleted now that `tools/wfsim.py` has the
     economy, as its README asked.
 
+### Clearer play (no rule changes)
+98. **Bug check: attacks work.** A scripted turn-1 attack (three French units stacked in
+    the Somme front line, barrage of 2, at 3:1) was run through the engine and through
+    the real screen. Losses, retreats, advances, the change of owner, trench 0, OP and
+    munitions all came out right, with no errors. Two tests now cover it. What felt
+    broken was the screen: the result flashed for about a second, pieces jumped instead
+    of moving, and nothing explained why most attacks were 0–3%.
+99. **Why the odds jump 0 / 3 / 17 / 42 / 58 / 83%:** that's the chance of an R in each
+    column of the table. Most turn-1 attacks are 1 unit against 1 at 1:1, then −1 trench,
+    −1 winter, so about 3%. Each German front territory touches only one of yours, so
+    the way to attack is to stack 3 units in that one territory. From trench 2 a box
+    holding 8 steps is 0% at any odds (dug in: you must destroy every step). The rules
+    are unchanged; the slip, the How to Play page and the guided turn now say all this.
+100. **The game's computer vs the simulator (Germany 70% / Entente 10% vs 40 / 43).**
+     Two causes found:
+     - **The simulator broke RULES.md §8.** It moved units in two passes, so a unit could
+       move two territories a turn. Fixed to one; see BALANCE.md for the re-run.
+     - **The simulator plays with commander cards, the game doesn't yet** (milestone 12).
+       Joffre's and Haig's extra Offensive Points are a big part of the Entente's attacks.
+     With both differences removed the simulator gives Germany 59%, Entente 29%, draw 12%.
+101. **Not found yet:** the rest of the gap. In 1915–16 the game's computer attacks about
+     half as often as the simulator's (Entente 2–3 a year against 7–8), and it attacks
+     empty territories much less. I've put "find the rest" in Later ideas rather than
+     guess. No [balanced] number was changed.
+102. **The guided first turn** uses seed 4. If you follow the steps, the attack succeeds
+     (it's a 58% attack, so on another seed it might not). Auto-allocate is on, so the
+     budget page doesn't interrupt it.
+103. **Battle reports aren't saved.** They're kept until your next COMMIT, so reloading
+     the page clears them. The log (Dispatches) still has every result.
+
 ## Questions for you (answered)
 1. **Combat table — answered: RULES.md is right.**
    - The balance tests used `tools/t2.py`, which patched the simulator's 1:2 and 1:1
@@ -588,3 +618,19 @@ I'll change it.
       - Tick **Auto-allocate** on the budget page: the page stops appearing.
       - On a narrow folded phone: is the slider easy to drag, and are the shells clear?
       - Start a Recruit game: the budget page should not appear (Auto-allocate is on).
+- [ ] **Guided first turn (Version 10.3).** New Campaign → **Guided first turn (Entente)**.
+      Follow the telegram strip: a road move, a second road move into the same
+      territory, a rail move to fill the gap, COMMIT, then the attack with a barrage of
+      2, and COMMIT. Is each step clear? Does the battle report make sense?
+- [ ] **The order slip.** In any attack phase, tap a red-outlined German territory. Under
+      the odds you should see "You take it on a roll of N or more", a strip of 11 dice
+      squares, a line saying why, and what would help. Try a dug-in territory in 1916: it
+      should say why it's 0%.
+- [ ] **Best attacks.** In your attack phase, tap **BEST ATTACKS**: three pencil arrows
+      with their odds, and a list in the panel. Tap one to open its slip.
+- [ ] **Moving.** Tap a unit in your move phase: brass outlines = road, blue dashes =
+      rail. The panel says the rule in one line. A unit that went by rail shows a RAIL
+      tab on its piece.
+- [ ] **After a turn.** Watch the attacks play: defenders slide back, attackers slide in.
+      Then the panel opens on the battle reports. Is anything confusing?
+- [ ] **How to Play.** On the title screen and under the date. Is anything missing?

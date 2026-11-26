@@ -238,6 +238,7 @@ class Game:
             if self.cfg.get('split'):
                 rp = hist_rp                      # manpower: replacements only
                 p = max(0, p - hist_rp)           # industry = the rest (never below 0)
+                assert p >= 0, 'Industry can never go below 0 (RULES.md §19.2)'
                 if not sk['smart_mun']:
                     res = min(self.rng.randint(0, p), left); mun = p - res
                 else:
@@ -452,7 +453,7 @@ class Game:
         rails = {k: int(v*sk['rail_eff']+0.5) for k, v in rails.items()}
         front = set(self.front_boxes(s))
         # mobile units: units not in front, or surplus units in quiet front boxes
-        for _ in range(2):
+        for _ in range(self.cfg.get('move_passes', 1)):   # RULES.md §8: each unit moves once a turn (the old default of 2 let units move twice; docs/BALANCE.md)
             fl = sorted(front, key=lambda b: -self.threat(b, s))
             for u in [u for u in self.units if self.side(u['nat']) == s]:
                 if u['nat'] == 'BEL': continue

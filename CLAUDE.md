@@ -68,12 +68,14 @@ js/engine/combat.js        combat table, odds preview
 js/engine/rng.js           seeded RNG (mulberry32)
 js/engine/boxes.js         map checks, box names, trench maximums
 js/engine/ai.js            computer opponent (priority scoring)
+js/engine/explain.js       plain-English help: roll outcomes, advice, best attacks, battle reports
+js/engine/tutorial.js      the guided first turn's plan
 js/engine/systems/         supply.js, will.js, economy.js (later: blockade.js)
 js/engine/battles.js       the battle record (scars and pencil notes on the map)
-js/ui/map.js  zoom.js  panel.js  log.js  demo.js  ledger.js  budget.js
+js/ui/map.js  zoom.js  panel.js  log.js  demo.js  ledger.js  budget.js  help.js  tutorial.js
 js/storage.js              save / load / export / import
 data/nations.json  unit-types.json  boxes-west.json  terrain.json  events.json  combat-table.json
-data/commanders.json  headlines.json  economy.json
+data/commanders.json  headlines.json  economy.json  help.json  tutorial.json
 data/news.json  quotes.json         (already written: real history, don't change facts without a source)
 data/scenarios/1914-west.json
 tests/tests.html  tests/tests.js  tests/run.mjs
