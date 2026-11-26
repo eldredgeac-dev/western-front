@@ -112,8 +112,13 @@ async function loadJson(path) {
 
 // Load all the data files the game needs, and check the map makes sense.
 async function loadData() {
+  // The map picture is the biggest download: start it as soon as boxes-west.json says
+  // where it is, alongside the other files, not after them all (docs/PERFORMANCE.md).
+  const mapFile = loadJson('./data/boxes-west.json');
+  const mapPicture = mapFile.then((m) => loadMapSvg(`${m.mapSvg}?v=${VERSION}`));
+  mapPicture.catch(() => {});      // a failure is reported below, where it's awaited
   const [map, terrainData, nations, scenario, quotes, unitTypes, phases, combat, victory, events, ai, commanders, economy, help, tutorial] = await Promise.all([
-    loadJson('./data/boxes-west.json'),
+    mapFile,
     loadJson('./data/terrain.json'),
     loadJson('./data/nations.json'),
     loadJson('./data/scenarios/1914-west.json'),
@@ -131,7 +136,7 @@ async function loadData() {
   ]);
   const problems = checkMap(map, terrainData);
   if (problems.length > 0) throw new Error('The map data has problems: ' + problems.join('; '));
-  const mapSvg = await loadMapSvg(`${map.mapSvg}?v=${VERSION}`);
+  const mapSvg = await mapPicture;
   // `engine` is the bundle of data files the game engine (js/engine/) works with.
   const engine = { map, terrain: terrainData, nations, unitTypes, phases, combat, victory, events, ai, commanders, economy };
   return { map, terrainData, nations, scenario, quotes, unitTypes, phases, engine, mapSvg, help, tutorial, boxesById: indexBoxes(map) };
@@ -879,7 +884,16 @@ function makeView(name) {
   const z = enableZoom(view.svg, {
     onTap: tapBox,
     onTapOrder: showOrder,
-    onViewChange: (k) => { view.declutter(); view.layout(k); if (name === viewName) showLocator(locatorArea()); },
+    // settled after a pan or zoom: tidy the labels and pieces (once, not every frame).
+    // The view not on screen waits until it's shown (setView).
+    onViewChange: (k) => {
+      if (name !== viewName) { if (views[name]) views[name].untidy = k; return; }
+      view.declutter(); view.layout(k); showLocator(locatorArea());
+    },
+    // every frame of a drag: only the locator's outline moves
+    onMove: () => { if (name === viewName && views[name]) showLocator(locatorArea()); },
+    // a finger is down on a territory: light it up at once (not while a turn plays)
+    onPress: (id) => { if (!(playback && playback.isPlaying())) view.press(id); },
     home: view.frontBounds,
     start: () => startPoint(view),
     startZoom: board ? 0 : undefined,                    // the board starts filling the width
@@ -899,6 +913,8 @@ function setView(name) {
   settings.view = name;
   saveSettings();
   showActiveView();
+  // tidy its labels and pieces now if it moved while hidden
+  if (views[name].untidy) { views[name].view.declutter(); views[name].view.layout(views[name].untidy); views[name].untidy = null; }
   redraw();
   mapView.select(selectedBox);
   if (attack) showAttackArrow();

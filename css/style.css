@@ -445,11 +445,16 @@ html, body {
   stroke: var(--brass);
   stroke-width: max(1.2px, calc(3.5px * var(--u)));
   stroke-linejoin: round;
-  animation: brass-pulse 1.8s ease-in-out infinite;
 }
-@keyframes brass-pulse { 50% { stroke-opacity: 0.45; } }
+/* The selected outline sits in its own see-through SVG over the map (js/ui/map.js),
+   and the pulse fades that whole layer: the graphics chip does it without redrawing
+   the map. The outline itself doesn't animate. */
+.map-svg.overlay-svg { background: none; pointer-events: none; z-index: 1; }
+.map-svg.overlay-svg.pulsing { animation: brass-pulse 1.8s ease-in-out infinite; will-change: opacity; }
+.view-holder.inactive .map-svg.overlay-svg { animation: none; }
+@keyframes brass-pulse { 50% { opacity: 0.45; } }
 @media (prefers-reduced-motion: reduce) {
-  .map-svg .selected-outline { animation: none; }
+  .map-svg.overlay-svg.pulsing { animation: none; }
 }
 
 /* Detail by zoom (STYLE.md §13). js/ui/zoom.js puts "far", "mid" or "near" on the map;
@@ -638,7 +643,7 @@ html, body {
 .ledger-warn { color: var(--stamp-red); }
 .ledger-will .ledger-num { font: 700 1.1rem var(--font-type); }
 .will-gauge { display: block; height: 8px; margin: 4px 0; border: 1px solid var(--ink); background: var(--paper-dark); }
-.will-fill { display: block; height: 100%; background: var(--ink); transition: width 0.4s ease; }
+.will-fill { display: block; height: 100%; background: var(--ink); transform-origin: left center; transition: transform 0.4s ease; }
 .will-trend { display: block; font: 0.8rem var(--font-type); color: var(--ink-faded); }
 /* the strength chart: thin lines, recessive grid, direct labels */
 .ledger-chart { display: block; width: 100%; max-width: 560px; height: auto; touch-action: manipulation; }
@@ -817,7 +822,24 @@ body.coaching .locator { display: none; }
 
 /* ---------- The board view (js/ui/board.js): the territories as a grid of squares on
    map paper, like a General Staff sector diagram. Sizes are in board units (≈ px). ---------- */
-.view-holder { position: absolute; inset: 0; }
+.view-holder { position: absolute; inset: 0; overflow: hidden; contain: strict; }
+/* Pan and zoom (js/ui/zoom.js): the map is drawn a quarter of the screen bigger on
+   every side (OVERSCAN), and a drag or pinch slides and stretches it with a CSS
+   transform; the SVG is only redrawn when the finger lifts (docs/PERFORMANCE.md). */
+.map-svg.zoomable {
+  position: absolute;
+  left: -25%; top: -25%;
+  width: 150%; height: 150%;
+  transform-origin: 0 0;
+}
+.view-holder:not(.inactive) .map-svg.zoomable { will-change: transform; }
+/* a piece sliding during the playback: its own layer, moved with a transform */
+.ghost-layer { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
+.ghost { position: absolute; left: 0; top: 0; will-change: transform; }
+.ghost-svg { display: block; overflow: visible; }
+.ghost-svg.far .piece-full, .ghost-svg:not(.far) .piece-simple { display: none; }
+.ghost-svg.on-board .piece-full { display: inline; }
+.ghost-svg.on-board .piece-simple { display: none; }
 /* The view not on screen stays drawn but see-through (the locator shows the campaign
    map through <use>, and masks inside a visibility:hidden view would vanish), and
    nothing in it can be tapped. */

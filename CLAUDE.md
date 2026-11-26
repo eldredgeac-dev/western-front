@@ -21,6 +21,8 @@ Eastern Front, more nations and the naval blockade, so build it to grow.
 - `docs/DATA.md` — what goes in each JSON data file (create it in milestone 2).
 - `docs/ECONOMY.md` — the design record for the war economy (merged into RULES.md §19).
 - `docs/STYLE.md` — the art direction: palette, fonts, map look, motion, sound, tone.
+- `docs/PERFORMANCE.md` — speed measurements on a phone-sized, 4× slowed browser, and
+  how the map stays fast. Re-measure with `node tools/perf.mjs` after changing the map.
 - `docs/BALANCE.md` — results of the balance testing. Numbers tagged [balanced] in
   RULES.md came from `tools/wfsim.py` (a Python simulator of the rules). If a rule
   change touches balance, update the simulator to match and re-run it

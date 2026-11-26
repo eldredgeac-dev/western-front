@@ -41,8 +41,45 @@ function pieces(d) {
   return d.split(/(?=M)/).filter((p) => p.trim().length > 0);
 }
 
+// A border made only of straight lines ("M x,y L x,y …", as tools/build-map.mjs and
+// js/ui/board.js write them), as a list of points; null if it has curves.
+function polyline(d) {
+  if (/[^ML0-9.,\s-]/.test(d)) return null;
+  const nums = d.match(/-?\d*\.?\d+/g) || [];
+  const pts = [];
+  for (let i = 0; i + 1 < nums.length; i += 2) pts.push([Number(nums[i]), Number(nums[i + 1])]);
+  return pts.length >= 2 ? pts : null;
+}
+
+// The point `s` map units along a polyline (like SVG's getPointAtLength), given the
+// running length at each corner. Done in plain JavaScript: asking the browser for each
+// point is far slower on a phone (docs/PERFORMANCE.md).
+function pointAlong(pts, acc, s) {
+  let lo = 1; let hi = pts.length - 1;          // find the first corner at or past s
+  while (lo < hi) { const mid = (lo + hi) >> 1; if (acc[mid] < s) lo = mid + 1; else hi = mid; }
+  const i = lo;
+  const seg = acc[i] - acc[i - 1] || 1;
+  const t = Math.max(0, Math.min(1, (s - acc[i - 1]) / seg));
+  return { x: pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * t, y: pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * t };
+}
+
 // Points every `step` map units along a path piece, with the direction there.
 function samplePath(tempPath, d, step) {
+  const pts = polyline(d);
+  if (pts) {
+    const acc = [0];
+    for (let i = 1; i < pts.length; i++) acc.push(acc[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+    const total = acc[acc.length - 1];
+    const out = [];
+    for (let s = 0; s <= total; s += step) {
+      const p = pointAlong(pts, acc, s);
+      const q = pointAlong(pts, acc, Math.min(total, s + 0.5));
+      const r = pointAlong(pts, acc, Math.max(0, s - 0.5));
+      const dx = q.x - r.x; const dy = q.y - r.y; const len = Math.hypot(dx, dy) || 1;
+      out.push({ x: p.x, y: p.y, ux: dx / len, uy: dy / len });
+    }
+    return out;
+  }
   tempPath.setAttribute('d', d);
   const total = tempPath.getTotalLength();
   const out = [];
@@ -149,6 +186,14 @@ export function createMapView(container, svg, { nations, boxNameFn, noteNameFn, 
   // A hidden path we use to measure along borders.
   const ruler = svgEl('path', { visibility: 'hidden' });
   svg.appendChild(ruler);
+  // Measuring along a path is slow, and the borders never change shape, so each
+  // border's sample points are measured once and kept (docs/PERFORMANCE.md).
+  const sampleCache = new Map();
+  const samplesOf = (d, step) => {
+    const key = step + ' ' + d;
+    if (!sampleCache.has(key)) sampleCache.set(key, samplePath(ruler, d, step));
+    return sampleCache.get(key);
+  };
   // Where a territory's anchor town is (map units).
   const anchor = (id) => [Number(byId[id].dataset.x), Number(byId[id].dataset.y)];
 
@@ -173,8 +218,8 @@ export function createMapView(container, svg, { nations, boxNameFn, noteNameFn, 
       let wire = ''; let zig = '';
       const net = {};
       for (const piece of pieces(d)) {
-        const samples = samplePath(ruler, piece, 1.8);
-        const fine = samplePath(ruler, piece, 0.9);
+        const samples = samplesOf(piece, 1.8);
+        const fine = samplesOf(piece, 0.9);
         wire += wireTicks(samples);
         for (const id of [a, b]) {
           const level = state.boxes[id].trench;
@@ -260,14 +305,22 @@ export function createMapView(container, svg, { nations, boxNameFn, noteNameFn, 
   // Paint everything that depends on the game state.
   //   month — "YYYY-MM", monthName — e.g. "December 1914"
   //   record — { counts, big, scarLevel } from js/engine/battles.js
+  // Each layer is only redrawn when what it shows has changed (a "key" made from its
+  // inputs): most updates change a piece or two, not the front line (PERFORMANCE.md).
+  const drawnKeys = {};
+  const changed = (name, key) => { if (drawnKeys[name] === key) return false; drawnKeys[name] = key; return true; };
   function update(state, month, monthName, record) {
     const owner = (id) => state.boxes[id].owner;
-    for (const t of territories) t.style.fill = sideColor[owner(boxOf(t))];
-    drawRegionEdges(owner);
-    drawFront(state);
+    const owners = territories.map((t) => owner(boxOf(t))).join(',');
+    if (changed('owners', owners)) {
+      for (const t of territories) t.style.fill = sideColor[owner(boxOf(t))];
+      drawRegionEdges(owner);
+    }
+    const trenchKey = territories.map((t) => state.boxes[boxOf(t)].trench).join(',');
+    if (changed('front', owners + '|' + trenchKey)) drawFront(state);
     if (record) {
-      drawScars(record.counts, record.scarLevel);
-      drawNotes(record.big);
+      if (changed('scars', JSON.stringify(record.counts))) drawScars(record.counts, record.scarLevel);
+      if (changed('notes', JSON.stringify(record.big))) drawNotes(record.big);
     }
     // Seasons: snow Dec–Feb, spring green Mar–May, Flanders mud Sep–Nov.
     const m = Number(month.slice(5, 7));
@@ -279,10 +332,25 @@ export function createMapView(container, svg, { nations, boxNameFn, noteNameFn, 
   }
 
   // Outline the selected territory in brass (or clear it with null).
+  // It's drawn in a thin see-through SVG laid over the map (js/ui/zoom.js moves it with
+  // the map), so its slow pulse fades that whole layer, which the phone's graphics chip
+  // does without redrawing the map underneath (docs/PERFORMANCE.md).
+  const pulseSvg = svgEl('svg', { class: 'map-svg zoomable overlay-svg', 'aria-hidden': 'true', viewBox: svg.getAttribute('viewBox') });
+  container.appendChild(pulseSvg);
   function select(boxId) {
-    const sel = layer('selection');
-    sel.replaceChildren();
-    if (boxId) sel.appendChild(svgEl('use', { href: shapeRef(boxId), class: 'selected-outline' }));
+    pulseSvg.replaceChildren();
+    press(null);
+    if (boxId) pulseSvg.appendChild(svgEl('use', { href: shapeRef(boxId), class: 'selected-outline' }));
+    pulseSvg.classList.toggle('pulsing', Boolean(boxId));
+  }
+  // Instant feedback while a finger is down on a territory (js/ui/zoom.js onPress): the
+  // brass outline goes on at once, before the tap is decided; null takes it off again.
+  let pressMark = null;
+  function press(boxId) {
+    if (pressMark) { pressMark.remove(); pressMark = null; }
+    if (!boxId || !byId[boxId]) return;
+    pressMark = svgEl('use', { href: shapeRef(boxId), class: 'selected-outline press' });
+    layer('selection').appendChild(pressMark);
   }
 
   // The shape of a grease-pencil arrow from inside `fromId` into `toId`, crossing
@@ -370,17 +438,24 @@ export function createMapView(container, svg, { nations, boxNameFn, noteNameFn, 
     ...svg.querySelectorAll('.river-label'),
     ...svg.querySelectorAll('.road-label'),
   ];
+  // All the sizes are read first and all the changes made after: reading a size
+  // straight after a change makes the phone lay the whole map out again each time.
+  // (A hidden label keeps its size, so hiding doesn't change what we read.)
   function declutter() {
+    const list = labels();
+    const rects = list.map((label) => label.getBoundingClientRect());
     const placed = [];
-    for (const label of labels()) {
-      label.style.visibility = '';
-      const r = label.getBoundingClientRect();
-      if (r.width === 0) continue;                      // not shown at this zoom
+    const hide = rects.map((r) => {
+      if (r.width === 0) return false;                  // not shown at this zoom
       const hit = placed.some((p) => r.left < p.right + 2 && r.right > p.left - 2 &&
         r.top < p.bottom + 1 && r.bottom > p.top - 1);
-      if (hit) label.style.visibility = 'hidden';
-      else placed.push(r);
-    }
+      if (!hit) placed.push(r);
+      return hit;
+    });
+    list.forEach((label, i) => {
+      const v = hide[i] ? 'hidden' : '';
+      if (label.style.visibility !== v) label.style.visibility = v;
+    });
   }
 
   // The area (map units) the front line covers: [x, y, width, height].
@@ -403,21 +478,34 @@ export function createMapView(container, svg, { nations, boxNameFn, noteNameFn, 
 
   //   units      — the game's units
   //   lookFor(u) — { color, symbol, maxSteps, mirror } for a unit (from the data files)
+  // Only the stacks that changed are drawn again (a piece is a lot of SVG); a stack
+  // whose units are just as before is kept. If nothing changed, nothing is done.
+  const stacks = new Map();                        // boxId → { key, el }
+  let unitsKey = null;
   function drawUnits(units, lookFor) {
-    unitsLayer.replaceChildren();
     const byBox = new Map();
     for (const u of units) {
       if (!byBox.has(u.box)) byBox.set(u.box, []);
       byBox.get(u.box).push(u);
     }
+    const keys = new Map();
+    for (const [boxId, list] of byBox) keys.set(boxId, JSON.stringify(list.map((u) => [u, lookFor(u)])));
+    const allKey = [...keys].map(([b, k]) => b + k).join('|');
+    if (allKey === unitsKey) return;
+    unitsKey = allKey;
+    for (const [boxId, old] of stacks) if (!keys.has(boxId)) { old.el.remove(); stacks.delete(boxId); }
     for (const [boxId, list] of byBox) {
       if (!byId[boxId]) continue;
+      const old = stacks.get(boxId);
+      if (old && old.key === keys.get(boxId)) { unitsLayer.appendChild(old.el); continue; }   // kept, in order
+      if (old) old.el.remove();
       const [x, y] = anchor(boxId);
       const at = svgEl('g', { class: 'unit-spot', transform: `translate(${x},${y})`, 'data-box': boxId, 'data-count': list.length });
       const holder = svgEl('g', { class: 'piece-holder' });
       holder.appendChild(stackSvg(list, lookFor));
       at.appendChild(holder);
       unitsLayer.appendChild(at);
+      stacks.set(boxId, { key: keys.get(boxId), el: at });
     }
     layout();
   }
@@ -473,21 +561,33 @@ export function createMapView(container, svg, { nations, boxNameFn, noteNameFn, 
     lastScale = scale;
     const ctm = svg.getScreenCTM();
     if (!ctm) return;
+    // Read every size first (see declutter: reads and writes mixed are slow) ...
     const blocked = hardThings();
     const soft = softThings();
-    for (const spot of unitsLayer.querySelectorAll('.unit-spot')) {
+    const spots = [...unitsLayer.querySelectorAll('.unit-spot')];
+    const ownRects = spots.map((spot) => {
+      const own = svg.querySelector(`#towns [data-box="${spot.dataset.box}"]`);
+      return own && own.style.visibility !== 'hidden' ? own.getBoundingClientRect() : null;
+    });
+    const writes = [];
+    const toHide = new Set();
+    spots.forEach((spot, n) => {
       const [x, y] = anchor(spot.dataset.box);
       const sx = ctm.a * x + ctm.e; const sy = ctm.d * y + ctm.f;     // the town on screen
       const [L, T, R, B] = stackBox(Number(spot.dataset.count));
       const w = (R - L) * px; const h = (B - T) * px;
       // also try just past either end of the territory's own name, level with it
-      const own = svg.querySelector(`#towns [data-box="${spot.dataset.box}"]`);
-      const ownR = own && own.style.visibility !== 'hidden' ? own.getBoundingClientRect() : null;
+      const ownR = ownRects[n];
       const extra = ownR && ownR.width > 0
         ? [[ownR.right - sx + 4, ownR.top - sy], [ownR.left - sx - w - 4, ownR.top - sy],
           [ownR.right - sx + 4, ownR.bottom - sy - h], [ownR.left - sx - w - 4, ownR.bottom - sy - h]]
         : [];
-      const spots = [...candidates(w, h).slice(0, 4), ...extra, ...candidates(w, h).slice(4)].map(([cx, cy]) => [cx, cy, { left: sx + cx, top: sy + cy, right: sx + cx + w, bottom: sy + cy + h }]);
+      const spotsHere = [...candidates(w, h).slice(0, 4), ...extra, ...candidates(w, h).slice(4)].map(([cx, cy]) => [cx, cy, { left: sx + cx, top: sy + cy, right: sx + cx + w, bottom: sy + cy + h }]);
+      // Only things near this town can be in the way: test those, not the whole map.
+      const near = spotsHere.reduce((a, c) => ({ left: Math.min(a.left, c[2].left), top: Math.min(a.top, c[2].top),
+        right: Math.max(a.right, c[2].right), bottom: Math.max(a.bottom, c[2].bottom) }), { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity });
+      const hardNear = blocked.filter((o) => overlaps(o, near));
+      const softNear = soft.filter((o) => overlaps(o.r, near));
       // Take the first spot that covers nothing; if every spot covers something, the one
       // that covers least (names and symbols count a hundred times more than village names).
       // A stack must stand in its own territory: a spot whose middle is outside it is
@@ -496,21 +596,29 @@ export function createMapView(container, svg, { nations, boxNameFn, noteNameFn, 
       const inside = (px2, py2) => { const p = svg.createSVGPoint(); p.x = (px2 - ctm.e) / ctm.a; p.y = (py2 - ctm.f) / ctm.d; return shape.isPointInFill(p); };
       const outside = (rect) => {
         if (!shape || !shape.isPointInFill) return 0;
-        let n = inside((rect.left + rect.right) / 2, (rect.top + rect.bottom) / 2) ? 0 : 1e6;
-        for (const [qx, qy] of [[rect.left, rect.top], [rect.right, rect.top], [rect.left, rect.bottom], [rect.right, rect.bottom]]) if (!inside(qx, qy)) n += 150;
-        return n;
+        let c = inside((rect.left + rect.right) / 2, (rect.top + rect.bottom) / 2) ? 0 : 1e6;
+        for (const [qx, qy] of [[rect.left, rect.top], [rect.right, rect.top], [rect.left, rect.bottom], [rect.right, rect.bottom]]) if (!inside(qx, qy)) c += 150;
+        return c;
       };
-      const cost = (rect) => blocked.reduce((t, o) => t + 100 * overlapArea(rect, o), 0) +
-        soft.reduce((t, o) => t + overlapArea(rect, o.r), 0) + outside(rect);
+      const cost = (rect) => hardNear.reduce((t, o) => t + 100 * overlapArea(rect, o), 0) +
+        softNear.reduce((t, o) => t + overlapArea(rect, o.r), 0);
       let chosen = null; let best = Infinity;
-      spots.forEach((c, i) => { const v = cost(c[2]) + i * 0.5; if (v < best) { best = v; chosen = c; } });
-      for (const o of soft) if (overlaps(chosen[2], o.r)) o.el.style.visibility = 'hidden';
+      spotsHere.forEach((c, i) => {
+        const cheap = cost(c[2]) + i * 0.5;
+        if (cheap >= best) return;                // can't win: skip the slow inside test
+        const v = cheap + outside(c[2]);
+        if (v < best) { best = v; chosen = c; }
+      });
+      for (const o of softNear) if (overlaps(chosen[2], o.r)) toHide.add(o.el);
       blocked.push(chosen[2]);                    // later stacks keep clear of this one
       // the stack's own origin, in map units from the town
       const ox = (chosen[0] - L * px) / zoomK; const oy = (chosen[1] - T * px) / zoomK;
       spotOffset[spot.dataset.box] = [ox, oy]; lastOffset = [ox, oy];
-      spot.firstChild.setAttribute('transform', `translate(${ox.toFixed(2)},${oy.toFixed(2)}) scale(${scale.toFixed(4)})`);
-    }
+      writes.push([spot.firstChild, `translate(${ox.toFixed(2)},${oy.toFixed(2)}) scale(${scale.toFixed(4)})`]);
+    });
+    // ... then make all the changes at once.
+    for (const el of toHide) el.style.visibility = 'hidden';
+    for (const [g, t] of writes) if (g.getAttribute('transform') !== t) g.setAttribute('transform', t);
   }
 
   // The board: every stack is the same size (pieceSize map units wide) and stands
@@ -561,16 +669,31 @@ export function createMapView(container, svg, { nations, boxNameFn, noteNameFn, 
     const o = spotOffset[boxId] || lastOffset;
     return [x + o[0], y + o[1]];
   }
-  // A loose piece on top of the map, for sliding along a move arrow.
+  // A loose piece on top of the map, for sliding along a move arrow. It's drawn in its
+  // own small layer above the map and slid with a CSS transform, so the phone's
+  // graphics chip moves it without redrawing the map underneath (PERFORMANCE.md).
+  const ghostLayer = document.createElement('div');
+  ghostLayer.className = 'ghost-layer';
+  container.appendChild(ghostLayer);
   function ghostPiece(unit, look) {
-    const g = svgEl('g', { class: 'ghost' });
-    const piece = stackSvg([unit], () => look);
-    g.appendChild(piece);
-    unitsLayer.appendChild(g);
-    const scale = lastScale;
+    const ctm = svg.getScreenCTM();
+    const box = container.getBoundingClientRect();
+    const zoom = ctm ? ctm.a : zoomK;                       // screen pixels per map unit
+    const level = ['far', 'mid', 'near'].find((l) => svg.classList.contains(l)) || 'mid';
+    const div = document.createElement('div');
+    div.className = 'ghost';
+    const pieceSvg = svgEl('svg', { class: `ghost-svg ${level}${pieceSize ? ' on-board' : ''}`, width: '1', height: '1' });
+    const g = svgEl('g', { transform: `scale(${(lastScale * zoom).toFixed(4)})` });
+    g.appendChild(stackSvg([unit], () => look));
+    pieceSvg.appendChild(g);
+    div.appendChild(pieceSvg);
+    ghostLayer.appendChild(div);
     return {
-      at(x, y) { g.setAttribute('transform', `translate(${x.toFixed(2)},${y.toFixed(2)}) scale(${scale.toFixed(4)})`); },
-      remove() { g.remove(); },
+      at(x, y) {
+        const sx = ctm ? ctm.a * x + ctm.e - box.left : x; const sy = ctm ? ctm.d * y + ctm.f - box.top : y;
+        div.style.transform = `translate3d(${sx.toFixed(1)}px, ${sy.toFixed(1)}px, 0)`;
+      },
+      remove() { div.remove(); },
     };
   }
   // Short-lived marks over a territory: barrage puffs, and a "−2" that floats up.
@@ -597,9 +720,9 @@ export function createMapView(container, svg, { nations, boxNameFn, noteNameFn, 
     effects.appendChild(t);
     setTimeout(() => t.remove(), 700);
   }
-  function clearEffects() { effects.replaceChildren(); for (const g of unitsLayer.querySelectorAll('.ghost')) g.remove(); }
+  function clearEffects() { effects.replaceChildren(); ghostLayer.replaceChildren(); }
 
-  return { svg, update, select, declutter, frontBounds, showPlannedAttack, clearPlannedAttack,
+  return { svg, update, select, press, declutter, frontBounds, showPlannedAttack, clearPlannedAttack,
     drawUnits, layout, showTargets, showSuggestions, showCoach, drawOrders, standPoint, ghostPiece, puffs, floatText, clearEffects,
     anchorOf: anchor, boxIds: () => Object.keys(byId) };
 }
