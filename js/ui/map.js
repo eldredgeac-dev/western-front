@@ -507,10 +507,22 @@ export function createMapView(container, svg, { nations, boxNameFn, noteNameFn, 
 
   // Outline where the selected unit can go: brass for a normal move, dashed brass
   // for rail. Pass empty lists to clear.
-  function showTargets(moveIds, railIds) {
+  // Outline where things can happen: moveIds by road (brass), railIds by rail (river
+  // blue, dashed), attackIds the enemy territories you can attack (front-red, dashed).
+  function showTargets(moveIds, railIds, attackIds = []) {
     targetsLayer.replaceChildren();
+    for (const id of attackIds) targetsLayer.appendChild(svgEl('use', { href: '#shape-' + id, class: 'target attackable' }));
     for (const id of railIds) if (!moveIds.includes(id)) targetsLayer.appendChild(svgEl('use', { href: '#shape-' + id, class: 'target rail' }));
     for (const id of moveIds) targetsLayer.appendChild(svgEl('use', { href: '#shape-' + id, class: 'target move' }));
+  }
+
+  // The Best attacks helper: an arrow with its odds for each suggestion.
+  //   list: [{ from, to, label }]
+  const suggestLayer = svgEl('g', { id: 'suggestions' });
+  ordersLayer.after(suggestLayer);
+  function showSuggestions(list) {
+    suggestLayer.replaceChildren();
+    for (const o of list) drawArrow(suggestLayer, o.from, o.to, 'attack suggest', { label: o.label });
   }
 
   // ---- playing a turn back (js/ui/animate.js uses these)
@@ -560,5 +572,5 @@ export function createMapView(container, svg, { nations, boxNameFn, noteNameFn, 
   function clearEffects() { effects.replaceChildren(); for (const g of unitsLayer.querySelectorAll('.ghost')) g.remove(); }
 
   return { svg, update, select, declutter, frontBounds, showPlannedAttack, clearPlannedAttack,
-    drawUnits, layout, showTargets, drawOrders, standPoint, ghostPiece, puffs, floatText, clearEffects };
+    drawUnits, layout, showTargets, showSuggestions, drawOrders, standPoint, ghostPiece, puffs, floatText, clearEffects };
 }

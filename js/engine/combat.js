@@ -210,7 +210,7 @@ export function planAttack(state, data, order) {
 }
 
 // Extra attacker losses from the defender's traits (Germany's defence in depth).
-function extraAttackerLoss(state, data, plan) {
+export function extraAttackerLoss(state, data, plan) {
   const month = currentMonth(state);
   const trench = state.boxes[plan.order.target].trench;
   let extra = 0;
@@ -281,7 +281,9 @@ function depthFor(data, boxId, side) {
 // Defenders retreat 1 box into a friendly box with room, preferring deeper boxes
 // (if two are equally good, the first in the map's list: pending rule fix 9).
 // Units that can't retreat are destroyed. Returns steps lost by destruction.
-function retreat(state, data, boxId, side) {
+//   moves — optional { retreats: [], cutOff: [] }: where each unit went (for the
+//           battle report and the animation), or which units were cut off.
+function retreat(state, data, boxId, side, moves = null) {
   const lost = {};
   const target = boxesOf(data)[boxId];
   for (const u of unitsIn(state, boxId)) {
@@ -290,10 +292,12 @@ function retreat(state, data, boxId, side) {
     options.sort((a, b) => depthFor(data, b, side) - depthFor(data, a, side));
     if (options.length) {
       u.box = options[0];
+      if (moves) moves.retreats.push({ unit: u.id, from: boxId, to: options[0] });
       addLog(state, `${unitLabel(data, u)} fell back.`);
     } else {
       lost[u.nation] = (lost[u.nation] || 0) + u.steps;
       state.lostThisTurn[u.nation] = (state.lostThisTurn[u.nation] || 0) + u.steps;
+      if (moves) moves.cutOff.push(u.id);
       addLog(state, `${unitLabel(data, u)} was cut off and destroyed.`);
       destroy(state, data, u);
     }
@@ -326,16 +330,23 @@ function captureWill(state, data, boxId, captorSide) {
 
 // The attacker takes the box: up to 2 surviving attackers move in, strongest first;
 // the box changes owner and its trench drops to 0.
-function capture(state, data, plan) {
+//   moves — optional { advanced: [] }: which units moved in, and from where.
+function capture(state, data, plan, moves = null) {
   const boxes = boxesOf(data);
   const movers = plan.attackers.map((id) => findUnit(state, id)).filter(Boolean)
     .sort((a, b) => b.steps - a.steps).slice(0, data.combat.advanceMax);
-  for (const u of movers) u.box = plan.order.target;
+  for (const u of movers) {
+    if (moves) moves.advanced.push({ unit: u.id, from: u.box, to: plan.order.target });
+    u.box = plan.order.target;
+  }
   state.boxes[plan.order.target].owner = plan.side;
   state.boxes[plan.order.target].trench = 0;
   addLog(state, `${boxName(data.map, boxes[plan.order.target])} was taken.`);
   return captureWill(state, data, plan.order.target, plan.side);
 }
+
+// An empty record of the pieces that moved after a battle.
+const noMoves = () => ({ retreats: [], cutOff: [], advanced: [] });
 
 // Apply a table result { a, d, r } to an attack (the dice have already been rolled).
 // Changes `state` in place; resolveAttack() calls it on a fresh copy.
@@ -352,13 +363,14 @@ export function applyCombatResult(state, data, plan, cell) {
   const attackersLeft = plan.attackers.some((id) => findUnit(state, id));
   let retreatLost = {};
   let taken = false;
+  const moves = noMoves();
   // The box falls on an R, or if no defenders can hold it any more (a dug-in box
   // wiped out may still be taken: RULES.md §9.4). Anyone left in it falls back.
   if ((r || !defendersLeft) && attackersLeft) {
-    retreatLost = retreat(state, data, target, defenderSide);
+    retreatLost = retreat(state, data, target, defenderSide, moves);
     taken = true;
   }
-  const will = taken ? capture(state, data, plan) : {};
+  const will = taken ? capture(state, data, plan, moves) : {};
   const sum = (o) => Object.values(o).reduce((s, x) => s + x, 0);
   const stepsLost = sum(attackerLost) + sum(defenderLost) + sum(retreatLost);
   // A futile attack (RULES.md §9.4): final column 1:1 or worse and the box not taken.
@@ -370,7 +382,10 @@ export function applyCombatResult(state, data, plan, cell) {
     will[plan.payer] = (will[plan.payer] || 0) - data.combat.futile.will;
   }
   state.battles.push({ box: target, month: currentMonth(state), stepsLost });
-  return { a, d, retreat: r, taken, futile, attackerLost, defenderLost, retreatLost, will, stepsLost };
+  // dugIn: an R was turned into "+1 D, no retreat" (§9.4); moves: who fell back,
+  // who was cut off and who advanced (for the battle report)
+  return { a, d, retreat: r, dugIn: dug && cell.r, taken, futile, attackerLost, defenderLost, retreatLost, will, stepsLost,
+    ownerBefore: defenderSide, ownerAfter: state.boxes[target].owner, ...moves };
 }
 
 // Carry out an attack: check it, pay for it, roll the dice and apply the result.
@@ -389,9 +404,12 @@ export function resolveAttack(state, data, order) {
 
   if (plan.empty) {
     // An empty enemy box is taken without a roll (pending rule fix 7).
-    retreat(next, data, order.target, next.boxes[order.target].owner);   // tanks alone fall back
-    const will = capture(next, data, plan);
-    return { state: next, result: { plan, empty: true, taken: true, will, stepsLost: 0 } };
+    const moves = noMoves();
+    const ownerBefore = next.boxes[order.target].owner;
+    retreat(next, data, order.target, ownerBefore, moves);   // tanks alone fall back
+    const will = capture(next, data, plan, moves);
+    return { state: next, result: { plan, empty: true, taken: true, will, stepsLost: 0,
+      attackerLost: {}, defenderLost: {}, retreatLost: {}, ownerBefore, ownerAfter: plan.side, ...moves } };
   }
   const dice = roll2d6(next.rng);
   next.rng = dice.rng;

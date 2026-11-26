@@ -164,8 +164,8 @@ html, body {
 .game-screen {
   height: 100dvh;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  grid-template-areas: "bar" "map";
+  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-areas: "bar" "guide" "map";
   padding:
     env(safe-area-inset-top) env(safe-area-inset-right)
     0 env(safe-area-inset-left);
@@ -276,7 +276,7 @@ html, body {
 @media (min-width: 700px) {
   .game-screen {
     grid-template-columns: minmax(0, 65fr) minmax(0, 35fr);
-    grid-template-areas: "bar bar" "map panel";
+    grid-template-areas: "bar bar" "guide guide" "map panel";
   }
   .panel-sheet {
     grid-area: panel;
@@ -470,7 +470,11 @@ html, body {
 .counter.done { opacity: 0.7; }
 .piece-strength, .piece-count { font-family: var(--font-type); font-weight: 700; }
 .map-svg .target { fill: none; stroke: var(--brass); stroke-width: max(1.4px, calc(2.6px * var(--u))); stroke-linejoin: round; }
-.map-svg .target.rail { stroke-dasharray: calc(5px * var(--u)) calc(3px * var(--u)); stroke-opacity: 0.85; }
+.map-svg .target.rail { stroke: var(--river); stroke-dasharray: calc(5px * var(--u)) calc(3px * var(--u)); stroke-opacity: 0.95; }
+/* enemy territories you can attack this phase */
+.map-svg .target.attackable { stroke: var(--front-red); stroke-dasharray: calc(3px * var(--u)) calc(3px * var(--u)); stroke-opacity: 0.8; }
+/* Best attacks: suggestion arrows, lighter than real orders */
+.map-svg .arrow.suggest .plan-arrow { stroke-dasharray: calc(2px * var(--u)) calc(4px * var(--u)); opacity: 0.9; }
 
 /* The living map: battle scars, the staff officer's pencil notes, planned attacks. */
 .map-svg .scar { pointer-events: none; }
@@ -688,3 +692,43 @@ html, body {
 .tech-head { margin: 0; }
 .tech-note { font-style: italic; }
 .ledger-line-tight { display: block; margin-top: 2px; }
+
+/* ---------- Explaining attacks (js/engine/explain.js): the roll needed, a strip of
+   what each roll of two dice does, why, and what would help. Typed on the slip. ---------- */
+.slip-advice { margin: 8px 0 4px; padding-top: 6px; border-top: 1px dotted var(--ink-faded); }
+.slip-roll { margin: 0 0 6px; font-weight: 700; }
+.slip-why { margin: 6px 0; }
+.slip-hint { margin: 2px 0 6px; font-size: 0.8rem; color: var(--ink-faded); }
+.slip-fixes { margin: 4px 0; padding-left: 1.1em; }
+.slip-fixes li { margin: 2px 0; }
+.dice-strip { display: grid; grid-template-columns: repeat(11, minmax(0, 1fr)); gap: 2px; margin: 4px 0 2px; }
+.dice-cell {
+  display: flex; flex-direction: column; align-items: center; padding: 2px 0;
+  border: 1px solid var(--ink-faded); font-size: 0.72rem; line-height: 1.15;
+}
+.dice-cell .dice-roll { font-weight: 700; font-size: 0.85rem; }
+.dice-cell.taken { border: 2px solid var(--front-red); color: var(--front-red); }
+.dice-res { letter-spacing: -0.02em; }
+
+/* ---------- The phase guide strip: what you can do now, Best attacks, How to play ---------- */
+.guide-strip {
+  grid-area: guide;
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 4px max(var(--gap), env(safe-area-inset-right)) 4px max(var(--gap), env(safe-area-inset-left));
+  background: var(--leather-light); border-bottom: 1px solid var(--brass);
+}
+.phase-guide { flex: 1 1 14em; margin: 0; font-size: 0.88rem; line-height: 1.3; color: var(--telegram); }
+.btn-guide { flex: none; min-height: var(--tap); }
+.btn-guide[hidden] { display: none; }
+.btn-guide[aria-pressed="true"] { background: var(--brass); color: var(--leather); }
+.unit-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+.unit-tag {
+  padding: 0 5px; border: 1px solid var(--brass); border-radius: 2px;
+  font: 700 0.7rem var(--font-type); letter-spacing: 0.06em; color: var(--brass);
+}
+.unit-rule { margin: -4px 0 10px; font-size: 0.85rem; color: var(--paper-dark); font-style: italic; }
+.order-row.suggestion { width: 100%; min-height: var(--tap); background: transparent; color: var(--telegram); font: inherit; text-align: left; cursor: pointer; }
+.status-text { font-family: var(--font-type); font-weight: 700; }
+.reports { margin: 0 0 var(--gap); }
+.report-card { margin-bottom: 10px; }
+.report-line { margin: 3px 0; }
