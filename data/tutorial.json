@@ -4,57 +4,12 @@
   "level": "regular",
   "side": "entente",
   "steps": [
-    {
-      "id": "intro",
-      "title": "Your first month",
-      "text": "December 1914. The war has dug in from the sea to Switzerland. Your territories are on the left (west), Germany's on the right, and the front line runs between. Germany has just moved. This turn you'll take {target} the way it was really done: mass troops, bombard, then attack.",
-      "waitFor": {"kind": "next"}
-    },
-    {
-      "id": "road-1",
-      "title": "1. A road move",
-      "text": "Tap {support}, then tap its French unit in the panel. The territories it can reach by road light up in brass. Tap {front}: a dashed pencil arrow appears. That's an order, not a move yet.",
-      "waitFor": {"kind": "move", "unit": "support", "to": "front"},
-      "arrow": {"from": "support", "to": "front", "kind": "move"}
-    },
-    {
-      "id": "road-2",
-      "title": "2. Mass your troops",
-      "text": "Each German front territory touches only one of yours, so all your attackers must stand in {front}. Tap {side}, tap its unit, then tap {front}. Now three units will stand there: the most a territory can hold.",
-      "waitFor": {"kind": "move", "unit": "side", "to": "front"},
-      "arrow": {"from": "side", "to": "front", "kind": "move"}
-    },
-    {
-      "id": "rail",
-      "title": "3. A rail move",
-      "text": "That leaves a gap at {side}. Tap {reserve}, tap its unit, and tap {side}: it's outlined in blue dashes, which means by rail, any distance through your own lines. France has 2 rail moves a month. A unit that comes by rail can't attack this month, so rail is for filling gaps and bringing up reserves.",
-      "waitFor": {"kind": "move", "unit": "reserve", "to": "side"},
-      "arrow": {"from": "reserve", "to": "side", "kind": "move"}
-    },
-    {
-      "id": "commit-moves",
-      "title": "4. Commit",
-      "text": "Tap COMMIT at the top. The pieces slide along their arrows, and it becomes the Entente attack phase.",
-      "waitFor": {"kind": "phase", "phase": "entente-attack"}
-    },
-    {
-      "id": "attack",
-      "title": "5. The attack",
-      "text": "Enemy territories you can attack are outlined in red. Tap {target}. The order slip lists your three units. Tap + twice for a barrage of 2 munitions. The big number is your chance to take it; tap WHY THESE ODDS to see the column, the roll you need on two dice, and why. Then tap ADD TO ORDERS.",
-      "waitFor": {"kind": "attack", "munitions": 2},
-      "arrow": {"from": "front", "to": "target", "kind": "attack"}
-    },
-    {
-      "id": "commit-attack",
-      "title": "6. Over the top",
-      "text": "Tap COMMIT and watch: the barrage, the dice, the losses. If the attack succeeds, the Germans fall back and your men move in. Then Germany takes its January turn.",
-      "waitFor": {"kind": "played"}
-    },
-    {
-      "id": "report",
-      "title": "7. The battle report",
-      "text": "The panel shows a battle report for every attack this turn, yours and the enemy's: the dice, the losses, who fell back, who advanced, and whether the front line moved. From here you're on your own. The line under the date always says what you can do (tap it for more), BEST ATTACKS shows your best chances, and How to play is in the menu (top left).",
-      "waitFor": {"kind": "next", "label": "Finish"}
-    }
+    {"id": "intro", "title": "Your first month", "text": "December 1914. The war has dug in from the sea to Switzerland. Your territories are on the left (west), Germany's on the right, and the front line runs between. Germany has just moved. This turn you'll take {target} the way it was really done: mass troops, bombard, then attack.", "waitFor": {"kind": "next"}},
+    {"id": "road-1", "title": "1. A road move", "text": "Tap {support}, then tap its French unit in the panel. The territories it can reach by road light up in brass. Tap {front}: a dashed pencil arrow appears. That's an order, not a move yet.", "waitFor": {"kind": "move", "unit": "support", "to": "front"}, "arrow": {"from": "support", "to": "front", "kind": "move"}},
+    {"id": "road-2", "title": "2. Mass your troops", "text": "Each German front territory touches only one of yours, so all your attackers must stand in {front}. Tap {side}, tap its unit, then tap {front}. Now three units will stand there: the most a territory can hold.", "waitFor": {"kind": "move", "unit": "side", "to": "front"}, "arrow": {"from": "side", "to": "front", "kind": "move"}},
+    {"id": "rail", "title": "3. A rail move", "text": "That leaves a gap at {side}. Tap {reserve}, tap its unit, and tap {side}: it's outlined in blue dashes, which means by rail, any distance through your own lines. France has 2 rail moves a month. A unit that comes by rail can't attack this month, so rail is for filling gaps and bringing up reserves.", "waitFor": {"kind": "move", "unit": "reserve", "to": "side"}, "arrow": {"from": "reserve", "to": "side", "kind": "move"}},
+    {"id": "attack", "title": "4. The attack", "text": "Now the attack, in the same turn. Enemy territories you can attack are outlined in red. Tap {target}. The order slip already counts the three units that will stand in {front} once the moves are done. Tap + twice for a barrage of 2 munitions. The big number is your chance to take it; tap WHY THESE ODDS to see the column, the roll you need on two dice, and why. Then tap ADD TO ORDERS.", "waitFor": {"kind": "attack", "munitions": 2}, "arrow": {"from": "front", "to": "target", "kind": "attack"}},
+    {"id": "commit-attack", "title": "5. Over the top", "text": "Tap COMMIT and watch: first the moves slide along their arrows, then the barrage, the dice and the losses. If the attack succeeds, the Germans fall back and your men move in. Then Germany takes its January turn.", "waitFor": {"kind": "played"}},
+    {"id": "report", "title": "6. The battle report", "text": "The panel shows a battle report for every attack this turn, yours and the enemy's: the dice, the losses, who fell back, who advanced, and whether the front line moved. From here you're on your own. The line under the date always says what you can do (tap it for more), BEST ATTACKS shows your best chances, and How to play is in the menu (top left).", "waitFor": {"kind": "next", "label": "Finish"}}
   ]
 }

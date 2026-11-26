@@ -131,7 +131,7 @@ function unitChips(info, onUnit, onCancelOrder, actions = {}) {
     return section;
   }
   const hint = u.moves || u.rails
-    ? 'Tap a territory outlined in brass (road) or dashed blue (rail).'
+    ? 'Tap brass (road) or dashed blue (rail) to move it, or red to attack.'
     : (u.why || 'This unit can\u2019t move now.');
   const line = el('p', 'unit-hint');
   line.appendChild(el('strong', 'unit-title', `${u.title}, ${u.quality.toLowerCase()}. `));

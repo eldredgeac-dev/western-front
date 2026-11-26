@@ -18,7 +18,7 @@ import { willPhase, armisticeScore, suddenVictory } from '../js/engine/systems/w
 import { runEvents, chooseOption, pendingChoice, eventDue, replacedByResearch } from '../js/engine/events.js';
 import { aiMove, aiAttack, frontBoxes } from '../js/engine/ai.js';
 import { SILHOUETTES, mix, isDark } from '../js/ui/counters.js';
-import { queueCheck, addOrder, cancelOrder, commitOrders } from '../js/engine/orders.js';
+import { queueCheck, addOrder, cancelOrder, commitOrders, attackBoard, stagingBox, ordersPhase } from '../js/engine/orders.js';
 import { recordMonth, casualties, ledger } from '../js/engine/history.js';
 import { rollOutcomes, attackAdvice, bestAttacks, battleReport, phaseGuide, phaseSummary, attackableBoxes } from '../js/engine/explain.js';
 import { tutorialPlan } from '../js/engine/tutorial.js';
@@ -1763,7 +1763,8 @@ test('explain: the one-line phase summary for the guide strip', () => {
   const s = turnOneAttack(4);
   check(phaseSummary(s, eco()) === 'Entente attack · OP: FRA 2 · GBR 1', phaseSummary(s, eco()));
   const m = copyOf(s); m.phase = phaseIndex('entente-move');
-  check(phaseSummary(m, eco()) === 'Entente move · rail left: FRA 2 · GBR 1', phaseSummary(m, eco()));
+  check(phaseSummary(m, eco()) === 'Entente turn · OP: FRA 2 · GBR 1 · rail: FRA 2 · GBR 1', phaseSummary(m, eco()));
+  check(phaseGuide(m, eco()).includes('red = attack it') && phaseGuide(m, eco()).includes('Moves happen first, then attacks'), phaseGuide(m, eco()));
   const ai = copyOf(s); ai.controllers.entente = 'ai';
   check(phaseSummary(ai, eco()) === '', 'nothing in the computer\'s phase');
   const b = copyOf(s); b.pendingBudget = ['entente'];
@@ -1781,16 +1782,56 @@ test('tutorial: the guided first turn picks a good attack and its steps work', (
   s = queueOrder(s, eco(), { kind: 'move', unit: p.support.unit, to: p.front });
   s = queueOrder(s, eco(), { kind: 'move', unit: p.side.unit, to: p.front });
   s = queueOrder(s, eco(), { kind: 'move', unit: p.reserve.unit, to: p.side.box });   // a rail move
-  s = endPhase(commitQueued(s, eco()).state, eco());
-  check(phaseOf(s, eco()).id === 'entente-attack', 'attack phase');
-  const units = eligibleAttackers(s, eco(), p.target);
+  // one orders phase: the attack is queued in the move phase, against the board after the moves
+  const board = attackBoard(s, eco());
+  const units = eligibleAttackers(board, eco(), p.target);
   check(units.length === 3 && !units.includes(p.reserve.unit), 'three attackers; the railed reserve can\'t attack');
-  const odds = oddsPreview(s, eco(), { target: p.target, units, munitions: 2 });
+  const odds = oddsPreview(board, eco(), { target: p.target, units, munitions: 2 });
   check(odds.plan.columnLabel === '3:1' && Math.round(odds.pTake * 100) === 58, odds.plan.columnLabel);
   const out = commitQueued(queueOrder(s, eco(), { kind: 'attack', target: p.target, units, munitions: 2 }), eco());
   check(out.state.boxes[p.target].owner === 'entente', 'with this seed, the attack succeeds');
+  check(phaseOf(out.state, eco()).id === 'entente-attack', 'one COMMIT: moves, then the attack phase\'s attacks');
   // every placeholder in the steps is a role in the plan
   for (const step of tut.steps) for (const [, role] of step.text.matchAll(/\{(\w+)\}/g)) check(p[role], `${step.id}: {${role}}`);
+});
+
+// ---------------------------------------------------------------- one orders phase (RULES.md §7, milestone 10f)
+const boxById = (id) => data.map.boxes.find((b) => b.id === id);
+test('orders phase: attacks are queued in the move phase and carried out after the moves', () => {
+  let s = movePhase('entente');
+  check(ordersPhase(s, eco()), 'the Entente move phase is one orders phase');
+  // fra-01 and fra-02 stand in l04-e1 and l05-e1; move fra-02 up beside fra-01, then attack l04-g1 with both
+  const a = unit(s, 'fra-01'); const b = s.units.find((u) => u.nation === 'fra' && u.box !== a.box && moveTargets(s, eco(), u.id).includes(a.box));
+  const target = boxById(a.box).neighbours.find((id) => s.boxes[id].owner === 'germany');
+  s = addOrder(s, eco(), { kind: 'attack', target, units: [a.id], munitions: 0 });
+  s = addOrder(s, eco(), { kind: 'move', unit: b.id, to: a.box });
+  check(s.orders[0].kind === 'move' && s.orders[1].kind === 'attack', 'moves go before attacks in the queue');
+  const both = eligibleAttackers(attackBoard(s, eco(), s.orders.filter((o) => o.kind === 'move')), eco(), target);
+  check(both.includes(a.id) && both.includes(b.id), 'after the move, both can attack: ' + both.join());
+  s = addOrder(cancelOrder(s, 1), eco(), { kind: 'attack', target, units: [a.id, b.id], munitions: 0 });
+  check(queueCheck(s, eco()).state.phase === s.phase, 'checking the queue keeps the phase');
+  const out = commitOrders(s, eco());
+  check(out.actions[0].kind === 'move' && out.actions[1].kind === 'attack', out.actions.map((x) => x.kind).join());
+  check(phaseOf(out.state, eco()).id === 'entente-attack' && out.state.orders.length === 0, 'left in the attack phase');
+  check(phaseOf(endPhase(out.state, eco()), eco()).id !== 'entente-attack', 'End Phase moves on');
+});
+
+test('orders phase: a commit with only moves still ends the attack phase too', () => {
+  const s = movePhase('entente');
+  const out = commitOrders(s, eco());
+  check(phaseOf(out.state, eco()).id === 'entente-attack', 'in the attack phase, ready for End Phase');
+});
+
+test('orders phase: the staging territory for a unit that must step up to attack', () => {
+  const s = movePhase('entente');
+  const front = unit(s, 'fra-01');
+  const target = boxById(front.box).neighbours.find((id) => s.boxes[id].owner === 'germany');
+  check(stagingBox(s, eco(), front.id, target) === front.box, 'already next to it: stay');
+  const behind = s.units.find((u) => u.nation === 'fra' && moveTargets(s, eco(), u.id).includes(front.box) && !boxById(u.box).neighbours.includes(target));
+  const stage = stagingBox(s, eco(), behind.id, target);
+  check(stage && boxById(stage).neighbours.includes(target) && moveTargets(s, eco(), behind.id).includes(stage), 'steps up to a territory next to it: ' + stage);
+  const rear = s.units.find((u) => u.nation === 'fra' && boxById(u.box).column === 'e3');
+  check(!rear || stagingBox(s, eco(), rear.id, target) === null, 'too far by road: no staging territory');
 });
 
 test('help: every How to Play section has a title and text', () => {

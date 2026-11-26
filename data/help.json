@@ -1,12 +1,12 @@
 {
   "_about": "The How to Play page (js/ui/help.js). Plain-English summary of docs/RULES.md for players: if a rule changes there, change it here too. Each section has a title and paragraphs; 'diagram': 'lane' draws the small picture of which territories touch. See docs/DATA.md.",
   "title": "How to play",
-  "intro": "Each turn is one month, from December 1914 to November 1918. In each of your phases you give orders, they appear as pencil arrows, and nothing happens until you tap COMMIT.",
+  "intro": "Each turn is one month, from December 1914 to November 1918. In your turn you give orders (moves and attacks together), they appear as pencil arrows, and nothing happens until you tap COMMIT. You play on the board: one square per territory. The Map button shows the same war on the real map.",
   "sections": [
     {
       "title": "A month of the war",
       "paragraphs": [
-        "1. Events and reinforcements arrive. 2. The War Office budget: Industry buys shells and research (done for you unless you turn Auto-allocate off in the menu (top left)). 3. German move, then German attack. 4. Entente move, then Entente attack. 5. Supply, digging in, replacements and National Will happen by themselves.",
+        "1. Events and reinforcements arrive. 2. The War Office budget: Industry buys shells and research (done for you unless you turn Auto-allocate off in the menu (top left)). 3. The German turn: moves, then attacks. 4. The Entente turn: moves, then attacks. 5. Supply, digging in, replacements and National Will happen by themselves.",
         "The line under the date always says what you can do now, and what you have left to spend."
       ]
     },
@@ -22,7 +22,7 @@
     {
       "title": "Splitting and merging pieces",
       "paragraphs": [
-        "In your move phase you can split a piece: tap it, then 'Split off 1 step' (or 2, or 3). The new, smaller piece stays in the territory and can move on its own. Use it to leave a small picket in a quiet sector and march the rest to where the attack will be.",
+        "In your turn you can split a piece: tap it, then 'Split off 1 step' (or 2, or 3). The new, smaller piece stays in the territory and can move on its own. Use it to leave a small picket in a quiet sector and march the rest to where the attack will be.",
         "Two pieces of the same nation and type in one territory can merge back into one if their steps fit (4 for infantry). The merged piece takes the lower quality. The computer merges its damaged pieces but never splits.",
         "Don't leave a territory empty: an empty territory is taken without a fight. Even a 1-step picket makes the enemy pay an attack for it."
       ]
@@ -30,9 +30,9 @@
     {
       "title": "Who can attack whom",
       "paragraphs": [
-        "In your attack phase, a unit can attack an enemy territory that shares a side with its own. Each unit attacks once a month, must be in supply, and must not have come by rail. Enemy territories you can attack are outlined in red.",
+        "A unit can attack an enemy territory that shares a side with the territory it stands in once its moves are done. Tap the unit: the enemy territories it can attack are outlined in red. If it has to step up first, tapping the red territory orders that road move for you, then opens the attack. Each unit attacks once a month, must be in supply, and must not have come by rail.",
         "An attack costs 1 Offensive Point (2 if units of two nations attack together).",
-        "Each enemy front-line territory touches only one of yours, straight across no-man's-land. So the way to attack is to stack up to 3 units in one front territory in your move phase, then attack from it. One unit against one dug-in unit almost never wins."
+        "Each enemy front-line territory touches only one of yours, straight across no-man's-land. So the way to attack is to bring up to 3 units into one front territory, then attack from it, all in the same turn. One unit against one dug-in unit almost never wins."
       ]
     },
     {
@@ -42,7 +42,7 @@
         "Shifts then move the column: −1 for each trench level, −1 or −2 for hard ground (ridges, forest, mountains, fortresses, the flooded Yser, autumn mud in Flanders), −1 in winter (December to February), +1 for each munition in a barrage (up to 2, or 3 from June 1916), and the nations' strengths.",
         "Then two dice are rolled. The result says how many steps each side loses, and on good rolls an R: the defenders retreat and you take the territory. The chance of an R is 0, 3, 17, 42, 58 or 83% from 1:2 to 4:1. That's why the odds jump in steps.",
         "Dug in: from trench level 2, an R becomes one more loss instead of a retreat. Then you only take the territory by destroying every defending step, which is why a well-held trench can show 0%: wear it down over several months, or attack somewhere weaker.",
-        "A failed attack at 1:1 or worse costs your nation 3 National Will. The order slip shows the roll you need, what every roll would do, and why the odds are what they are. BEST ATTACKS shows your three best chances this phase."
+        "A failed attack at 1:1 or worse costs your nation 3 National Will. The order slip shows the roll you need, what every roll would do, and why the odds are what they are. BEST ATTACKS shows your three best chances this turn."
       ]
     },
     {
