@@ -34,7 +34,8 @@ function willCell(n) {
   const td = el('td', 'ledger-will');
   const gauge = el('span', 'will-gauge');
   const fill = el('span', 'will-fill');
-  fill.style.width = `${Math.max(0, Math.min(100, (n.will / Math.max(n.willStart, n.will, 1)) * 100))}%`;
+  // drawn full width and squeezed with a transform (animating width is slow on a phone)
+  fill.style.transform = `scaleX(${Math.max(0, Math.min(1, n.will / Math.max(n.willStart, n.will, 1))).toFixed(4)})`;
   gauge.appendChild(fill);
   td.appendChild(el('span', 'ledger-num', String(n.will)));
   td.appendChild(gauge);
