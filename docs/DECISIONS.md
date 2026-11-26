@@ -522,6 +522,61 @@ I'll change it.
      damaged pieces of the same nation and type in one territory, strongest kept. Merges
      aren't animated in the playback, but each one is in the Dispatches.
 
+### Milestone 9 (last part): event telegrams and the Nations screen (no rule changes)
+108. **Every §10 event arrives as a telegram** sliding up from the bottom: "TELEGRAM —
+     URGENT", the date, what happened and "WHAT THIS MEANS". The wording is in
+     `data/events.json` (`telegram` on each event and option) and `data/nations.json` (the
+     USA's entry, the French mutinies), not in the code. Telegrams change nothing in play and
+     use no dice: 4 computer-vs-computer wars (`node tools/js-sim.mjs 4`) give exactly
+     the same results before and after this change.
+109. **What sends a telegram** (your answers 1 and 3):
+     - every dated event in its month: gas, the creeping barrage, Vimy, Russia, the
+       stormtroopers, the U-boat decision and the Hindenburg Line;
+     - the blockade, the Turnip Winter and Hunger only in the first month each starts (the
+       Nations screen shows them while they last);
+     - the USA declaring war, with the month its first troops are due; the French mutinies
+       starting and ending;
+     - two notices that change nothing: April 1918, "Germany must attack by October 1918",
+       and August 1918, German exhaustion (its effect was already a trait);
+     - the Kaiserschlacht penalty in November 1918, only if it happens.
+     - Not commanders: their changes come with the commander cards (milestone 12). The
+       telegram can already ask a question, so they'll reuse it.
+110. **Questions** (the U-boats and the Hindenburg Line) are now a telegram with a brass
+     button for each answer and its consequences underneath, instead of the panel's
+     DECISION REQUIRED card. It can't be tapped away, and COMMIT stays grey until you answer.
+111. **The computer's choices** are telegrams too: "Germany has declared unrestricted
+     submarine warfare. WHAT THIS MEANS: Britain loses 2 Will each month for 6 months. The
+     United States will enter the war in April 1917; its troops follow 7 months later."
+112. **When they appear** (your answer 2): after the enemy's turn has played back, never
+     over an animation. Several in one month queue up ("1 of 3"); tap for the next. Only the
+     first slides up (0.3 s, a transform; none with Reduce Motion), the rest replace it.
+113. **Saves are now version 6** (they keep the telegrams and how many you've read). Older
+     saves start with none, except a question that's waiting, which becomes a telegram.
+114. **The Telegrams log** in the ☰ menu lists every telegram, newest first, with the
+     answer you gave to each question.
+115. **The Nations screen is the War Office ledger, rearranged.** At the top: the Armistice
+     Score, a line saying who's winning and the biggest reason (Will, or cities taken),
+     and the countdowns: US troops, next reinforcements, the Kaiserschlacht deadline (from
+     January 1918; "Germany has attacked: no penalty" once it has), the mutinies, the
+     U-boat pressure on Britain, the end of the war. Then **one page per nation** with name
+     tabs, swiped sideways: Will (gauge, trend and a small Will-over-time chart),
+     Manpower, Industry, the stockpile, OP and rail moves, research, units and strength,
+     the VP cities its side holds, casualties, the commander, and "In effect": every trait
+     and event affecting it, marked NOW, COMING or OVER, each with one line. Belgium gets a
+     page too. The strength chart, cities and "This month" stay below.
+116. **One tap from the map** (your answer 4): a brass **Nations** button at the bottom left
+     of the map shows the running score. The ☰ menu item is now "Nations (War Office)".
+117. **Small data fixes for the Nations screen** (wording only, no numbers): Britain's shell
+     crisis and France's "Bleeding" got dates so they show as over or coming at the right
+     time, and two trait lines now match RULES.md §4 (Industry, not munitions). The
+     Entente side got `theName` ("the Entente") so sentences read properly.
+118. **Readability:** the small italic notes in the ledger were in ink-faded, which is
+     just under the WCAG AA contrast on paper (4.4 : 1). They're in ink now.
+119. **A layout bug found while checking:** on a folded phone, once the USA is in the war,
+     the phase line ("OP: FRA 2 · GBR 2 · USA 1 · rail …") made the whole screen wider than
+     the phone, so the BEST ATTACKS button was cut off. The screen's single column can now
+     shrink, so the line ends in "…" instead.
+
 ## Questions for you (answered)
 1. **Combat table — answered: RULES.md is right.**
    - The balance tests used `tools/t2.py`, which patched the simulator's 1:2 and 1:1
@@ -669,3 +724,22 @@ I'll change it.
       1 step / 2 steps / 3 steps". Tap "1 step": a second, 1-step piece appears in the
       same territory (×2 on the stack). Move the big one away and leave the picket. Then
       put two damaged pieces together and tap "Merge with the …-step piece".
+- [ ] **Telegrams (Version 10.7).** Start a campaign as **Germany** and play to February
+      1917 (or as the Entente to April 1917).
+      - In April 1915 a telegram slides up from the bottom: "TELEGRAM — URGENT", "GAS AT
+        YPRES" and "WHAT THIS MEANS". Tap it to close it.
+      - As Germany in February 1917: the U-boat telegram has two brass buttons, each with
+        its consequences. COMMIT stays grey until you tap one.
+      - As the Entente: after Germany's turn plays back in February 1917 you get "Germany
+        has declared unrestricted submarine warfare", then in March the Hindenburg Line,
+        then in April Vimy and "America enters the war" ("1 of 2", "2 of 2").
+      - ☰ → **Telegrams**: every telegram so far, newest first, with your answers.
+      - Is the text easy to read on the folded phone? Does anything cover the map for too
+        long?
+- [ ] **The Nations screen (Version 10.7).** Tap the brass **Nations** button at the bottom
+      left of the map (it shows the score, e.g. "+4.0").
+      - At the top: the Armistice Score and one line on who's ahead and why; then the
+        countdowns ("US troops expected: 7 months"; from 1918 the Kaiserschlacht deadline).
+      - Tap **France**, **Britain** … or swipe sideways: one page per nation, with its Will
+        chart (tap it to read a month) and "In effect" (NOW / COMING / OVER).
+      - Fold and unfold the phone with it open: the page should re-fit.

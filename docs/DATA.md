@@ -80,14 +80,14 @@ instead of +1: open ground 2, forest and mountains 0).
 ## `nations.json`: sides and nations
 | Field | Meaning |
 |---|---|
-| `sides` | `id` (`"entente"`, `"germany"`), `name`, `color` (the 30% tint on territories the side owns; a docs/STYLE.md colour), `faces` (`"left"` or `"right"`: which way the soldiers on its pieces face, towards the enemy) and the list of its `nations` |
+| `sides` | `id` (`"entente"`, `"germany"`), `name`, `color` (the 30% tint on territories the side owns; a docs/STYLE.md colour), `faces` (`"left"` or `"right"`: which way the soldiers on its pieces face, towards the enemy), an optional `theName` for sentences ("the Entente") and the list of its `nations` |
 | `nations` | `id` (`"ger"`, `"fra"`…), `adjective` (`"German"`), `name`, `short` (`"GER"`), `side` and `color` (the nation's STYLE.md colour, for its counters) |
 | `nations[].startWill` | Starting National Will (RULES.md §11). `null` for Belgium (its losses count against `willCountsAgainst`). `entersLater: true` for the USA. |
 | `nations[].stepsPerWill` | 1 Will lost per this many steps lost (RULES.md §4, §11) |
 | `nations[].railMoves` | Rail moves per turn (RULES.md §8) |
 | `nations[].supplySources` | *(optional)* Boxes this nation must trace supply to instead of its side's rear column (GBR: Channel Ports, Hazebrouck) |
 | `nations[].resources` | `op`, `munitions`, `rp`: each a list of `{ "from": "YYYY-MM", "value" }`; the latest entry that has started applies (RULES.md §6) |
-| `nations[].traits` | National traits (RULES.md §4): `id`, `name`, `text` (for the Nations screen) and `kind`, which says what the engine does with it (see combat below) |
+| `nations[].traits` | National traits (RULES.md §4): `id`, `name`, `text` (for the Nations screen; optional `from`/`to` months say when it's on, so the screen can mark it NOW, COMING or OVER) and `kind`, which says what the engine does with it (see combat below) |
 
 Copy numbers tagged [balanced] in RULES.md exactly; change them in RULES.md first.
 
@@ -155,6 +155,17 @@ USA).
 
 A **`choice`** event asks `side` a `question` with `options` (each with `label`, `text`
 and `effects`). The computer picks `aiChoice`; a human player is asked, and the turn waits.
+
+**Telegrams** (docs/STYLE.md §6, `js/engine/telegrams.js`): an event's `telegram` is
+`{ title, text, meaning }`: the headline, what happened, and in plain English what it means
+for the player. It's sent the month the event happens. `once: true` sends it only the first
+month a repeating event happens (the blockade). For a `choice`, the event's telegram asks the
+question, and each option's `telegram` is what's sent when the computer picks it ("Germany has
+declared unrestricted submarine warfare"); its `meaning` is shown under the option's button.
+An event with no `effects` is a notice only (the Kaiserschlacht warning, German exhaustion,
+whose effect is a trait in `nations.json`). Text may use `{placeholders}`: the USA's
+`entryTelegram` in `nations.json` fills `{will}` and `{troops}` (the month the first US units
+are due), and France's `mutiny.telegram` (`start` and `end`) fills `{turns}` and `{willAfter}`.
 
 **`reinforcements`**: `dated` lists `{month, nation, type, count}` (optional `quality`,
 `greenUntil`). `afterEntry` lists US arrivals `after` months from the declaration.

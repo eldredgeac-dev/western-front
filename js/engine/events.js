@@ -11,6 +11,7 @@ import { unitsIn, stackRoom, sideOfNation, unitType } from './units.js';
 import { rearColumn } from './supply.js';
 import { addLog, unitLabel } from './moves.js';
 import { next as rngNext } from './rng.js';
+import { sendTelegram, sentBefore, openQuestion, questionTelegram } from './telegrams.js';
 
 const monthOfYear = (month) => Number(month.slice(5, 7));
 const laneNumber = (data, boxId) => data.map.lanes.find((l) => l.id === data.map.boxes.find((b) => b.id === boxId).lane).number;
@@ -170,22 +171,39 @@ function seasoning(state) {
   }
 }
 
-// The USA enters the war in its declaration month: its Will starts.
+// The USA enters the war in its declaration month: its Will starts, and a telegram
+// says when its first troops are due.
 function usaEntry(state, data) {
   if (!state.usaEntry || currentMonth(state) !== state.usaEntry) return;
   const usa = data.nations.nations.find((n) => n.entersLater);
   if (usa && state.will[usa.id] === undefined) {
     state.will[usa.id] = usa.startWill + ((state.willBonus || {})[usa.side] || 0);
     addLog(state, `${usa.name} declares war.`);
+    if (usa.entryTelegram) {
+      const after = data.events.reinforcements.afterEntry.map((d) => d.after);
+      const troops = after.length ? monthName(addMonths(state.usaEntry, Math.min(...after))) : 'the coming months';
+      sendTelegram(state, 'usa-entry', usa.entryTelegram, { will: state.will[usa.id], troops });
+    }
   }
+}
+
+// "1917-11" → "November 1917" (STYLE.md §10: dates in words everywhere).
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+export function monthName(month) {
+  return `${MONTH_NAMES[Number(month.slice(5, 7)) - 1]} ${month.slice(0, 4)}`;
 }
 
 // ---------------------------------------------------------------- the events phase
 // Apply an event's effects and log it.
+// Then send its telegram, unless it's a repeating one ('once') that was already sent,
+// or nothing happened (the Kaiserschlacht gamble when Germany did attack).
 function happen(state, data, event, effects) {
   let logged = true;
   for (const e of effects) logged = applyEffect(state, data, e) !== false && logged;
   if (logged && !event.quiet) addLog(state, `${event.name.toUpperCase()}: ${event.text}`);
+  if (logged && event.telegram && !(event.telegram.once && sentBefore(state, event.id))) {
+    sendTelegram(state, event.id, event.telegram);
+  }
 }
 
 // Run this month's events. `controllers` says who plays each side ('human' or 'ai');
@@ -206,11 +224,14 @@ export function runEvents(state, data) {
       const who = (state.controllers || {})[event.choice.side] || 'human';
       if (who === 'ai') {
         const opt = event.choice.options.find((o) => o.id === event.choice.aiChoice);
-        happen(state, data, event, opt.effects);
+        happen(state, data, { ...event, telegram: null }, opt.effects);
         addLog(state, `${event.name}: ${opt.label}.`);
+        // the computer's choice, as a telegram ("Germany has declared …")
+        if (opt.telegram) sendTelegram(state, `${event.id}:${opt.id}`, opt.telegram);
       } else {
         state.pendingChoice = { event: event.id, month };
         addLog(state, `${event.name.toUpperCase()}: ${event.text}`);
+        questionTelegram(state, event);
       }
       continue;
     }
@@ -235,6 +256,9 @@ export function chooseOption(state, data, optionId) {
   if (!option) throw new Error('No such answer.');
   const next = copyState(state);
   delete next.pendingChoice;
+  // the question's telegram records the answer (the Telegrams log shows it)
+  const asked = openQuestion(next);
+  if (asked) { asked.choice.answer = option.id; asked.answerText = option.telegram ? `${option.telegram.text} ${option.telegram.meaning}` : option.text; }
   for (const e of option.effects) applyEffect(next, data, e);
   usaEntry(next, data);
   addLog(next, `${choice.event.name}: ${option.label}. ${option.text}`);

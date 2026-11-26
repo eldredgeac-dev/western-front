@@ -165,6 +165,7 @@ html, body {
   height: 100dvh;
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);   /* a long phase line mustn't widen the screen */
   grid-template-areas: "bar" "guide" "map";
   padding:
     env(safe-area-inset-top) env(safe-area-inset-right)
@@ -364,7 +365,6 @@ html, body {
 }
 .slip-stamp.failed { border-color: var(--stamp-red); color: var(--stamp-red); }
 .slip-buttons { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
-.slip-choice { display: block; width: 100%; margin: 6px 0; text-align: left; text-transform: none; letter-spacing: 0; font: 0.95rem var(--font-type); }
 .order-slip .btn:not(.btn-primary) { color: var(--ink); border-color: var(--ink); }
 
 .situation { border-top: 1px solid var(--brass); padding-top: 8px; }
@@ -634,7 +634,7 @@ html, body {
 .ledger-nation { font: 400 1.1rem var(--font-place); border-left: 1px solid rgba(110, 98, 83, 0.45); }
 .ledger-num { font-family: var(--font-type); }
 .ledger-text { font-family: var(--font-ui); }
-.ledger-sub { display: block; font-style: italic; color: var(--ink-faded); }
+.ledger-sub { display: block; font-style: italic; color: var(--ink); }   /* ink-faded is under WCAG AA on paper */
 .ledger-warn { color: var(--stamp-red); }
 .ledger-will .ledger-num { font: 700 1.1rem var(--font-type); }
 .will-gauge { display: block; height: 8px; margin: 4px 0; border: 1px solid var(--ink); background: var(--paper-dark); }
@@ -853,3 +853,90 @@ body.coaching .locator { display: none; }
 }
 .loss-pip.lost::before { transform: rotate(45deg); }
 .loss-pip.lost::after { transform: rotate(-45deg); }
+
+/* ---------- Event telegrams (STYLE.md §6): a strip of telegram paper sliding up from
+   the bottom with typed text, "URGENT" stamped in red. Over everything, even the War
+   Office. The slide is a transform only (STYLE.md §8) and is skipped with Reduce
+   Motion. ---------- */
+.telegram-host {
+  position: fixed; z-index: 30; left: 0; right: 0; bottom: 0;
+  display: flex; justify-content: center;
+  padding: 0 max(8px, env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+  pointer-events: none;
+}
+.telegram {
+  width: 100%; max-width: 560px; max-height: 80dvh; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  padding: 12px 16px 10px; pointer-events: auto;
+  background: var(--telegram); color: var(--ink);
+  border-top: 3px double var(--ink); border-radius: 2px; box-shadow: 0 -2px 12px var(--leather);
+  font: 0.98rem/1.45 var(--font-type); cursor: pointer;
+}
+.telegram:focus-visible { outline: 2px solid var(--brass); outline-offset: -4px; }
+.tg-arrive { animation: tg-slide 0.3s ease-out; }
+@keyframes tg-slide { from { transform: translateY(105%); } to { transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .tg-arrive { animation: none; } }
+.tg-head { display: flex; align-items: center; gap: 10px; margin: 0 0 6px; padding-bottom: 6px; border-bottom: 1px solid var(--ink); }
+.tg-kicker { font-weight: 700; letter-spacing: 0.3em; }
+.tg-urgent {
+  padding: 0 6px; border: 2px solid var(--stamp-red); color: var(--stamp-red);
+  font-weight: 700; letter-spacing: 0.2em; transform: rotate(-3deg);
+}
+.tg-count { margin-left: auto; color: var(--ink-faded); font-size: 0.85rem; }
+.tg-date { margin: 0; color: var(--ink-faded); font-size: 0.85rem; letter-spacing: 0.1em; }
+.tg-title { margin: 2px 0 4px; font: 700 1.1rem var(--font-type); letter-spacing: 0.04em; }
+.tg-text { margin: 4px 0; }
+.tg-meaning { margin: 8px 0 4px; padding-top: 6px; border-top: 1px dotted var(--ink-faded); }
+.tg-question { margin: 10px 0 4px; font-weight: 700; }
+.tg-dismiss { margin: 8px 0 0; text-align: right; color: var(--ink-faded); font-size: 0.85rem; }
+.tg-choice {
+  display: block; width: 100%; margin: 8px 0 0; padding: 10px 12px; text-align: left;
+  text-transform: none; letter-spacing: 0; font: 0.95rem/1.35 var(--font-type);
+}
+.tg-choice-label { display: block; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; }
+.tg-choice-text { display: block; }
+.tg-answer { margin: 6px 0 0; font-weight: 700; color: var(--front-red); }
+/* in the Telegrams log: filed one under another, no sliding, not tappable */
+.telegram-filed { max-height: none; margin: 12px 0 0; cursor: auto; box-shadow: none; border: 1px solid var(--ink-faded); border-top: 3px double var(--ink); }
+
+/* ---------- The Nations button (bottom left of the map): one tap to the Nations
+   screen, showing the running Armistice Score. ---------- */
+.btn-nations {
+  position: absolute; z-index: 3;
+  left: max(10px, env(safe-area-inset-left)); bottom: calc(56px + env(safe-area-inset-bottom));
+  display: flex; flex-direction: column; align-items: flex-start; gap: 0;
+  padding: 4px 10px; background: var(--leather-light); line-height: 1.15;
+  font-size: 0.72rem;
+}
+.nations-score { font: 700 1rem var(--font-type); letter-spacing: 0; color: var(--telegram); }
+@media (min-width: 700px) { .btn-nations { bottom: calc(16px + env(safe-area-inset-bottom)); } }
+.game-screen.playing-back .btn-nations { display: none; }
+
+/* ---------- The Nations screen: tabs, and one page per nation swiped sideways ---------- */
+.ledger-reason { font-weight: 600; }
+.nation-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 16px 0 8px; }
+.nation-tab { color: var(--ink); border-color: var(--ink-faded); letter-spacing: 0.04em; }
+.nation-tab[aria-selected="true"] { border-color: var(--ink); border-width: 2px; box-shadow: inset 0 -3px 0 var(--ink); }
+.nation-strip {
+  display: flex; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;
+  gap: 16px; overscroll-behavior-x: contain; align-items: flex-start;
+}
+.nation-page { flex: 0 0 100%; min-width: 0; scroll-snap-align: start; }
+.nation-name { margin: 0 0 4px; font: 400 1.4rem var(--font-place); border-bottom: 2px solid var(--ink); }
+.nation-table { width: 100%; }
+.nation-table td { border-left: 0; }
+.nation-table .ledger-rowhead { width: 42%; min-width: 0; max-width: none; }
+.will-chart-wrap { margin-top: 6px; }
+.will-chart { display: block; width: 100%; max-width: 320px; height: auto; touch-action: manipulation; }
+.nation-effects { margin: 10px 0 0; }
+.nation-effects-head { margin: 0 0 4px; font: 400 1.1rem var(--font-place); border-bottom: 1px solid var(--ink); }
+.effect-tag {
+  display: inline-block; min-width: 4.6em; margin-right: 6px; padding: 0 4px;
+  border: 1px solid currentColor; font: 700 0.72rem var(--font-type); letter-spacing: 0.08em; text-align: center;
+}
+.effect-active .effect-tag { color: var(--front-red); }
+.effect-ended { font-style: italic; }
+.effect-ended .effect-tag { color: var(--ink); }
+.nation-table td.will-chart-cell { padding-top: 0; }
+.will-chart { max-width: 420px; }
+.will-chart .chart-tick { font-size: 10px; }
+.will-chart .chart-label { font-size: 11px; }

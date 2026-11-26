@@ -12,7 +12,9 @@ import { showPanel } from './ui/panel.js';
 import { battleCounts, bigBattles, scarLevel, shortMonth } from './engine/battles.js';
 import { applyDemo } from './ui/demo.js';
 import { armisticeScore } from './engine/systems/will.js';
-import { pendingChoice, chooseOption } from './engine/events.js';
+import { chooseOption } from './engine/events.js';
+import { unseenTelegrams, markSeen, openQuestion } from './engine/telegrams.js';
+import { showTelegram, hideTelegram, showTelegramLog } from './ui/telegram.js';
 import { unitsIn, unitType, nationOf } from './engine/units.js';
 import { moveTargets, railTargets, phaseAllows, splitUnit, splitReason, mergeUnits, mergeReason } from './engine/moves.js';
 import { beginGame, endPhase, phaseOf, submitBudget } from './engine/turn.js';
@@ -362,12 +364,58 @@ function situation() {
   };
 }
 
-// Answer an event's question (the U-boat decision, the Hindenburg Line).
+// Answer an event's question (the U-boat decision, the Hindenburg Line), from the
+// buttons on its telegram.
 function answerChoice(optionId) {
+  const asked = openQuestion(state);
   state = chooseOption(state, orderData(), optionId);
+  if (asked) state = markSeen(state, asked.n);
   persist();
   redraw();
   refreshPanel();
+}
+
+// ---------------------------------------------------------------- event telegrams
+// Show the next telegram the player hasn't read (STYLE.md §6), one at a time. Never
+// while a turn is playing back: they wait until it's your turn again.
+let telegramShown = null;   // the number of the telegram on screen (null: none)
+let telegramIndex = 0;      // its place in this batch, for "1 of 3"
+function showTelegrams() {
+  const host = $('telegram');
+  // a question only counts while the turn is really waiting for its answer
+  const list = state ? unseenTelegrams(state).filter((t) => !(t.choice && !t.choice.answer && !state.pendingChoice)) : [];
+  if (!list.length || gameScreen.hidden || (playback && playback.isPlaying())) {
+    hideTelegram(host); telegramShown = null; telegramIndex = 0; return;
+  }
+  const t = list[0];
+  if (telegramShown === t.n && !host.hidden) return;
+  const still = telegramShown !== null;          // the first of a batch slides up; the rest replace it
+  telegramIndex = still ? telegramIndex + 1 : 1;
+  telegramShown = t.n;
+  showTelegram(host, t, {
+    place: { index: telegramIndex, count: telegramIndex + list.length - 1 },
+    monthName: monthLabel, still,
+    question: Boolean(t.choice && !t.choice.answer),
+    onDismiss: () => { state = markSeen(state, t.n); persist(); showTelegrams(); },
+    onChoose: answerChoice,
+  });
+}
+
+// The brass Nations button on the map shows the running Armistice Score (RULES.md
+// §11): one tap opens the Nations screen.
+function refreshNationsButton() {
+  const score = armisticeScore(state, data.engine);
+  $('nations-score').textContent = `${score > 0 ? '+' : score < 0 ? '−' : '±'}${Math.abs(score).toFixed(1)}`;
+  $('btn-nations').setAttribute('aria-label', `Nations: Armistice Score ${score.toFixed(1)}. Open the Nations screen`);
+}
+
+// The Telegrams log in the ☰ menu: every telegram so far.
+function openTelegramLog() {
+  if (!state || (playback && playback.isPlaying())) return;
+  const box = $('telegram-log');
+  showTelegramLog(box, state.telegrams || [], { monthName: monthLabel, onClose: () => { box.hidden = true; } });
+  box.hidden = false;
+  box.scrollTop = 0;
 }
 
 // The data the engine needs to check orders.
@@ -399,7 +447,6 @@ function refreshPanel() {
   showPanel(panelArea, selectedBox ? boxInfo(selectedBox) : null, data.terrainData, {
     onUnit: selectUnit, log: state.log, error: orderError, situation: situation(),
     onSplit: splitSelected, onMerge: mergeSelected,
-    choice: pendingChoice(state, data.engine), onChoose: answerChoice,
     slip: attack ? attackSlip() : null,
     onToggleUnit: toggleAttacker, onMunitions: changeMunitions, onConfirm: confirmAttack, onCancel: closeAttack,
     orders: ordersInfo(), onCancelOrder: dropOrder, onShowOrder: showOrder,
@@ -931,8 +978,9 @@ function redraw() {
   $('btn-best').hidden = !attackOrdersNow(human);   // it only helps when you can attack
   if (!attackOrdersNow(human)) clearSuggestions();
   refreshTargets();
-  if (state.pendingChoice) openSheet(true);
   showPendingBudget();
+  showTelegrams();
+  refreshNationsButton();
   if (coach) coach.update(state, Boolean(playback && playback.isPlaying()));
 }
 
@@ -1017,7 +1065,7 @@ async function playTurn(actions) {
   gameScreen.classList.remove('playing-back');
   redraw();
   refreshPanel();
-  if (state.pendingChoice || reports.length) openSheet(true);
+  if (reports.length) openSheet(true);
 }
 // Draw the map as it was partway through a turn (a snapshot from js/engine/orders.js).
 function showBoard(snap) {
@@ -1196,9 +1244,11 @@ async function boot() {
   $('btn-export').addEventListener('click', exportSave);
   $('btn-import').addEventListener('click', () => $('import-file').click());
   $('import-file').addEventListener('change', (e) => importSave(e.target));
-  $('btn-back').addEventListener('click', () => { if (coach) coach.stop(); $('war-office').hidden = true; $('budget').hidden = true; budgetShown = null; showScreen(titleScreen); updateContinueButton(); });
+  $('btn-back').addEventListener('click', () => { if (coach) coach.stop(); $('war-office').hidden = true; $('telegram-log').hidden = true; hideTelegram($('telegram')); telegramShown = null; $('budget').hidden = true; budgetShown = null; showScreen(titleScreen); updateContinueButton(); });
   $('btn-end-phase').addEventListener('click', () => { if (state) commit(); });
   $('btn-war-office').addEventListener('click', openWarOffice);
+  $('btn-nations').addEventListener('click', openWarOffice);
+  $('btn-telegrams').addEventListener('click', openTelegramLog);
   $('btn-best').addEventListener('click', () => { if (state) toggleBest(); });
   $('btn-help').addEventListener('click', openHelp);
   $('btn-auto').addEventListener('click', toggleAuto);
@@ -1206,7 +1256,7 @@ async function boot() {
   $('btn-guide').addEventListener('click', () => toggleGuide());
   $('btn-menu').addEventListener('click', () => openMenu($('game-menu').hidden));
   // a choice in the menu closes it (except the two settings, so you see them change)
-  for (const id of ['btn-war-office', 'btn-help', 'btn-back']) $(id).addEventListener('click', () => openMenu(false));
+  for (const id of ['btn-war-office', 'btn-telegrams', 'btn-help', 'btn-back']) $(id).addEventListener('click', () => openMenu(false));
   // so does a tap anywhere outside it
   document.addEventListener('pointerdown', (e) => {
     if (!$('game-menu').hidden && !e.target.closest('#game-menu, #btn-menu')) openMenu(false);

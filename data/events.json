@@ -1,5 +1,5 @@
 {
- "_about": "Dated events and reinforcements (RULES.md §4, §10) [balanced]. Each event has a 'month' (or 'from'/'to' with optional 'months' of the year), a 'name', a 'text' for the log and 'effects' the engine applies (see docs/DATA.md for the kinds). A 'choice' event asks one side to pick an option; the computer picks 'aiChoice'. Reinforcements arrive in the nation's rear column (placeLanes limits where); 'afterEntry' months count from the USA's declaration of war.",
+ "_about": "Dated events and reinforcements (RULES.md §4, §10) [balanced]. Each event has a 'month' (or 'from'/'to' with optional 'months' of the year), a 'name', a 'text' for the log and 'effects' the engine applies (see docs/DATA.md for the kinds). A 'choice' event asks one side to pick an option; the computer picks 'aiChoice'. Reinforcements arrive in the nation's rear column (placeLanes limits where); 'afterEntry' months count from the USA's declaration of war. A 'telegram' {title, text, meaning} is what the event telegram says (docs/STYLE.md §6); 'once: true' sends it only the first month a repeating event happens. Each choice option's 'telegram' is sent when the computer picks it. Events with no effects are notices only.",
  "events": [
   {
    "id": "gas",
@@ -17,7 +17,12 @@
      "uses": 1,
      "label": "Gas"
     }
-   ]
+   ],
+   "telegram": {
+    "title": "GAS AT YPRES",
+    "text": "German troops have released chlorine gas against the line north of Ypres.",
+    "meaning": "Germany’s first attack in lane 2 (Ypres) this month gets +2 columns. After that one attack the surprise is gone."
+   }
   },
   {
    "id": "blockade",
@@ -40,7 +45,13 @@
      "nation": "ger",
      "value": -1
     }
-   ]
+   ],
+   "telegram": {
+    "title": "THE BLOCKADE BITES",
+    "text": "The Royal Navy’s blockade is starving Germany of food and raw materials.",
+    "meaning": "Germany loses 1 Will every other month through December 1916. Harder years follow: the Turnip Winter in 1917, then hunger in 1918.",
+    "once": true
+   }
   },
   {
    "id": "turnip-winter",
@@ -55,7 +66,13 @@
      "nation": "ger",
      "value": -1
     }
-   ]
+   ],
+   "telegram": {
+    "title": "THE TURNIP WINTER",
+    "text": "The potato harvest has failed. German families are living on turnips.",
+    "meaning": "Germany loses 1 Will every month of 1917.",
+    "once": true
+   }
   },
   {
    "id": "hunger",
@@ -70,14 +87,25 @@
      "nation": "ger",
      "value": -2
     }
-   ]
+   ],
+   "telegram": {
+    "title": "HUNGER IN GERMANY",
+    "text": "Rations in German cities have fallen below what a man can work on.",
+    "meaning": "Germany loses 2 Will every month of 1918. Time is against Germany.",
+    "once": true
+   }
   },
   {
    "id": "creeping-barrage",
    "month": "1916-06",
    "name": "Creeping barrage",
    "text": "The creeping barrage: up to 3 munitions per attack from now on.",
-   "effects": []
+   "effects": [],
+   "telegram": {
+    "title": "THE CREEPING BARRAGE",
+    "text": "The gunners have learned to walk their shells forward just ahead of the infantry.",
+    "meaning": "From now on an attack can use up to 3 munitions (+3 columns) instead of 2."
+   }
   },
   {
    "id": "u-boats",
@@ -104,7 +132,12 @@
         "kind": "usa-entry",
         "month": "1917-04"
        }
-      ]
+      ],
+      "telegram": {
+       "title": "UNRESTRICTED SUBMARINE WARFARE",
+       "text": "Germany has declared unrestricted submarine warfare.",
+       "meaning": "Britain loses 2 Will each month for 6 months. The United States will enter the war in April 1917; its troops follow 7 months later."
+      }
      },
      {
       "id": "restricted",
@@ -115,9 +148,19 @@
         "kind": "usa-entry",
         "month": "1918-01"
        }
-      ]
+      ],
+      "telegram": {
+       "title": "U-BOATS HELD BACK",
+       "text": "Germany will keep to the prize rules at sea.",
+       "meaning": "No extra pressure on Britain. The United States will enter the war in January 1918; its troops follow 7 months later."
+      }
      }
     ]
+   },
+   "telegram": {
+    "title": "THE U-BOAT DECISION",
+    "text": "The German Admiralty asks for permission to sink every ship in British waters without warning.",
+    "meaning": "Germany must choose. Unrestricted warfare hurts Britain but brings the United States in sooner."
    }
   },
   {
@@ -152,15 +195,30 @@
          "ger": 2
         }
        }
-      ]
+      ],
+      "telegram": {
+       "title": "GERMANY FALLS BACK",
+       "text": "Germany has withdrawn to the Hindenburg Line.",
+       "meaning": "The German front line in lanes 5–8 is given up to the Entente. The line behind it is now trench 3, and Germany has 2 extra rail moves this month."
+      }
      },
      {
       "id": "hold",
       "label": "Hold the line",
       "text": "Stay where you are.",
-      "effects": []
+      "effects": [],
+      "telegram": {
+       "title": "GERMANY HOLDS",
+       "text": "Germany has decided to hold its present line.",
+       "meaning": "Nothing changes on the map."
+      }
      }
     ]
+   },
+   "telegram": {
+    "title": "THE HINDENBURG LINE",
+    "text": "A new, deeply dug line of concrete and wire is ready behind the Somme and the Oise.",
+    "meaning": "Germany must choose whether to give up the front line in lanes 5–8 and fall back to it."
    }
   },
   {
@@ -175,7 +233,12 @@
      "type": "infantry",
      "count": 2
     }
-   ]
+   ],
+   "telegram": {
+    "title": "VIMY RIDGE",
+    "text": "The Canadian Corps has stormed Vimy Ridge. The Dominion troops have proved themselves.",
+    "meaning": "Two British infantry units become Elite for good: +1 column when they attack."
+   }
   },
   {
    "id": "russia",
@@ -188,7 +251,12 @@
      "nation": "ger",
      "value": 10
     }
-   ]
+   ],
+   "telegram": {
+    "title": "RUSSIA LEAVES THE WAR",
+    "text": "The Bolshevik government has signed an armistice with Germany.",
+    "meaning": "Germany gains 10 Will. German divisions from the East arrive in January, February and March 1918."
+   }
   },
   {
    "id": "stormtroopers",
@@ -203,7 +271,12 @@
      "to": "stormtroopers",
      "count": 4
     }
-   ]
+   ],
+   "telegram": {
+    "title": "STORMTROOPERS",
+    "text": "German assault battalions have been trained to infiltrate, bypassing strong points.",
+    "meaning": "Up to 4 German infantry units become Stormtroopers: when they attack a trench, one trench shift is cancelled."
+   }
   },
   {
    "id": "kaiserschlacht",
@@ -219,7 +292,36 @@
      "to": "1918-10",
      "value": -15
     }
-   ]
+   ],
+   "telegram": {
+    "title": "THE GAMBLE LOST",
+    "text": "Germany let the summer of 1918 pass without an offensive. The Americans are here in force.",
+    "meaning": "Germany loses 15 Will."
+   }
+  },
+  {
+   "id": "kaiserschlacht-warning",
+   "month": "1918-04",
+   "name": "The Kaiserschlacht",
+   "text": "Germany must attack by October 1918 or lose 15 Will.",
+   "effects": [],
+   "telegram": {
+    "title": "KAISERSCHLACHT",
+    "text": "Divisions freed from the East give Germany one last chance to win before the Americans arrive in force.",
+    "meaning": "Germany must make at least one attack between April and October 1918, or lose 15 Will at the start of November."
+   }
+  },
+  {
+   "id": "exhaustion",
+   "month": "1918-08",
+   "name": "German exhaustion",
+   "text": "The German army is exhausted: all Entente attacks get +1 column from now on.",
+   "effects": [],
+   "telegram": {
+    "title": "THE BLACK DAY",
+    "text": "At Amiens whole German divisions have given way. Influenza and hunger are breaking the army.",
+    "meaning": "German exhaustion: every Entente attack gets +1 column from now on."
+   }
   }
  ],
  "reinforcements": {
