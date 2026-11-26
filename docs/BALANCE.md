@@ -356,7 +356,7 @@ the top territories (up to 3 pieces). The game's computer ranks again after ever
 single move: the first piece to arrive lowers that territory's threat, so the next goes
 elsewhere. The reserves end up one per territory.
 
-### Proposed fix (not applied: waiting for your OK)
+### The fix (approved and applied)
 **The computer ranks its front once at the start of its move phase, as the simulator
 does** (`js/engine/ai.js`, about 3 lines; no RULES.md number changes; it fits RULES.md
 §14 step 3 as written). Measured with a temporary switch, then removed:
@@ -371,3 +371,15 @@ and draws rise to 28% (target under 25%). With 50 wars each number is ±14 point
 200-war run should come next. The count moves the right way (2:1 attacks on offer in
 1916–17: 1.38 → 1.59 and 1.20 → 1.43), but the German computer changes too, because it
 uses the same move code.
+
+**Applied, and re-run with 200 wars** (`node tools/js-par.mjs 200`, a new tool that runs
+js-sim on every processor core):
+
+| `node tools/js-par.mjs 200` | Germany | Entente | Draw | Mutinies | Attacks a war | Captures |
+|---|---|---|---|---|---|---|
+| Before the fix | 57% | 33% | 11% | 63% | 61 | 42.6 |
+| After the fix | **45%** | **37%** | **18%** | 74% | 66 | 46.7 |
+
+With 200 wars each figure is good to about ±7 points. The 50-war run (28 / 44 / 28) was
+mostly bad luck in those 50 seeds. **The game's engine is now inside every healthy range
+for even games** and close to the simulator (48 / 38 / 14).

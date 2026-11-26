@@ -658,8 +658,9 @@ I'll change it.
      it). `turn.js` gained an optional "probe" for the counting tool; it only looks.
 
 ## Questions for you (milestone 12)
-5. **Approve the AI fix in decision 128?** (Rank the front once per move phase.) If yes,
-   I'll apply it and re-run 200 wars before anything else.
+5. **Approve the AI fix in decision 128? — answered: yes.** Applied. With 200 wars the
+   game's engine went from Germany 57 / Entente 33 / draw 11 to **45 / 37 / 18**, inside
+   the healthy ranges (BALANCE.md). The 50-war figures in decision 128 were mostly noise.
 6. **Are the interpretations in decision 121 right?** Especially: sacking needs an
    available successor (so Joffre can't be sacked before December 1916), and a sacked
    commander's OP, Manpower and rail count from next month.
