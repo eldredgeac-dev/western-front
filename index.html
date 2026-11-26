@@ -35,6 +35,7 @@
       "./js/engine/units.js": "./js/engine/units.js?v=10.5",
       "./js/storage.js": "./js/storage.js?v=10.5",
       "./js/ui/animate.js": "./js/ui/animate.js?v=10.5",
+      "./js/ui/board.js": "./js/ui/board.js?v=10.5",
       "./js/ui/budget.js": "./js/ui/budget.js?v=10.5",
       "./js/ui/help.js": "./js/ui/help.js?v=10.5",
       "./js/ui/counters.js": "./js/ui/counters.js?v=10.5",
@@ -144,6 +145,8 @@
       <!-- The guided first turn's coach (js/ui/tutorial.js). -->
       <div id="coach" class="coach" hidden aria-live="polite"></div>
       <div class="zoom-buttons" role="group" aria-label="Zoom">
+        <!-- Board | Map (js/main.js): the board is the playing view; the map is the real geography. -->
+        <button id="btn-view" class="btn btn-zoom btn-zoom-fit" type="button" aria-label="Show the campaign map">Map</button>
         <button id="btn-zoom-in" class="btn btn-zoom" type="button" aria-label="Zoom in">+</button>
         <button id="btn-zoom-out" class="btn btn-zoom" type="button" aria-label="Zoom out">−</button>
         <button id="btn-zoom-fit" class="btn btn-zoom btn-zoom-fit" type="button" aria-label="Show the whole front line">Front</button>

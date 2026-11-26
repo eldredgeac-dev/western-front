@@ -7,6 +7,7 @@ import { newGame, currentMonth, monthLabel } from './engine/state.js';
 import { loadMapSvg, createMapView } from './ui/map.js';
 import { enableZoom } from './ui/zoom.js';
 import { createLocator } from './ui/locator.js';
+import { buildBoardSvg, BOARD_PREFIX, BOARD_PIECE } from './ui/board.js';
 import { showPanel } from './ui/panel.js';
 import { battleCounts, bigBattles, scarLevel, shortMonth } from './engine/battles.js';
 import { applyDemo } from './ui/demo.js';
@@ -46,7 +47,12 @@ const sheetHandle = $('sheet-handle');
 let data = null;
 // The game being played (null until New Campaign is tapped).
 let state = null;
-// The drawn map and its zoom controls (made once, on the first New Campaign).
+// The two views of the war (made once, on the first New Campaign): the board
+// (js/ui/board.js) and the campaign map. `viewName` says which is on screen.
+// `mapView` and `zoom` always mean the one on screen: they pass every call on to it,
+// so the playback, the tutorial and the arrows follow the Board | Map switch.
+const views = {};
+let viewName = null;
 let mapView = null;
 let zoom = null;
 // The planned attack shown in demo mode, or null.
@@ -732,23 +738,12 @@ function selectBox(boxId) {
 // Draw the map the first time; afterwards just repaint it for the new state.
 function showMap() {
   if (!mapView) {
-    mapView = createMapView(mapHolder, data.mapSvg, {
-      nations: data.nations,
-      boxNameFn: (id) => boxName(data.map, data.boxesById[id]),
-      // pencil notes use the box's name, or its town if it has none ("Thiepval")
-      noteNameFn: (id) => data.boxesById[id].name || data.boxesById[id].anchor.town,
-      shortMonthFn: shortMonth,
-    });
-    const vb = mapView.svg.viewBox.baseVal;
-    const mapSize = { w: vb.width, h: vb.height };          // the whole map, in map units
-    zoom = enableZoom(mapView.svg, {
-      onTap: tapBox,
-      onTapOrder: showOrder,
-      onViewChange: (k) => { mapView.declutter(); mapView.layout(k); showLocator(zoom.current()); },
-      home: mapView.frontBounds,
-      start: startPoint,
-    });
-    showLocator = createLocator($('locator'), mapSize, (x, y) => zoom.centreOn(x, y));
+    viewName = settings.view === 'map' ? 'map' : 'board';
+    mapView = new Proxy({}, { get: (_, key) => views[viewName].view[key] });
+    zoom = new Proxy({}, { get: (_, key) => views[viewName].zoom[key] });
+    makeView('map');                 // first, so the locator's <use> finds the map's layers
+    makeView('board');
+    showLocator = createLocator($('locator'), views.map.size, jumpTo);
     playback = createPlayback({
       mapView, mapArea: $('map-area'), bar: $('playback'), barLabel: $('playback-label'), skip: $('btn-skip'),
       slip: $('playback-slip'), showBoard, lookFor, describe: describeAction, fast: () => Boolean(settings.fast),
@@ -757,30 +752,109 @@ function showMap() {
     $('btn-zoom-in').addEventListener('click', () => zoom.zoomIn());
     $('btn-zoom-out').addEventListener('click', () => zoom.zoomOut());
     $('btn-zoom-fit').addEventListener('click', () => zoom.fit());
+    $('btn-view').addEventListener('click', () => setView(viewName === 'map' ? 'board' : 'map'));
+    showActiveView();
   }
   redraw();
   mapView.select(null);
   refreshTargets();
   if (demoAttack) mapView.showPlannedAttack(...demoAttack);
   else mapView.clearPlannedAttack();
-  zoom.startView();
+  for (const v of Object.values(views)) v.zoom.startView();
+}
+
+// Make one view ('map' or 'board') in its own layer of the map area, with its zoom.
+function makeView(name) {
+  const holder = document.createElement('div');
+  holder.className = 'view-holder';
+  mapHolder.appendChild(holder);
+  const board = name === 'board';
+  const svg = board ? buildBoardSvg(data.map, data.terrainData, data.mapSvg) : data.mapSvg;
+  const view = createMapView(holder, svg, {
+    nations: data.nations,
+    boxNameFn: (id) => boxName(data.map, data.boxesById[id]),
+    // pencil notes use the box's name, or its town if it has none ("Thiepval")
+    noteNameFn: (id) => data.boxesById[id].name || data.boxesById[id].anchor.town,
+    shortMonthFn: shortMonth,
+    prefix: board ? BOARD_PREFIX : '',
+    pieceSize: board ? BOARD_PIECE : null,
+  });
+  const vb = view.svg.viewBox.baseVal;
+  const size = { w: vb.width, h: vb.height };            // the whole view, in map units
+  const z = enableZoom(view.svg, {
+    onTap: tapBox,
+    onTapOrder: showOrder,
+    onViewChange: (k) => { view.declutter(); view.layout(k); if (name === viewName) showLocator(locatorArea()); },
+    home: view.frontBounds,
+    start: () => startPoint(view),
+    startZoom: board ? 0 : undefined,                    // the board starts filling the width
+  });
+  views[name] = { view, zoom: z, holder, size };
+}
+
+// Board | Map: show the chosen view (remembered on this phone).
+function setView(name) {
+  if (!views[name] || name === viewName || (playback && playback.isPlaying())) return;
+  // tidy the old view: its arrows and outlines would be stale when it comes back
+  clearSuggestions();
+  mapView.clearPlannedAttack();
+  mapView.showTargets([], []);
+  mapView.drawOrders([]);
+  viewName = name;
+  settings.view = name;
+  saveSettings();
+  showActiveView();
+  redraw();
+  mapView.select(selectedBox);
+  if (attack) showAttackArrow();
+  if (selectedBox) focusOn(selectedBox);
+  showLocator(locatorArea());
+}
+function showActiveView() {
+  for (const [n, v] of Object.entries(views)) v.holder.classList.toggle('inactive', n !== viewName);
+  // the button offers the other view
+  $('btn-view').textContent = viewName === 'map' ? 'Board' : 'Map';
+  $('btn-view').setAttribute('aria-label', viewName === 'map' ? 'Show the board' : 'Show the campaign map');
+}
+
+// The locator always shows the campaign map. On the board, it outlines where on the
+// real map the squares on screen are.
+function locatorArea() {
+  const area = zoom.current();
+  if (viewName === 'map') return area;
+  const [x, y, w, h] = area;
+  const board = views.board.view; const map = views.map.view;
+  const seen = board.boxIds().filter((id) => { const [ax, ay] = board.anchorOf(id); return ax >= x && ax <= x + w && ay >= y && ay <= y + h; });
+  if (!seen.length) return [0, 0, 0, 0];
+  const pts = seen.map((id) => map.anchorOf(id));
+  const xs = pts.map((p) => p[0]); const ys = pts.map((p) => p[1]); const pad = 25;
+  const x0 = Math.min(...xs) - pad; const y0 = Math.min(...ys) - pad;
+  return [x0, y0, Math.max(...xs) + pad - x0, Math.max(...ys) + pad - y0];
+}
+// A tap on the locator (a point on the campaign map): go there. On the board, go to
+// the square of the nearest territory.
+function jumpTo(x, y) {
+  if (viewName === 'map') { zoom.centreOn(x, y); return; }
+  const map = views.map.view;
+  const dist = (id) => { const [ax, ay] = map.anchorOf(id); return (ax - x) ** 2 + (ay - y) ** 2; };
+  const nearest = map.boxIds().reduce((a, b) => (dist(b) < dist(a) ? b : a));
+  zoom.centreOn(...views.board.view.anchorOf(nearest));
 }
 
 let showLocator = () => {};      // set up in showMap() (js/ui/locator.js)
 
-// Where the map starts: your most threatened front-line territory (RULES.md §14's
+// Where a view starts: your most threatened front-line territory (RULES.md §14's
 // threat score), or the middle of the front when you play both sides.
-function startPoint() {
+function startPoint(view) {
   const humans = Object.entries(state.controllers || {}).filter(([, who]) => who === 'human').map(([side]) => side);
   if (humans.length === 1) {
     const boxes = frontBoxes(state, data.engine, humans[0]);
     if (boxes.length) {
       const worst = boxes.reduce((a, b) => (threat(state, data.engine, b) > threat(state, data.engine, a) ? b : a));
-      const t = document.getElementById(worst);
-      return [Number(t.dataset.x), Number(t.dataset.y)];
+      return view.anchorOf(worst);
     }
   }
-  const b = mapView.frontBounds();
+  const b = view.frontBounds();
   return b ? [b[0] + b[2] / 2, b[1] + b[3] / 2] : null;
 }
 
@@ -791,6 +865,8 @@ function redraw() {
   const record = { counts: battleCounts(state), big: bigBattles(state), scarLevel };
   mapView.update(state, month, monthLabel(month), record);
   mapView.drawUnits(state.units, lookFor);
+  // the locator shows the campaign map, so keep its colours and front line up to date
+  if (viewName !== 'map') views.map.view.update(state, month, monthLabel(month), null);
   gameTitle.textContent = monthLabel(month);
   const phase = phaseOf(state, orderData());
   $('phase-label').textContent = state.over ? 'The war is over' : (phase ? phase.name : '');
@@ -911,7 +987,7 @@ function focusOn(...ids) {
     ? window.innerHeight - sheet.offsetHeight : Infinity;
   const covered = Math.max(0, Math.min(area.height, area.bottom - sheetTop)) / area.height;
   const seenH = h * (1 - covered);                 // the visible part, in map units
-  const pts = ids.filter(Boolean).map((id) => { const t = document.getElementById(id); return [Number(t.dataset.x), Number(t.dataset.y)]; });
+  const pts = ids.filter(Boolean).map((id) => mapView.anchorOf(id));
   const margin = 0.15;
   const seen = (p) => p[0] > x + w * margin && p[0] < x + w * (1 - margin) && p[1] > y + seenH * margin && p[1] < y + seenH * (1 - margin);
   if (!pts.length || pts.every(seen)) return;
