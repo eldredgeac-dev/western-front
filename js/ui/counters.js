@@ -224,23 +224,29 @@ export function counterSvg(unit, look) {
   return g;
 }
 
-// A whole stack, drawn as a small tower: each piece a little higher than the one under
-// it (bottom first), and a brass tab with the number of pieces if there's more than one.
-export const STACK_STEP = 3.4;     // piece units each piece sits above the one below
+// A whole territory's pieces, drawn as ONE piece, like an Axis & Allies stack: the
+// strongest unit's piece shows the TOTAL steps there (what counts in a battle), a thin
+// edge peeks out behind it for each extra piece, and a brass tab gives the number of
+// pieces ("×3"). Tapping the territory lists every piece in the panel.
+export const STACK_STEP = 1.4;     // piece units each edge behind sits down and right
 export function stackSvg(units, lookFor) {
   const g = el('g', { class: 'stack' });
-  units.forEach((u, i) => {
-    const c = counterSvg(u, lookFor(u));
-    c.setAttribute('transform', `translate(${i * 1.2},${-i * STACK_STEP})`);
-    g.appendChild(c);
-  });
-  if (units.length > 1) {
-    const top = -(units.length - 1) * STACK_STEP;
-    const tab = el('g', { class: 'stack-tab', transform: `translate(${16.4 + (units.length - 1) * 1.2},${top - 12})` }, g);
-    el('rect', { x: -4.2, y: -4.4, width: 9.6, height: 8, rx: 1.2, fill: BRASS, stroke: INK, 'stroke-width': 0.5 }, tab);
-    const t = el('text', { x: 0.6, y: 1.9, 'text-anchor': 'middle', class: 'piece-count', 'font-size': 6, fill: INK }, tab);
-    t.textContent = '×' + units.length;
+  if (units.length === 1) { g.appendChild(counterSvg(units[0], lookFor(units[0]))); return g; }
+  const top = units.reduce((a, b) => (b.steps > a.steps ? b : a));
+  // the edges of the other pieces underneath, each in its nation's colour, back to front
+  const others = units.filter((u) => u !== top);
+  for (let i = others.length; i >= 1; i--) {
+    const look = lookFor(others[i - 1]);
+    el('rect', { x: -14.6 + i * STACK_STEP, y: -14.6 + i * STACK_STEP, width: 29, height: 29, rx: 2.4,
+      fill: mix(look.color, INK, 0.3), stroke: INK, 'stroke-width': 0.5, class: 'stack-edge' }, g);
   }
+  const all = (key) => units.every((u) => u[key]);
+  const shown = { ...top, steps: units.reduce((t, u) => t + u.steps, 0), moved: all('moved'), attacked: all('attacked'), railed: all('railed') };
+  g.appendChild(counterSvg(shown, { ...lookFor(top), maxSteps: 0 }));   // no pips: it's a total
+  const tab = el('g', { class: 'stack-tab', transform: 'translate(16.4,-12)' }, g);
+  el('rect', { x: -4.2, y: -4.4, width: 9.6, height: 8, rx: 1.2, fill: BRASS, stroke: INK, 'stroke-width': 0.5 }, tab);
+  const t = el('text', { x: 0.6, y: 1.9, 'text-anchor': 'middle', class: 'piece-count', 'font-size': 6, fill: INK }, tab);
+  t.textContent = '\u00d7' + units.length;
   return g;
 }
 

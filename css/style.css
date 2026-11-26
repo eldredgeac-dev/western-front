@@ -199,7 +199,7 @@ html, body {
 .zoom-buttons {
   position: absolute;
   right: max(10px, env(safe-area-inset-right));
-  bottom: calc(64px + env(safe-area-inset-bottom));
+  bottom: calc(56px + env(safe-area-inset-bottom));
   display: grid;
   gap: 8px;
 }
@@ -232,6 +232,8 @@ html, body {
 .locator-box { fill: none; stroke: var(--front-red); stroke-width: calc(1.6px * var(--u)); }
 @media (max-width: 699px) {
   .game-screen.sheet-open .locator { display: none; }
+  /* folded: while a territory or an attack is showing, the sheet holds only that */
+  .panel-area:has(.box-title, .order-slip) .panel-extra { display: none; }
   .locator { width: 92px; }
 }
 
@@ -239,20 +241,20 @@ html, body {
 .panel-sheet {
   position: fixed;
   left: 0; right: 0; bottom: 0;
-  max-height: 50dvh;
+  max-height: 55dvh;
   display: flex;
   flex-direction: column;
   background: var(--leather-light);
   border-top: 1px solid var(--brass);
   border-radius: var(--radius) var(--radius) 0 0;
-  transform: translateY(calc(100% - 52px - env(safe-area-inset-bottom)));
+  transform: translateY(calc(100% - 44px - env(safe-area-inset-bottom)));
   transition: transform 0.3s ease;
   z-index: 5;
 }
 .panel-sheet.open { transform: translateY(0); }
 .sheet-handle {
   flex: none;
-  height: 52px;
+  height: var(--tap);
   border: 0;
   background: transparent;
   cursor: pointer;
@@ -295,18 +297,43 @@ html, body {
 /* ---------- The info panel ---------- */
 .panel-subtitle { margin: 4px 0 8px; font-family: var(--font-place); font-weight: normal; font-size: 1.1rem; color: var(--brass); }
 .unit-list { margin: 0 0 var(--gap); }
-.unit-row {
-  display: flex; align-items: center; gap: 12px; width: 100%;
-  min-height: var(--tap); margin: 0 0 6px; padding: 6px 10px;
+/* The pieces in a territory: a row of chips (scrolls sideways if there are many). */
+.unit-chips { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 4px; }
+.unit-chip {
+  flex: none; display: flex; align-items: center; gap: 6px;
+  min-height: 52px; min-width: var(--tap); padding: 4px 10px 4px 4px;
   background: var(--leather); color: var(--telegram);
   border: 1px solid var(--leather-light); border-radius: var(--radius);
-  font: inherit; text-align: left; cursor: pointer; touch-action: manipulation;
+  font: inherit; cursor: pointer; touch-action: manipulation;
 }
-.unit-row[aria-pressed="true"] { border-color: var(--brass); box-shadow: inset 0 0 0 1px var(--brass); }
-.unit-row:active { transform: translateY(1px); }
-.unit-text { display: grid; gap: 2px; }
-.unit-detail { color: var(--paper-dark); font-size: 0.95rem; }
+.unit-chip[aria-pressed="true"] { border-color: var(--brass); box-shadow: inset 0 0 0 1px var(--brass); }
+.unit-chip:active { transform: translateY(1px); }
+.chip-text { display: grid; gap: 2px; justify-items: start; font-family: var(--font-type); }
+.unit-title { font-weight: 600; color: var(--telegram); }
 .counter-icon { flex: none; }
+.tray-facts { margin: -4px 0 8px; color: var(--paper-dark); font-size: 0.95rem; }
+/* One tap away: the advanced numbers sit in sections that open when tapped. */
+.more { margin: 0 0 6px; border-top: 1px solid var(--leather); }
+.more-title {
+  min-height: var(--tap); display: flex; align-items: center; gap: 8px;
+  color: var(--brass); font-family: var(--font-place); font-size: 1.05rem; cursor: pointer; list-style: none;
+}
+.more-title::-webkit-details-marker { display: none; }
+.more-title::before {
+  content: ""; flex: none; width: 7px; height: 7px; margin-right: 2px;
+  border-right: 2px solid var(--brass); border-bottom: 2px solid var(--brass); transform: rotate(-45deg);
+}
+.more[open] > .more-title::before { transform: rotate(45deg); }
+.order-slip .more { border-top-color: var(--paper-dark); }
+.order-slip .more-title { color: var(--ink); font: 700 0.95rem var(--font-type); }
+.order-slip .more-title::before { border-color: var(--ink); }
+.order-slip .unit-chip { background: transparent; color: var(--ink); border: 1px dashed var(--ink-faded); }
+.order-slip .unit-chip[aria-pressed="true"] { border: 1px solid var(--ink); background: var(--paper); box-shadow: none; }
+/* The chance to take it: one big stamped number, then the expected losses. */
+.slip-odds { display: flex; align-items: baseline; gap: 10px; margin: 10px 0 0; }
+.slip-chance { font: 700 2.4rem var(--font-type); color: var(--front-red); line-height: 1; }
+.slip-chance-text { font-weight: 700; }
+.slip-losses, .slip-cost { margin: 4px 0; }
 .unit-hint { margin: 4px 0 10px; color: var(--paper-dark); font-size: 0.95rem; }
 .panel-error { margin: 0 0 10px; padding: 8px 10px; border-left: 3px solid var(--stamp-red); color: var(--telegram); }
 /* The attack order slip (STYLE.md §6): telegram paper, typed text, red stamp. */
@@ -321,16 +348,10 @@ html, body {
 .slip-defenders, .slip-section, .slip-note { margin: 4px 0; }
 .slip-note { color: var(--stamp-red); }
 .slip-warning { margin: 8px 0; padding: 6px 8px; border: 1px dashed var(--stamp-red); color: var(--stamp-red); }
-.slip-unit {
-  display: flex; align-items: center; gap: 10px; width: 100%; min-height: var(--tap);
-  margin: 0 0 4px; padding: 4px 8px; background: transparent; color: var(--ink);
-  border: 1px dashed var(--ink-faded); border-radius: 2px; font: inherit; text-align: left;
-  cursor: pointer; touch-action: manipulation;
-}
-.slip-unit[aria-pressed="true"] { border: 1px solid var(--ink); background: var(--paper); }
-.slip-munitions { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
+.slip-forces { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin: 8px 0 0; }
+.slip-munitions { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
 .slip-step { min-width: var(--tap); padding: 6px 0; color: var(--ink); border-color: var(--ink); }
-.slip-mun-text { flex: 1; }
+.slip-mun-text { flex: 0 1 auto; min-width: 0; text-align: center; }
 .slip-lines { margin: 6px 0; }
 .slip-line { display: flex; align-items: baseline; gap: 4px; }
 .slip-dots { flex: 1; border-bottom: 1px dotted var(--ink-faded); transform: translateY(-3px); }
@@ -355,10 +376,10 @@ html, body {
 .dispatch-list li { padding: 3px 0; border-bottom: 1px dotted var(--leather-light); }
 .panel-hint { margin: 0 0 var(--gap); color: var(--paper-dark); }
 .box-title {
-  margin: 0 0 8px;
+  margin: 0 0 6px;
   font-family: var(--font-place);
   font-weight: normal;
-  font-size: 1.5rem;
+  font-size: 1.35rem;
   color: var(--telegram);
 }
 .box-facts {
@@ -464,8 +485,10 @@ html, body {
 
 /* Units (STYLE.md §5): board-game pieces. Zoomed out, the simple version of each
    piece (colour, mark, number); from mid zoom, the full one.
-   Taps go straight through them to the territory underneath. */
+   Taps on a piece select its own territory (below). */
 .map-svg #units, .map-svg #targets { pointer-events: none; }
+/* a piece is a tap target for its own territory (44 px: easier than the thin territory shapes) */
+.map-svg #units .unit-spot { pointer-events: auto; cursor: pointer; }
 .map-svg.far .piece-full, .map-svg:not(.far) .piece-simple, .counter-icon .piece-simple { display: none; }
 .counter.done { opacity: 0.7; }
 .piece-strength, .piece-count { font-family: var(--font-type); font-weight: 700; }
@@ -585,14 +608,6 @@ html, body {
 
 /* ---------- The War Office ledger (STYLE.md §6: ruled lines, Courier figures, an
    ink Will gauge that drains), on paper inside the leather desk. ---------- */
-.btn-war-office {
-  position: absolute;
-  left: max(10px, env(safe-area-inset-left));
-  bottom: calc(64px + env(safe-area-inset-bottom));
-  background: var(--leather-light);
-}
-@media (min-width: 700px) { .btn-war-office { bottom: calc(16px + env(safe-area-inset-bottom)); } }
-.game-screen.playing-back .btn-war-office { display: none; }
 .war-office {
   position: fixed; inset: 0; z-index: 20; overflow-y: auto; -webkit-overflow-scrolling: touch;
   background: var(--leather);
@@ -710,17 +725,52 @@ html, body {
 .dice-cell.taken { border: 2px solid var(--front-red); color: var(--front-red); }
 .dice-res { letter-spacing: -0.02em; }
 
-/* ---------- The phase guide strip: what you can do now, Best attacks, How to play ---------- */
+/* ---------- The phase guide strip: one line saying what you can do now (tap it for the
+   full sentence), and Best attacks in your attack phase ---------- */
 .guide-strip {
   grid-area: guide;
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-  padding: 4px max(var(--gap), env(safe-area-inset-right)) 4px max(var(--gap), env(safe-area-inset-left));
+  padding: 0 max(var(--gap), env(safe-area-inset-right)) 0 max(var(--gap), env(safe-area-inset-left));
   background: var(--leather-light); border-bottom: 1px solid var(--brass);
 }
-.phase-guide { flex: 1 1 14em; margin: 0; font-size: 0.88rem; line-height: 1.3; color: var(--telegram); }
-.btn-guide { flex: none; min-height: var(--tap); }
+.guide-strip:has(.phase-summary:empty) { display: none; }
+.guide-toggle {
+  flex: 1 1 0; min-width: 0; min-height: var(--tap);
+  display: flex; align-items: center; gap: 8px; padding: 0;
+  border: 0; background: transparent; color: var(--telegram);
+  font: 0.92rem var(--font-ui); text-align: left; cursor: pointer;
+}
+.phase-summary { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* a small brass chevron: down when closed, up when the full sentence is open */
+.guide-more {
+  flex: none; width: 8px; height: 8px; margin: 0 4px 4px;
+  border-right: 2px solid var(--brass); border-bottom: 2px solid var(--brass); transform: rotate(45deg);
+}
+.guide-toggle[aria-expanded="true"] .guide-more { transform: rotate(-135deg); margin-bottom: 0; margin-top: 4px; }
+.phase-guide { flex: 1 1 100%; margin: 0 0 8px; font-size: 0.88rem; line-height: 1.35; color: var(--paper-dark); }
+.btn-guide { flex: none; min-height: 36px; margin: 4px 0; }
 .btn-guide[hidden] { display: none; }
 .btn-guide[aria-pressed="true"] { background: var(--brass); color: var(--leather); }
+
+/* ---------- The game menu (the three brass rules in the top bar) ---------- */
+.btn-menu { flex: none; width: var(--tap); padding: 0; }
+.menu-lines, .menu-lines::before, .menu-lines::after {
+  display: block; width: 18px; height: 2px; margin: 0 auto; background: var(--brass); content: "";
+}
+.menu-lines { position: relative; }
+.menu-lines::before { position: absolute; top: -6px; }
+.menu-lines::after { position: absolute; top: 6px; }
+.btn-menu[aria-expanded="true"] { background: var(--leather-light); }
+.game-menu {
+  position: fixed; z-index: 15;
+  top: calc(env(safe-area-inset-top) + 58px); left: max(8px, env(safe-area-inset-left));
+  width: min(320px, calc(100vw - 16px));
+  display: grid; gap: 6px; padding: 10px;
+  background: var(--leather-light); border: 1px solid var(--brass); border-radius: var(--radius);
+  box-shadow: 0 4px 12px var(--leather);
+}
+.menu-item { width: 100%; text-align: left; }
+.menu-item[aria-pressed="true"] { border-style: double; border-width: 3px; }
 .unit-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
 .unit-tag {
   padding: 0 5px; border: 1px solid var(--brass); border-radius: 2px;

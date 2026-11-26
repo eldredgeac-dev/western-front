@@ -40,7 +40,7 @@
     {
       "id": "attack",
       "title": "5. The attack",
-      "text": "Enemy territories you can attack are outlined in red. Tap {target}. The order slip lists your three units. Tap + twice for a barrage of 2 munitions. Read the slip: the column, the roll you need on two dice, and why. Then tap ADD TO ORDERS.",
+      "text": "Enemy territories you can attack are outlined in red. Tap {target}. The order slip lists your three units. Tap + twice for a barrage of 2 munitions. The big number is your chance to take it; tap WHY THESE ODDS to see the column, the roll you need on two dice, and why. Then tap ADD TO ORDERS.",
       "waitFor": {"kind": "attack", "munitions": 2},
       "arrow": {"from": "front", "to": "target", "kind": "attack"}
     },
@@ -53,7 +53,7 @@
     {
       "id": "report",
       "title": "7. The battle report",
-      "text": "The panel shows a battle report for every attack this turn, yours and the enemy's: the dice, the losses, who fell back, who advanced, and whether the front line moved. From here you're on your own. The line under the date always says what you can do, BEST ATTACKS shows your best chances, and HOW TO PLAY has the rules.",
+      "text": "The panel shows a battle report for every attack this turn, yours and the enemy's: the dice, the losses, who fell back, who advanced, and whether the front line moved. From here you're on your own. The line under the date always says what you can do (tap it for more), BEST ATTACKS shows your best chances, and How to play is in the menu (top left).",
       "waitFor": {"kind": "next", "label": "Finish"}
     }
   ]

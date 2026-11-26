@@ -182,15 +182,24 @@ export function autoSpends(state, sideId) {
   return (state.controllers || {})[sideId] === 'ai' || Boolean((state.autoAllocate || {})[sideId]);
 }
 
-// The War Office phase (§19.4): every side with an automatic budget spends it now;
-// any other side's budget waits for its player (state.pendingBudget, a list of sides).
+// Is there a real choice in a side's budget this month (§19.4)? Only if one of its
+// nations has Industry to spend AND a tech it could research. Otherwise the only
+// sensible use of Industry is munitions, so there's nothing to ask the player.
+export function budgetChoice(state, data, sideId) {
+  return budgetNations(state, data, sideId)
+    .some((n) => industry(state, data, n) > 0 && researchOptions(state, data, n).length > 0);
+}
+
+// The War Office phase (§19.4): every side with an automatic budget spends it now.
+// A player's budget with Auto-allocate off waits (state.pendingBudget, a list of
+// sides) only when there's a real choice to make; otherwise it's spent automatically.
 export function warOfficePhase(state, data) {
   if (!hasEconomy(data)) return;
   const waiting = [];
   for (const side of data.nations.sides) {
     const nations = budgetNations(state, data, side.id);
     if (!nations.length) continue;
-    if (!autoSpends(state, side.id)) { waiting.push(side.id); continue; }
+    if (!autoSpends(state, side.id) && budgetChoice(state, data, side.id)) { waiting.push(side.id); continue; }
     const cap = (state.controllers || {})[side.id] === 'ai' ? data.economy.aiResearchCap : Infinity;
     for (const n of nations) applyBudget(state, data, n, autoBudget(state, data, n, cap));
   }

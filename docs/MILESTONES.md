@@ -134,6 +134,36 @@ Do one milestone per Claude Code session. For each one:
   - In your move phase, split a piece (leave a 1–2 step picket) or merge two pieces of the
     same nation and type. The computer merges its damaged pieces but never splits.
 
+- [x] **10e. Phone layout** (no rule changes except when the budget page appears)
+  - The top of the screen is two slim rows: a ☰ menu, the date and phase, and COMMIT;
+    then a one-line phase guide (tap it for the full sentence). How to Play, the War
+    Office, Auto-allocate, Fast mode and the title screen live in the ☰ menu.
+  - Tapping a territory shows a compact tray: its name, one line of facts, and a row of
+    its pieces to tap. The map stays visible above it. Territory details, column shifts,
+    the dice strip, the war situation, dispatches and the map key are one tap away
+    ("Details", "Why these odds") instead of always on screen.
+  - The attack slip leads with a big "62% to take it" and the expected losses.
+  - Each territory shows one big piece (at least 44 px when zoomed in) with the total
+    steps and a ×N badge for the number of pieces, like an Axis & Allies stack.
+  - Auto-allocate is on by default at every level. With it off, the budget page only
+    appears in months when there is a real choice (research is open). RULES.md §19.4.
+  - The phase guide no longer shows stale text while a turn plays back.
+
+- [ ] **10f. Board view, attack by moving in, A&A-style results**
+  - **Board view** is the main playing view: the same 72 territories drawn as chunky,
+    outlined regions that roughly follow the front (each at least 55–60 px on a phone),
+    with the city name, a VP badge and one stack of pieces. It follows docs/STYLE.md
+    (paper, ink, brass; a General Staff board, not a cartoon).
+  - The historical map stays: a toggle switches between Board and Map, and the
+    historical map is the zoomed-out overview, the locator and the background.
+  - **C1: move into an enemy territory to attack.** In your turn, dragging or tapping
+    units into an enemy territory queues an attack instead of a move (Axis & Allies
+    "combat move"). Run `tools/levels.py` to confirm balance is unchanged and report
+    any difference before changing RULES.md §8–9.
+  - **C5: results the A&A way.** Keep the combat table engine. The attack slip and
+    battle reports show the chance as one big number and the expected/actual losses
+    as crossed-out pieces on each side.
+
 - [ ] **11. Playtest and polish**
   - You play 3–4 full games (both sides, more than one difficulty).
   - We list everything that was boring or confusing, then fix it.
@@ -165,8 +195,15 @@ Do one milestone per Claude Code session. For each one:
 ---
 
 ## Version 2 and later (don't build yet)
-- V2: Economy, part 2 — spend Industry on new units (Axis & Allies style). Part 1 (Manpower,
-  Industry, munitions stockpile, research, industrial cities) is milestone 10b.
+- V2: The Axis & Allies turn. Each is a separate milestone with its own simulator
+  re-run (`tools/wfsim.py`, `python3 tools/levels.py`) and a report on what changed:
+  - **V2a (C2): Buy units with Industry.** A purchase step in the War Office; new units
+    are placed in your rear cities. Part 1 of the economy (Manpower, Industry, munitions
+    stockpile, research, industrial cities) is milestone 10b.
+  - **V2b (C3): Income from territory.** Every named city pays Industry each month to
+    whoever holds it (extending the industrial cities of §19.3), so taking ground pays.
+  - **V2c (C4): Fewer kinds of points.** For example, an attack costs Industry instead
+    of a separate Offensive Point, so there's one less number to track.
 - V3: Eastern Front and Russia, so Germany fights on two fronts.
 - V4: More nations (Austria-Hungary, Italy, Ottomans), naval blockade and U-boats.
 
@@ -220,4 +257,9 @@ milestone in brackets, confirm the fix, then update RULES.md and the code togeth
 - A guided first turn as Germany too (the coach and its data already allow it).
 - Find the rest of the gap between the game's computer and the simulator (DECISIONS.md
   98–101): in 1915–16 the game's computer attacks about half as often.
+- With Auto-allocate on, a one-line notice when research first opens (Jan 1916), so a
+  new player learns it exists without the budget page interrupting (milestone 10e).
+- Some pieces with no room in a thin territory get pushed outside it (the Belgian piece
+  on the Yser stands in the sea). The board view (10f) should give every territory a
+  fixed spot for its piece.
 (Claude Code: add ideas here instead of building them.)

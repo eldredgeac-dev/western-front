@@ -10,7 +10,7 @@ import { next as rngNext, rollD6, roll2d6 } from '../js/engine/rng.js';
 import { resourcesFor } from '../js/engine/resources.js';
 import { beginGame, endPhase, phaseOf, digIn, submitBudget } from '../js/engine/turn.js';
 import { manpower, industry, industryParts, cityEffects, researchOptions, techActive, checkBudget, applyBudget,
-  autoBudget, warOfficePhase, expectedMonth } from '../js/engine/systems/economy.js';
+  autoBudget, warOfficePhase, expectedMonth, budgetChoice } from '../js/engine/systems/economy.js';
 import { inSupply, rearColumn, supplySources } from '../js/engine/supply.js';
 import { supplyPhase } from '../js/engine/systems/supply.js';
 import { spendReplacements, threat } from '../js/engine/systems/replacements.js';
@@ -20,7 +20,7 @@ import { aiMove, aiAttack, frontBoxes } from '../js/engine/ai.js';
 import { SILHOUETTES, mix, isDark } from '../js/ui/counters.js';
 import { queueCheck, addOrder, cancelOrder, commitOrders } from '../js/engine/orders.js';
 import { recordMonth, casualties, ledger } from '../js/engine/history.js';
-import { rollOutcomes, attackAdvice, bestAttacks, battleReport, phaseGuide, attackableBoxes } from '../js/engine/explain.js';
+import { rollOutcomes, attackAdvice, bestAttacks, battleReport, phaseGuide, phaseSummary, attackableBoxes } from '../js/engine/explain.js';
 import { tutorialPlan } from '../js/engine/tutorial.js';
 import { addOrder as queueOrder, commitOrders as commitQueued } from '../js/engine/orders.js';
 import { columnAverages, ratioColumn, planAttack, oddsPreview, resolveAttack, applyCombatResult,
@@ -1443,14 +1443,13 @@ test('economy §19.3: Industry never goes below 0', () => {
 test('economy §19.4: the stockpile starts empty, holds at most 3 and carries over', () => {
   let s = newGame(data.scenario, 5, eco(), { player: 'germany', level: 'regular' });
   check(Object.values(s.resources).every((r) => r.munitions === 0), 'empty at the start');
+  s.autoAllocate.germany = false;
   s = beginGame(s, eco());
-  check(s.pendingBudget.join() === 'germany' && s.resources.ger.munitions === 0, 'the German budget waits');
+  check(!s.pendingBudget && s.resources.ger.munitions === 3, 'no research in 1914: no choice, so 3 munitions bought automatically');
   check(s.resources.fra.munitions === 2 && s.resources.gbr.munitions === 1, 'the computer bought munitions with all its Industry');
-  s = submitBudget(s, eco(), 'germany', { ger: { munitions: 3, research: 0 } });
-  check(s.resources.ger.munitions === 3 && !s.pendingBudget, 'stockpile 3');
-  // play on to January: the stockpile is still there when the next budget comes
-  for (let i = 0; i < 20 && !s.pendingBudget; i++) s = endPhase(s, eco());
-  check(currentMonth(s) === '1915-01' && s.pendingBudget, 'January budget waits');
+  // play on to January: the stockpile is still there, and no budget page waits
+  for (let i = 0; i < 20 && currentMonth(s) === '1914-12'; i++) s = endPhase(s, eco());
+  check(currentMonth(s) === '1915-01' && !s.pendingBudget, 'January: nothing to choose, no budget page');
   check(s.resources.ger.munitions === 3, 'carried over: ' + s.resources.ger.munitions);
   check(checkBudget(s, eco(), 'ger', { munitions: 1, research: 0 }).length > 0, 'no room for more than 3');
 });
@@ -1569,25 +1568,40 @@ test('economy §19.7: the computer tops up munitions to 3, then ≤3 IP into the
   check(autoBudget(ecoAt('1915-03'), eco(), 'gbr', 3).research === 0, 'nothing to research in 1915');
 });
 
-test('economy §19.4: the War Office phase — the computer spends, a player\'s budget waits', () => {
+test('economy §19.4: the War Office phase — the computer spends; a player\'s budget waits only for a real choice', () => {
   const s = ecoAt('1916-08', { player: 'entente', level: 'regular' });
+  check(s.autoAllocate.entente === true, 'Auto-allocate is on by default');
+  s.autoAllocate.entente = false;
+  check(budgetChoice(s, eco(), 'entente'), 'Aug 1916: research is open, so there is a choice');
   warOfficePhase(s, eco());
   check(s.pendingBudget.join() === 'entente' && s.budget.ger && !s.budget.fra, 'German budget spent, Entente waits');
   check(endPhase(s, eco()) === s, 'End Phase waits for the budget');
-  check(newGame(data.scenario, 1, eco(), { player: 'entente', level: 'recruit' }).autoAllocate.entente === true, 'Recruit: Auto-allocate on');
-  check(newGame(data.scenario, 1, eco(), { player: 'entente', level: 'regular' }).autoAllocate.entente === false, 'Regular: off');
+  const quiet = ecoAt('1915-06', { player: 'entente', level: 'regular' });
+  quiet.autoAllocate.entente = false;
+  check(!budgetChoice(quiet, eco(), 'entente'), 'Jun 1915: nothing to research, no choice');
+  warOfficePhase(quiet, eco());
+  check(!quiet.pendingBudget && quiet.resources.fra.munitions > 0, 'no choice: spent automatically on munitions');
+  const auto = ecoAt('1916-08', { player: 'entente', level: 'regular' });
+  warOfficePhase(auto, eco());
+  check(!auto.pendingBudget && auto.budget.fra, 'Auto-allocate on: never waits');
+  for (const level of ['recruit', 'regular', 'veteran', 'field-marshal']) {
+    check(newGame(data.scenario, 1, eco(), { player: 'germany', level }).autoAllocate.germany === true, level + ': Auto-allocate on');
+  }
   check(newGame(data.scenario, 1, eco(), { player: 'both' }).autoAllocate.germany === true, 'hot seat: on');
 });
 
 test('economy §19.4: signing the budget carries on with the turn', () => {
-  let s = beginGame(newGame(data.scenario, 2, eco(), { player: 'entente', level: 'regular' }), eco());
-  check(s.pendingBudget.join() === 'entente' && phaseOf(s, eco()).id === 'germany-move', 'waits before Germany moves');
+  let s = ecoAt('1916-08', { player: 'entente', level: 'regular' });
+  s.autoAllocate.entente = false;
+  s.phase = 0;
+  s = endPhase(s, eco());                                   // events, War Office: the Entente budget waits
+  check(s.pendingBudget && s.pendingBudget.join() === 'entente' && phaseOf(s, eco()).id === 'germany-move', 'waits before Germany moves: ' + phaseOf(s, eco()).id);
   let threw = false;
-  try { submitBudget(s, eco(), 'entente', { fra: { munitions: 5, research: 0 } }); } catch (e) { threw = true; }
+  try { submitBudget(s, eco(), 'entente', { fra: { munitions: 9, research: 0 } }); } catch (e) { threw = true; }
   check(threw, 'a bad budget is refused');
-  s = submitBudget(s, eco(), 'entente', { fra: { munitions: 2, research: 0 }, gbr: { munitions: 1, research: 0 } }, { auto: true });
+  s = submitBudget(s, eco(), 'entente', { fra: { munitions: 3, research: 0 }, gbr: { munitions: 3, research: 0 } }, { auto: true });
   check(!s.pendingBudget && phaseOf(s, eco()).id === 'entente-move', 'Germany played its turn: ' + phaseOf(s, eco()).id);
-  check(s.resources.fra.munitions === 2 && s.autoAllocate.entente, 'stockpile bought, Auto-allocate on');
+  check(s.resources.fra.munitions === 3 && s.autoAllocate.entente, 'stockpile bought, Auto-allocate back on');
 });
 
 test('economy §19.6: research expected month at this month\'s rate, or its historical date', () => {
@@ -1632,8 +1646,7 @@ test('economy: the same seed gives the same war (computer vs computer, a year)',
 // and one is repulsed, so both outcomes are checked with fixed seeds.
 function turnOneAttack(seed) {
   let s = newGame(data.scenario, seed, eco(), { player: 'entente', level: 'regular' });
-  s = beginGame(s, eco());
-  s = submitBudget(s, eco(), 'entente', { fra: { munitions: 2, research: 0 }, gbr: { munitions: 1, research: 0 } });
+  s = beginGame(s, eco());                                   // Auto-allocate: France 2, Britain 1 munitions
   s = endPhase(s, eco());                                    // Entente move → Entente attack
   const t = copyOf(s);
   const french = t.units.filter((u) => u.nation === 'fra' && ['l07-e1', 'l06-e2'].includes(u.box)).slice(0, 2);
@@ -1744,6 +1757,17 @@ test('explain: the phase guide says what to do, with what\'s left', () => {
   check(attackableBoxes(s, eco(), 'entente').includes('l06-g1'), 'l06-g1 can be attacked');
   const ai = copyOf(s); ai.controllers.entente = 'ai';
   check(phaseGuide(ai, eco()) === '', 'nothing in the computer\'s phase');
+});
+
+test('explain: the one-line phase summary for the guide strip', () => {
+  const s = turnOneAttack(4);
+  check(phaseSummary(s, eco()) === 'Entente attack · OP: FRA 2 · GBR 1', phaseSummary(s, eco()));
+  const m = copyOf(s); m.phase = phaseIndex('entente-move');
+  check(phaseSummary(m, eco()) === 'Entente move · rail left: FRA 2 · GBR 1', phaseSummary(m, eco()));
+  const ai = copyOf(s); ai.controllers.entente = 'ai';
+  check(phaseSummary(ai, eco()) === '', 'nothing in the computer\'s phase');
+  const b = copyOf(s); b.pendingBudget = ['entente'];
+  check(phaseSummary(b, eco()) === 'War Office: sign the budget', phaseSummary(b, eco()));
 });
 
 test('tutorial: the guided first turn picks a good attack and its steps work', () => {

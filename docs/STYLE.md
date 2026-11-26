@@ -156,9 +156,12 @@ block), not cartoon soldiers.
   - Belgium: black, yellow and red cockade.
 - **Zoomed out:** the same piece, smaller and simplified: colour, national mark and
   strength number only.
-- **Stacks:** up to 3 pieces drawn as a small tower (each piece a little higher than the
-  one under it), with the number of pieces on a brass tab ("×3"). Tapping the territory
-  lists them in the panel.
+- **Stacks:** a territory's pieces show as **one piece**, like an Axis & Allies stack:
+  the strongest unit's piece with the territory's **total steps**, a thin edge behind it
+  for each extra piece, and the number of pieces on a brass tab ("×3"). Tapping the
+  territory lists every piece in the panel.
+- **Size:** at least 44 px wide on screen at the normal and close zooms (a finger's
+  width); smaller only on the zoomed-out overview.
 - **Where they stand:** beside the town name, never on top of it or of the town dot,
   the city label or the VP ring. Each territory has a "unit spot" worked out by the map
   builder.

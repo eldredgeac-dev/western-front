@@ -392,7 +392,7 @@ export function createMapView(container, svg, { nations, boxNameFn, noteNameFn, 
   layer('selection').before(targetsLayer);
   let zoomK = 1;                                   // screen pixels per map unit
   let lastScale = 0.3; let lastOffset = [8, 0];    // the latest piece size and offset (for ghosts)
-  const PIECE_PX = { far: 26, mid: 32, near: 40 }; // a piece's width on screen
+  const PIECE_PX = { far: 30, mid: 44, near: 48 }; // a piece's width on screen (44 px: a finger)
 
   //   units      — the game's units
   //   lookFor(u) — { color, symbol, maxSteps, mirror } for a unit (from the data files)
@@ -416,11 +416,11 @@ export function createMapView(container, svg, { nations, boxNameFn, noteNameFn, 
   }
 
   // The box round a stack of n pieces, in piece units: [left, top, right, bottom]
-  // (see counters.js: the face is −14.6…14.4, the side face and shadow reach 17.6, and
-  // each piece in the tower sits STACK_STEP higher; the brass tab sticks out top right).
+  // (see counters.js: the face is −14.6…14.4, the side face and shadow reach 17.6, the
+  // edges of the pieces underneath sit STACK_STEP lower each; the brass tab sticks out top right).
   function stackBox(n) {
-    const rise = (n - 1) * STACK_STEP;
-    return n > 1 ? [-14.6, -14.6 - rise - 2.2, 21.8 + (n - 1) * 1.2, 17.6] : [-14.6, -14.6, 16.6, 17.6];
+    const edge = (n - 1) * STACK_STEP;
+    return n > 1 ? [-14.6, -16.4, 21.8, 17.6 + edge] : [-14.6, -14.6, 16.6, 17.6];
   }
 
   // Where a stack may go, next to its town (screen pixels from the town dot to the
