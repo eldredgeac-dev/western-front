@@ -490,6 +490,8 @@ I'll change it.
 102. **The guided first turn** uses seed 4. If you follow the steps, the attack succeeds
      (it's a 58% attack, so on another seed it might not). Auto-allocate is on, so the
      budget page doesn't interrupt it.
+103. **Battle reports aren't saved.** They're kept until your next COMMIT, so reloading
+     the page clears them. The log (Dispatches) still has every result.
 104. **Question for you: the balance under the one-move rule.** With the simulator obeying
      RULES.md §8, Germany wins 56% of even games and a passive Germany 34% (tables in
      BALANCE.md). I changed no [balanced] number. Two possible fixes:
@@ -499,8 +501,6 @@ I'll change it.
      - **(b) Keep 1 territory** and raise the Kaiserschlacht penalty (−15 → −20), as
        ECONOMY.md suggested for a passive Germany, then re-run.
      I'd suggest (a). Tell me which, and I'll update RULES.md, the game and the tests.
-103. **Battle reports aren't saved.** They're kept until your next COMMIT, so reloading
-     the page clears them. The log (Dispatches) still has every result.
 
 ## Questions for you (answered)
 1. **Combat table — answered: RULES.md is right.**
