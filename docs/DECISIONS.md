@@ -661,6 +661,8 @@ I'll change it.
 5. **Approve the AI fix in decision 128? — answered: yes.** Applied. With 200 wars the
    game's engine went from Germany 57 / Entente 33 / draw 11 to **45 / 37 / 18**, inside
    the healthy ranges (BALANCE.md). The 50-war figures in decision 128 were mostly noise.
+   You also asked for more historical advantages for Germany. With these numbers Germany
+   already leads, so you chose to **leave the balance as it is** (no German bonus).
 6. **Are the interpretations in decision 121 right?** Especially: sacking needs an
    available successor (so Joffre can't be sacked before December 1916), and a sacked
    commander's OP, Manpower and rail count from next month.
