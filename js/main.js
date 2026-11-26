@@ -20,9 +20,14 @@ import { frontBoxes } from './engine/ai.js';
 import { queueCheck, addOrder, cancelOrder, commitOrders, snapshot } from './engine/orders.js';
 import { createPlayback } from './ui/animate.js';
 import { ledger } from './engine/history.js';
+import { attackAdvice, bestAttacks, phaseGuide, attackableBoxes, battleReport } from './engine/explain.js';
 import { showLedger } from './ui/ledger.js';
 import { showBudget } from './ui/budget.js';
+import { showHelp } from './ui/help.js';
+import { createCoach } from './ui/tutorial.js';
+import { tutorialPlan } from './engine/tutorial.js';
 import { threat } from './engine/systems/replacements.js';
+import { inSupply } from './engine/supply.js';
 
 // Find the page elements we need once, at start-up.
 const $ = (id) => document.getElementById(id);
@@ -99,7 +104,7 @@ async function loadJson(path) {
 
 // Load all the data files the game needs, and check the map makes sense.
 async function loadData() {
-  const [map, terrainData, nations, scenario, quotes, unitTypes, phases, combat, victory, events, ai, commanders, economy] = await Promise.all([
+  const [map, terrainData, nations, scenario, quotes, unitTypes, phases, combat, victory, events, ai, commanders, economy, help, tutorial] = await Promise.all([
     loadJson('./data/boxes-west.json'),
     loadJson('./data/terrain.json'),
     loadJson('./data/nations.json'),
@@ -113,13 +118,15 @@ async function loadData() {
     loadJson('./data/ai.json'),
     loadJson('./data/commanders.json'),
     loadJson('./data/economy.json'),
+    loadJson('./data/help.json'),
+    loadJson('./data/tutorial.json'),
   ]);
   const problems = checkMap(map, terrainData);
   if (problems.length > 0) throw new Error('The map data has problems: ' + problems.join('; '));
   const mapSvg = await loadMapSvg(`${map.mapSvg}?v=${VERSION}`);
   // `engine` is the bundle of data files the game engine (js/engine/) works with.
   const engine = { map, terrain: terrainData, nations, unitTypes, phases, combat, victory, events, ai, commanders, economy };
-  return { map, terrainData, nations, scenario, quotes, unitTypes, phases, engine, mapSvg, boxesById: indexBoxes(map) };
+  return { map, terrainData, nations, scenario, quotes, unitTypes, phases, engine, mapSvg, help, tutorial, boxesById: indexBoxes(map) };
 }
 
 // Show one screen and hide the other.
@@ -256,8 +263,36 @@ function unitInfo(unit) {
     moves: moveTargets(previewFor(unit.id), orderData(), unit.id).length,
     rails: railTargets(previewFor(unit.id), orderData(), unit.id).length,
     why: whyNoOrders(unit),
+    status: unitStatus(unit),
+    rule: unitRule(unit),
     ordered: queuedMove(unit.id) ? { index: queuedMove(unit.id).index, text: `Ordered to ${placeName(queuedMove(unit.id).order.to)}` } : null,
   };
+}
+
+// Short marks for what a unit has done this turn (the unit list and its piece).
+function unitStatus(unit) {
+  const out = [];
+  if (unit.railed) out.push('RAIL \u00b7 can\u2019t attack');
+  else if (unit.moved) out.push('MOVED');
+  if (unit.attacked) out.push('ATTACKED');
+  if (!inSupply(state, orderData(), unit)) out.push('NO SUPPLY');
+  return out;
+}
+
+// The rule that matters for this unit right now, in one line.
+function unitRule(unit) {
+  const phase = humanPhase();
+  if (!phase || !phaseAllows(state, orderData(), unit, phase.kind)) return null;
+  const nation = nationOf(data.engine, unit.nation);
+  if (phase.kind === 'move') {
+    const rail = (state.resources[unit.nation] || {}).rail || 0;
+    return `Road: 1 territory next door, into your own territory (3 units at most). Rail: any distance through your own ` +
+      `connected territory; ${nation.name} has ${rail} rail move${rail === 1 ? '' : 's'} left, and a unit that goes by rail can\u2019t attack this turn.`;
+  }
+  if (unit.railed) return 'It came by rail this turn, so it can\u2019t attack until next month.';
+  if (unit.attacked) return 'It has already attacked this turn.';
+  if (!inSupply(state, orderData(), unit)) return 'It is out of supply, so it can\u2019t attack.';
+  return 'Attack phase: tap an enemy territory next to this unit (outlined in red). Each unit attacks once a turn.';
 }
 
 // Why a unit has no moves right now, in plain English.
@@ -326,21 +361,83 @@ function refreshPanel() {
     slip: attack ? attackSlip() : null,
     onToggleUnit: toggleAttacker, onMunitions: changeMunitions, onConfirm: confirmAttack, onCancel: closeAttack,
     orders: ordersInfo(), onCancelOrder: dropOrder, onShowOrder: showOrder,
+    suggestions: suggestionsInfo(), onSuggestion: useSuggestion,
+    reports, onReport: (box) => { selectBox(box); focusOn(box); }, onCloseReports: () => { reports = []; refreshPanel(); },
     settings: { fast: Boolean(settings.fast) }, onFast: toggleFast,
   });
   orderError = null;
 }
 
-// Tap a unit in the panel: show where it can move (brass) or go by rail (dashed).
+// Tap a unit in the panel: show where it can move (brass) or go by rail (blue, dashed).
 function selectUnit(unitId) {
   selectedUnit = selectedUnit === unitId ? null : unitId;
+  refreshTargets();
+  refreshPanel();
+}
+
+// ---------------------------------------------------------------- what the map outlines
+// The human side whose orders phase it is, or null.
+function humanPhase() {
+  const phase = phaseOf(state, orderData());
+  if (!state || state.over || state.pendingBudget || state.pendingChoice || !phase || phase.auto) return null;
+  return (state.controllers || {})[phase.side] === 'ai' ? null : phase;
+}
+// Outline what you can do: with a unit selected, where it can go (road brass, rail
+// blue); otherwise, in your attack phase, the enemy territories you can attack.
+function refreshTargets() {
+  if (!mapView) return;
   if (selectedUnit) {
     const pv = previewFor(selectedUnit);
     mapView.showTargets(moveTargets(pv, orderData(), selectedUnit), railTargets(pv, orderData(), selectedUnit));
-  } else {
-    mapView.showTargets([], []);
+    return;
   }
+  const phase = humanPhase();
+  mapView.showTargets([], [], phase && phase.kind === 'attack' ? attackableBoxes(state, orderData(), phase.side) : []);
+}
+
+// ---------------------------------------------------------------- Best attacks
+// The suggestions on show (js/engine/explain.js bestAttacks), or null.
+let suggestions = null;
+function toggleBest() {
+  const phase = humanPhase();
+  if (suggestions || !phase) { clearSuggestions(); refreshPanel(); return; }
+  if (phase.kind !== 'attack') {
+    orderError = 'Best attacks works in your attack phase. Now, in the move phase, stack up to 3 units in one front territory: more steps mean better odds.';
+    refreshPanel(); openSheet(true);
+    return;
+  }
+  suggestions = bestAttacks(state, orderData(), phase.side, 3);
+  const pct = (p) => `${Math.round(p * 100)}%`;
+  mapView.showSuggestions(suggestions.map((o) => {
+    const lead = o.units.map((id) => state.units.find((u) => u.id === id)).reduce((a, b) => (b.steps > a.steps ? b : a));
+    return { from: lead.box, to: o.target, label: `${o.columnLabel} · ${pct(o.pTake)}` };
+  }));
+  $('btn-best').setAttribute('aria-pressed', 'true');
+  if (suggestions.length) focusOn(...suggestions.map((o) => o.target));   // bring the arrows into view
   refreshPanel();
+  openSheet(true);
+}
+function clearSuggestions() {
+  suggestions = null;
+  if (mapView) mapView.showSuggestions([]);
+  $('btn-best').setAttribute('aria-pressed', 'false');
+}
+// Tap a suggestion: open the order slip with its units and barrage.
+function useSuggestion(i) {
+  const o = suggestions[i];
+  clearSuggestions();
+  selectBox(o.target);
+  attack = { target: o.target, units: [...o.units], munitions: o.munitions };
+  showAttackArrow();
+  refreshPanel();
+}
+// What the panel lists about the suggestions.
+function suggestionsInfo() {
+  if (!suggestions) return null;
+  return suggestions.map((o, i) => ({
+    index: i, chance: o.pTake,
+    text: `${placeName(o.target)}: ${o.units.length} unit${o.units.length === 1 ? '' : 's'}, barrage ${o.munitions} → ${o.columnLabel}, ${Math.round(o.pTake * 100)}% to take it`,
+  }));
 }
 
 // Folded phone: the panel is a sheet that slides up from the bottom.
@@ -375,7 +472,7 @@ function tapBox(boxId) {
       persist();
       const from = selectedBox;
       selectedUnit = null;
-      mapView.showTargets([], []);
+      refreshTargets();
       redraw();
       selectBox(from);
       return;
@@ -441,6 +538,8 @@ function attackSlip() {
     slip.ratioText = `${plan.attackSteps} steps against ${plan.defendSteps} \u2192 ${data.engine.combat.columns[plan.ratioColumn].label}`;
     slip.finalLabel = plan.columnLabel;
     slip.pTake = odds.pTake; slip.attackerLoss = odds.attackerLoss; slip.defenderLoss = odds.defenderLoss;
+    // the plain-English explanation: roll needed, why, what would help (explain.js)
+    slip.advice = attackAdvice(pv, orderData(), order);
     // The Recruit advisor (RULES.md §13): warn before a futile attack.
     const level = data.engine.ai.levels.find((l) => l.id === state.level);
     const worst = data.engine.combat.columns.findIndex((c) => c.label === data.engine.combat.futile.worstColumn);
@@ -449,6 +548,7 @@ function attackSlip() {
     }
   } else if (!plan.empty && plan.ratioColumn !== null) {
     slip.ratioText = `${plan.attackSteps} steps against ${plan.defendSteps} \u2192 below 1:2`;
+    slip.advice = attackAdvice(pv, orderData(), order);
   }
   if (payer) {
     const left = pv.resources[payer.id];
@@ -554,7 +654,7 @@ function closeAttack() {
 function selectBox(boxId) {
   selectedBox = boxId;
   selectedUnit = null;
-  mapView.showTargets([], []);
+  refreshTargets();
   mapView.select(boxId);
   refreshPanel();
   openSheet(true);
@@ -591,7 +691,7 @@ function showMap() {
   }
   redraw();
   mapView.select(null);
-  mapView.showTargets([], []);
+  refreshTargets();
   if (demoAttack) mapView.showPlannedAttack(...demoAttack);
   else mapView.clearPlannedAttack();
   zoom.startView();
@@ -630,8 +730,14 @@ function redraw() {
   $('btn-end-phase').disabled = state.over || Boolean(state.pendingChoice) || Boolean(state.pendingBudget) ||
     Boolean(playback && playback.isPlaying());
   drawOrderArrows();
+  $('phase-guide').textContent = phaseGuide(state, orderData());
+  const human = humanPhase();
+  $('btn-best').hidden = !human;
+  if (!human || human.kind !== 'attack') clearSuggestions();
+  refreshTargets();
   if (state.pendingChoice) openSheet(true);
   showPendingBudget();
+  if (coach) coach.update(state, Boolean(playback && playback.isPlaying()));
 }
 
 // ---------------------------------------------------------------- the War Office budget
@@ -680,17 +786,22 @@ async function signBudget(side, budgets, auto) {
 // your orders (the computer plays its side on the way), then play it all back.
 async function commit() {
   if (!state || state.over || state.pendingChoice || state.pendingBudget || (playback && playback.isPlaying())) return;
+  clearSuggestions();
   const out = commitOrders(state, orderData());
   const actions = [...out.actions];
   state = endPhase(out.state, orderData(), { record: (action, s) => actions.push({ ...action, after: snapshot(s) }) });
   persist();                       // saved before the playback, so closing the app loses nothing
   attack = null; selectedUnit = null; selectedOrder = null;
   mapView.clearPlannedAttack();
-  mapView.showTargets([], []);
+  refreshTargets();
   await playTurn(actions);
 }
+// The battle reports of the last turn played back (explain.js battleReport): kept
+// until the next commit, shown in the panel.
+let reports = [];
 // Play actions back, then show the real state.
 async function playTurn(actions) {
+  reports = actions.filter((a) => a.kind === 'attack' && a.result).map((a) => battleReport(data.engine, a));
   openSheet(false);
   $('btn-end-phase').disabled = true;
   $('commit-count').textContent = '';
@@ -705,7 +816,7 @@ async function playTurn(actions) {
   gameScreen.classList.remove('playing-back');
   redraw();
   refreshPanel();
-  if (state.pendingChoice) openSheet(true);
+  if (state.pendingChoice || reports.length) openSheet(true);
 }
 // Draw the map as it was partway through a turn (a snapshot from js/engine/orders.js).
 function showBoard(snap) {
@@ -749,6 +860,15 @@ function openWarOffice() {
   box.scrollTop = 0;
 }
 
+// How to Play (data/help.json): a page over whichever screen is showing.
+function openHelp() {
+  if (!data || (playback && playback.isPlaying())) return;
+  const box = $('help');
+  showHelp(box, data.help, () => { box.hidden = true; });
+  box.hidden = false;
+  box.scrollTop = 0;
+}
+
 // New Campaign: show the side and difficulty choices (RULES.md §13).
 const setup = { player: 'entente', level: 'regular' };
 const LEVEL_NOTES = {
@@ -773,14 +893,21 @@ function refreshSetup() {
     : LEVEL_NOTES[setup.level];
 }
 
-// Start a new game and show the map.
-function startGame() {
+// The guided first turn's coach (js/ui/tutorial.js), or null.
+let coach = null;
+
+// Start a new game and show the map. With `guided`, the guided first turn
+// (data/tutorial.json): the Entente on Regular, a fixed seed and Auto-allocate on.
+async function startGame(guided = false) {
   if (!data) return;
+  if (coach) coach.stop();
+  if (guided) { setup.player = data.tutorial.side; setup.level = data.tutorial.level; }
   $('setup').hidden = true;
   document.querySelector('.title-buttons').hidden = false;
   // The seed only has to be different each game; every roll then goes
   // through the seeded rng.js (from Milestone 5).
-  state = newGame(data.scenario, Date.now() % 2147483647, data.engine, { ...setup });
+  state = newGame(data.scenario, guided ? data.tutorial.seed : Date.now() % 2147483647, data.engine, { ...setup });
+  if (guided) state.autoAllocate[setup.player] = true;
   selectedBox = null;
   selectedUnit = null;
   attack = null;
@@ -790,7 +917,25 @@ function startGame() {
   state = beginGame(state, orderData(), { record: (action, s) => opening.push({ ...action, after: snapshot(s) }) });
   playState(state);
   persist();
-  if (opening.length && !demoAttack) playTurn(opening);
+  if (opening.length && !demoAttack) await playTurn(opening);
+  if (guided) startCoach();
+}
+
+// Begin coaching, with territories picked from the board as it is now.
+function startCoach() {
+  const plan = tutorialPlan(state, data.engine);
+  if (!plan) { orderError = 'The guided turn could not find a good attack this time. Try How to Play instead.'; refreshPanel(); return; }
+  if (!coach) {
+    coach = createCoach({
+      strip: $('coach'), mapView,
+      names: { place: placeName },
+      phaseId: (s) => (phaseOf(s, orderData()) || {}).id,
+      onEnd: () => { redraw(); },
+      focus: (a, b) => focusOn(a, b),
+    });
+  }
+  coach.start(data.tutorial.steps, plan);
+  coach.update(state);
 }
 
 // Show the game screen for a state (new, continued or imported).
@@ -835,16 +980,20 @@ async function boot() {
   $('version-note').textContent = VERSION_LABEL;
   updateContinueButton();
   newGameButton.addEventListener('click', showSetup);
-  $('btn-begin').addEventListener('click', startGame);
+  $('btn-begin').addEventListener('click', () => startGame(false));
+  $('btn-tutorial').addEventListener('click', () => startGame(true));
   for (const b of document.querySelectorAll('[data-side]')) b.addEventListener('click', () => { setup.player = b.dataset.side; refreshSetup(); });
   for (const b of document.querySelectorAll('[data-level]')) b.addEventListener('click', () => { setup.level = b.dataset.level; refreshSetup(); });
   continueButton.addEventListener('click', continueGame);
   $('btn-export').addEventListener('click', exportSave);
   $('btn-import').addEventListener('click', () => $('import-file').click());
   $('import-file').addEventListener('change', (e) => importSave(e.target));
-  $('btn-back').addEventListener('click', () => { $('war-office').hidden = true; $('budget').hidden = true; budgetShown = null; showScreen(titleScreen); updateContinueButton(); });
+  $('btn-back').addEventListener('click', () => { if (coach) coach.stop(); $('war-office').hidden = true; $('budget').hidden = true; budgetShown = null; showScreen(titleScreen); updateContinueButton(); });
   $('btn-end-phase').addEventListener('click', () => { if (state) commit(); });
   $('btn-war-office').addEventListener('click', openWarOffice);
+  $('btn-best').addEventListener('click', () => { if (state) toggleBest(); });
+  $('btn-help').addEventListener('click', openHelp);
+  $('btn-title-help').addEventListener('click', openHelp);
   wireSheet();
 
   newGameButton.disabled = true;   // until the data has loaded

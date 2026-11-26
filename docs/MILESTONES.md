@@ -119,6 +119,16 @@ Do one milestone per Claude Code session. For each one:
     shells, research in progress with its expected month, and industrial cities.
   - German starting Will 108. The simulator includes the economy and was re-run.
 
+- [x] **10c. Clearer play** (no rule changes)
+  - The order slip explains itself: the roll needed on two dice, a strip showing what
+    every roll would do, why the chance is what it is (e.g. dug in), and what would help.
+  - BEST ATTACKS shows the three best attacks this phase on the map.
+  - After each turn, a battle report for every attack; retreats and advances slide on
+    the map.
+  - A phase guide under the date; road moves outlined in brass, rail in blue, attackable
+    enemy territories in red; MOVED / RAIL / ATK marks on pieces.
+  - How to Play page, and a guided first turn (road move, rail move, stacked attack).
+
 - [ ] **11. Playtest and polish**
   - You play 3–4 full games (both sides, more than one difficulty).
   - We list everything that was boring or confusing, then fix it.
@@ -202,4 +212,7 @@ milestone in brackets, confirm the fix, then update RULES.md and the code togeth
 - The Recruit advisor also highlights weak friendly front boxes (RULES.md §13).
 - A separate Research page reachable from the War Office at any time (for now the
   research ledger is at the bottom of the budget page, and progress is on the dashboard).
+- A guided first turn as Germany too (the coach and its data already allow it).
+- Find the rest of the gap between the game's computer and the simulator (DECISIONS.md
+  98–101): in 1915–16 the game's computer attacks about half as often.
 (Claude Code: add ideas here instead of building them.)

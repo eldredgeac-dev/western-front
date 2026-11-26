@@ -118,7 +118,7 @@ export function createPlayback(view) {
     const theirs = lostBy(r.defenderLost) + lostBy(r.retreatLost);
     const ours = lostBy(r.attackerLost);
     view.mapView.svg.classList.add('playing');
-    view.showBoard(a.after);
+    await slideAfterBattle(a);
     if (!view.fast() && !skipAll) {
       if (theirs) view.mapView.floatText(a.target, `−${theirs}`);
       const from = Object.values(a.from || {})[0];
@@ -127,6 +127,37 @@ export function createPlayback(view) {
     if (r.taken || !view.fast()) await wait(600);   // the capture cross-fade
     view.mapView.svg.classList.remove('playing');
     view.slip.hidden = true;
+  }
+
+  // After the dice: defenders that fell back slide to their new territory, then the
+  // attackers that advanced slide in (each slide ≤ 0.6 s; skipped in fast mode).
+  async function slideAfterBattle(a) {
+    const r = a.result;
+    const groups = [r.retreats || [], r.advanced || []].filter((g) => g.length);
+    if (!groups.length || view.fast() || skipAll) { view.showBoard(a.after); return; }
+    const moving = new Set(groups.flat().map((m) => m.unit));
+    // the board after the battle, minus the pieces still to slide
+    let waiting = new Set(moving);
+    const partial = () => ({ ...a.after, units: a.after.units.filter((u) => !waiting.has(u.id)) });
+    view.showBoard(partial());
+    for (const g of groups) {
+      if (skipAll) break;
+      const ghosts = g.map((m) => {
+        const unit = a.after.units.find((u) => u.id === m.unit);
+        if (!unit) return null;
+        const ghost = view.mapView.ghostPiece(unit, view.lookFor(unit));
+        return { ghost, from: view.mapView.standPoint(m.from), to: view.mapView.standPoint(m.to) };
+      }).filter(Boolean);
+      await tween(600, (t) => {
+        const e = ease(t);
+        for (const x of ghosts) x.ghost.at(x.from[0] + (x.to[0] - x.from[0]) * e, x.from[1] + (x.to[1] - x.from[1]) * e);
+      });
+      for (const x of ghosts) x.ghost.remove();
+      for (const m of g) waiting.delete(m.unit);
+      view.showBoard(partial());
+    }
+    waiting = new Set();
+    view.showBoard(a.after);
   }
 
   // The small order slip with two dice tumbling, landing on the real roll.

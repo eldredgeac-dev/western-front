@@ -177,6 +177,20 @@ Tech `effect` kinds:
 `replaces` names what a tech brought forward so it doesn't happen twice: `{event: id}` or
 `{reinforcement: {month, nation, type}}`.
 
+## `help.json`: the How to Play page
+`title`, `intro`, and `sections`, each with a `title` and `paragraphs` (plain text).
+`diagram: "lane"` draws the small picture of which territories touch. It summarises
+RULES.md for players: when a rule changes there, change it here too.
+
+## `tutorial.json`: the guided first turn
+`seed`, `level` and `side` start the game. `steps` each have an `id`, a `title`, `text`
+(with `{target}`, `{front}`, `{support}`, `{side}`, `{reserve}` replaced by the territories
+`js/engine/tutorial.js` picks), and `waitFor`: what the player must do before the next
+step: `next` (a button, optional `label`), `move` (a queued move of the `unit` role to
+the `to` role), `phase` (that phase reached), `attack` (a queued attack on the target
+with at least `munitions`), `played` (the turn has been played). `arrow` (`from`, `to`,
+`kind`) draws a coach arrow on the map.
+
 ## `ai.json`: the computer opponent (RULES.md §13–§14) [balanced]
 | Field | Meaning |
 |---|---|

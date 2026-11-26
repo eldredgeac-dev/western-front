@@ -192,6 +192,18 @@ function block(g, color) {
 // One piece as an SVG group centred on (0, 0).
 //   unit — { nation, steps, quality, moved, attacked }
 //   look — { color, symbol, maxSteps, mirror } from the nation and unit-type data
+// A small typed tab on the piece's lower edge saying what it did this turn:
+// RAIL (came by rail: can't attack), MOVED, or ATK (attacked). Full pieces only.
+function statusTab(g, unit) {
+  const text = unit.railed ? 'RAIL' : unit.attacked ? 'ATK' : unit.moved ? 'MOVED' : null;
+  if (!text) return;
+  const w = text.length * 3.2 + 3;
+  const tab = el('g', { class: 'status-tab' }, g);
+  el('rect', { x: -w / 2, y: 11.2, width: w, height: 5.6, rx: 0.8, fill: TELEGRAM, stroke: INK, 'stroke-width': 0.45 }, tab);
+  const t = el('text', { x: 0, y: 15.4, 'text-anchor': 'middle', 'font-size': 4.6, fill: INK, class: 'status-text' }, tab);
+  t.textContent = text;
+}
+
 export function counterSvg(unit, look) {
   const g = el('g', { class: 'counter piece' + (unit.moved || unit.attacked ? ' done' : '') });
   block(g, look.color);
@@ -204,6 +216,7 @@ export function counterSvg(unit, look) {
   mapSymbol(full, look.symbol, ink);
   strength(full, unit.steps, look.maxSteps, 4.6, 1.6, 8.6, 8.8, 8.6);
   pips(full, unit.steps, look.maxSteps, ink);
+  statusTab(full, unit);
   // simple version, for the zoomed-out map
   const simple = el('g', { class: 'piece-simple' }, g);
   nationMark(simple, unit.nation, -5.8, -5.4, 6.2);

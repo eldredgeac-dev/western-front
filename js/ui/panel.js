@@ -78,15 +78,21 @@ function unitList(info, onUnit, onCancelOrder) {
     const text = el('span', 'unit-text');
     text.appendChild(el('strong', '', u.title));
     text.appendChild(el('span', 'unit-detail', `${u.steps} of ${u.maxSteps} steps · ${u.quality}`));
+    if (u.status && u.status.length) {
+      const tags = el('span', 'unit-tags');
+      for (const t of u.status) tags.appendChild(el('span', 'unit-tag', t));
+      text.appendChild(tags);
+    }
     b.appendChild(text);
     if (u.ordered) text.appendChild(el('span', 'unit-detail', u.ordered.text));
     b.addEventListener('click', () => onUnit(u.id));
     section.appendChild(b);
     if (info.selectedUnit === u.id) {
       const hint = u.moves || u.rails
-        ? `Can move to ${u.moves} territor${u.moves === 1 ? 'y' : 'ies'} (brass outline) or go by rail to ${u.rails} (dashed).`
+        ? `By road to ${u.moves} territor${u.moves === 1 ? 'y' : 'ies'} (brass outline), or by rail to ${u.rails} (blue dashed).`
         : (u.why || 'This unit can\u2019t move now.');
       section.appendChild(el('p', 'unit-hint', u.ordered ? `${hint} Tap one to change its order.` : hint));
+      if (u.rule) section.appendChild(el('p', 'unit-rule', u.rule));
       if (u.ordered && onCancelOrder) {
         const c = el('button', 'btn btn-small', 'Cancel order');
         c.type = 'button';
@@ -131,6 +137,36 @@ function slipLine(parent, label, value, cls = '') {
 }
 const signed = (n) => (n > 0 ? `+${n}` : n < 0 ? `\u2212${-n}` : '0');
 const pct = (p) => `${Math.round(p * 100)}%`;
+
+// The explanation under the odds (js/engine/explain.js): the roll needed, a strip
+// showing what each roll of two dice would do, why, and what would help.
+function adviceBlock(a) {
+  const box = el('div', 'slip-advice');
+  if (a.rollLine) box.appendChild(el('p', 'slip-roll', a.rollLine));
+  if (a.rolls && a.rolls.length) {
+    const strip = el('div', 'dice-strip');
+    strip.setAttribute('role', 'list');
+    strip.setAttribute('aria-label', 'What each roll of two dice would do');
+    for (const r of a.rolls) {
+      const cell = el('span', 'dice-cell' + (r.taken ? ' taken' : ''));
+      cell.setAttribute('role', 'listitem');
+      cell.appendChild(el('span', 'dice-roll', String(r.roll)));
+      cell.appendChild(el('span', 'dice-res', r.taken ? 'TAKE' : `\u2212${r.d}`));
+      cell.setAttribute('aria-label', `Roll ${r.roll}: ${r.taken ? 'taken' : 'held'}; we lose ${r.a}, they lose ${r.d}`);
+      strip.appendChild(cell);
+    }
+    box.appendChild(strip);
+    box.appendChild(el('p', 'slip-hint', 'Each square is a roll of two dice: TAKE means the territory falls; otherwise the steps they lose.'));
+  }
+  for (const w of a.why || []) box.appendChild(el('p', 'slip-why', w));
+  if (a.fixes && a.fixes.length) {
+    const list = el('ul', 'slip-fixes');
+    for (const f of a.fixes) list.appendChild(el('li', '', f));
+    box.appendChild(list);
+  }
+  if (a.futileLine) box.appendChild(el('p', 'slip-note', a.futileLine));
+  return box;
+}
 
 // The attack order slip (STYLE.md §6): telegram paper, typed lines, every column
 // shift listed, the final odds stamped in red, and CONFIRM ORDER.
@@ -189,6 +225,7 @@ function orderSlip(slip, actions) {
     slipLine(odds, 'Expected losses, theirs', `${slip.defenderLoss.toFixed(1)} steps`);
     card.appendChild(odds);
   }
+  if (slip.advice && !slip.result) card.appendChild(adviceBlock(slip.advice));
   if (slip.warning) card.appendChild(el('p', 'slip-warning', slip.warning));
   for (const r of slip.reasons || []) card.appendChild(el('p', 'slip-note', r));
 
@@ -236,6 +273,49 @@ function ordersSection(orders, onCancel) {
   return section;
 }
 
+// Best attacks (js/engine/explain.js): the suggestions, each a button that opens
+// the order slip with those units and that barrage.
+function suggestionsSection(list, onPick) {
+  const section = el('section', 'orders');
+  section.appendChild(el('h3', 'panel-subtitle', 'Best attacks this phase'));
+  if (!list.length) section.appendChild(el('p', 'unit-hint', 'None of your units can attack anything now.'));
+  else if (list.every((o) => o.chance < 0.1)) {
+    section.appendChild(el('p', 'unit-hint', 'None of these is likely to work. Next move phase, stack up to 3 units in one front territory, then attack from there.'));
+  }
+  for (const o of list) {
+    const b = el('button', 'order-row suggestion', `${o.index + 1}. ${o.text}`);
+    b.type = 'button';
+    b.addEventListener('click', () => onPick(o.index));
+    section.appendChild(b);
+  }
+  section.appendChild(el('p', 'unit-hint', 'Tap one to open its order slip. The arrows on the map show where each would come from.'));
+  return section;
+}
+
+// Battle reports (js/engine/explain.js battleReport): one typed card per attack in the
+// turn just played, yours and the enemy's.
+function reportsSection(reports, onShow, onClose) {
+  const section = el('section', 'reports');
+  section.appendChild(el('h3', 'panel-subtitle', `Battle reports (${reports.length})`));
+  for (const r of reports) {
+    const card = el('article', 'order-slip report-card');
+    card.appendChild(el('p', 'slip-kicker', 'BATTLE REPORT'));
+    card.appendChild(el('h4', 'slip-title', r.title));
+    for (const line of r.lines) card.appendChild(el('p', 'report-line', line));
+    card.appendChild(el('p', 'slip-stamp' + (r.taken ? '' : ' failed'), r.taken ? 'OBJECTIVE TAKEN' : 'REPULSED'));
+    const show = el('button', 'btn btn-small', 'Show on map');
+    show.type = 'button';
+    show.addEventListener('click', () => onShow(r.box));
+    card.appendChild(show);
+    section.appendChild(card);
+  }
+  const close = el('button', 'btn btn-small', 'Put the reports away');
+  close.type = 'button';
+  close.addEventListener('click', onClose);
+  section.appendChild(close);
+  return section;
+}
+
 // Settings kept on this phone: fast mode (STYLE.md §8).
 function settingsSection(settings, onFast) {
   const section = el('section', 'settings');
@@ -276,6 +356,8 @@ export function showPanel(container, info, terrainData, actions = {}) {
   if (actions.error) parts.push(el('p', 'panel-error', actions.error));
   if (actions.slip) parts.push(orderSlip(actions.slip, actions));
   if (actions.choice) parts.push(choiceCard(actions.choice, actions.onChoose));
+  if (actions.reports && actions.reports.length && !actions.slip) parts.push(reportsSection(actions.reports, actions.onReport, actions.onCloseReports));
+  if (actions.suggestions) parts.push(suggestionsSection(actions.suggestions, actions.onSuggestion));
   if (actions.orders) parts.push(ordersSection(actions.orders, actions.onCancelOrder));
   if (!info) {
     parts.push(el('p', 'panel-hint', 'Tap a territory on the map to see its details. Pinch to zoom.'));

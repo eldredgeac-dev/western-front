@@ -20,6 +20,9 @@ import { aiMove, aiAttack, frontBoxes } from '../js/engine/ai.js';
 import { SILHOUETTES, mix, isDark } from '../js/ui/counters.js';
 import { queueCheck, addOrder, cancelOrder, commitOrders } from '../js/engine/orders.js';
 import { recordMonth, casualties, ledger } from '../js/engine/history.js';
+import { rollOutcomes, attackAdvice, bestAttacks, battleReport, phaseGuide, attackableBoxes } from '../js/engine/explain.js';
+import { tutorialPlan } from '../js/engine/tutorial.js';
+import { addOrder as queueOrder, commitOrders as commitQueued } from '../js/engine/orders.js';
 import { columnAverages, ratioColumn, planAttack, oddsPreview, resolveAttack, applyCombatResult,
   barrageMax, eligibleAttackers } from '../js/engine/combat.js';
 
@@ -1612,6 +1615,153 @@ test('economy: the same seed gives the same war (computer vs computer, a year)',
   check(Object.keys(a.research).length > 0, 'the computer researched: ' + JSON.stringify(a.research));
 });
 
+// ---------------------------------------------------------------- bug check: a turn-1 attack, start to finish
+// Entente, December 1914: three French units stacked in the Somme front line attack
+// l06-g1 with a 2-munition barrage. Every seed is tried in order until one takes the box
+// and one is repulsed, so both outcomes are checked with fixed seeds.
+function turnOneAttack(seed) {
+  let s = newGame(data.scenario, seed, eco(), { player: 'entente', level: 'regular' });
+  s = beginGame(s, eco());
+  s = submitBudget(s, eco(), 'entente', { fra: { munitions: 2, research: 0 }, gbr: { munitions: 1, research: 0 } });
+  s = endPhase(s, eco());                                    // Entente move → Entente attack
+  const t = copyOf(s);
+  const french = t.units.filter((u) => u.nation === 'fra' && ['l07-e1', 'l06-e2'].includes(u.box)).slice(0, 2);
+  for (const u of french) u.box = 'l06-e1';                 // stack three in the Somme front line
+  return t;
+}
+function attackOutcome(seed) {
+  const s = turnOneAttack(seed);
+  const units = eligibleAttackers(s, eco(), 'l06-g1');
+  const before = copyOf(s);
+  const out = resolveAttack(s, eco(), { target: 'l06-g1', units, munitions: 2 });
+  return { before, after: out.state, r: out.result, units };
+}
+
+test('bug check: a stacked turn-1 attack resolves fully (taken)', () => {
+  let found = null;
+  for (let seed = 1; seed < 80 && !found; seed++) { const o = attackOutcome(seed); if (o.r.taken) found = o; }
+  check(found, 'some seed takes the box');
+  const { before, after, r, units } = found;
+  check(units.length === 3 && r.plan.columnLabel === '3:1', 'three units at 3:1: ' + r.plan.columnLabel);
+  const steps = (st, ids) => ids.reduce((a, id) => a + ((st.units.find((u) => u.id === id) || {}).steps || 0), 0);
+  check(steps(before, units) - steps(after, units) === Object.values(r.attackerLost).reduce((a, b) => a + b, 0), 'attacker losses applied');
+  check(after.boxes['l06-g1'].owner === 'entente' && after.boxes['l06-g1'].trench === 0, 'owner changed, trench 0');
+  check(r.advanced.length >= 1 && r.advanced.length <= 2 && r.advanced.every((m) => after.units.find((u) => u.id === m.unit).box === 'l06-g1'),
+    'up to 2 attackers advanced: ' + JSON.stringify(r.advanced));
+  for (const m of r.retreats) check(after.units.find((u) => u.id === m.unit).box === m.to && after.boxes[m.to].owner === 'germany', 'defender fell back to ' + m.to);
+  check(!after.units.some((u) => u.nation === 'ger' && u.box === 'l06-g1'), 'no German left in the box');
+  check(after.resources.fra.op === before.resources.fra.op - 1 && after.resources.fra.munitions === before.resources.fra.munitions - 2, 'OP and munitions spent');
+  check(r.ownerBefore === 'germany' && r.ownerAfter === 'entente', 'owners recorded for the report');
+});
+
+test('bug check: a stacked turn-1 attack resolves fully (repulsed)', () => {
+  let found = null;
+  for (let seed = 1; seed < 80 && !found; seed++) { const o = attackOutcome(seed); if (!o.r.taken) found = o; }
+  check(found, 'some seed is repulsed');
+  const { after, r } = found;
+  check(after.boxes['l06-g1'].owner === 'germany' && r.advanced.length === 0 && r.retreats.length === 0, 'nothing moved');
+  check(Object.values(r.defenderLost).reduce((a, b) => a + b, 0) === r.d || r.d > 4, 'defender losses applied');
+});
+
+// ---------------------------------------------------------------- explaining attacks (js/engine/explain.js)
+test('explain: each roll\'s outcome adds up to the slip\'s chance of taking it', () => {
+  const s = turnOneAttack(4);
+  const units = eligibleAttackers(s, eco(), 'l06-g1');
+  for (const mun of [0, 1, 2]) {
+    const order = { target: 'l06-g1', units, munitions: mun };
+    const { rolls } = rollOutcomes(s, eco(), order);
+    const p = rolls.filter((r) => r.taken).reduce((a, r) => a + r.chance, 0);
+    check(rolls.length === 11 && Math.abs(p - oddsPreview(s, eco(), order).pTake) < 1e-9, `barrage ${mun}`);
+  }
+  const advice = attackAdvice(s, eco(), { target: 'l06-g1', units, munitions: 2 });
+  check(advice.rollLine === 'You take it on a roll of 7 or more on two dice (58%).', advice.rollLine);
+  check(advice.fixes.some((f) => f.startsWith('Winter \u22121: winter ends in March')), advice.fixes.join(' | '));
+});
+
+test('explain: a dug-in box with 8 steps is 0% and says why', () => {
+  const s = atWar('1916-04', 'entente');
+  s.boxes['l06-g1'].trench = 3;
+  place(s, 'ger-07', 'l06-g1');   // two German units: 8 steps
+  place(s, 'fra-04', 'l06-e1');
+  const units = eligibleAttackers(s, eco(), 'l06-g1');
+  const a = attackAdvice(s, eco(), { target: 'l06-g1', units, munitions: 0 });
+  check(a.pTake === 0 && a.rollLine.startsWith('No roll'), a.rollLine);
+  check(a.why[0].includes('dug in (trench 3)') && a.why[0].includes('all 8 steps'), a.why[0]);
+  check(a.futileLine.includes('loses 3 Will'), 'futile warning: ' + a.futileLine);
+});
+
+test('explain: how many more steps reach the next column', () => {
+  const s = turnOneAttack(4);
+  const one = s.units.find((u) => u.box === 'l06-e1' && u.nation === 'fra').id;
+  const a = attackAdvice(s, eco(), { target: 'l06-g1', units: [one], munitions: 0 });
+  check(a.fixes.some((f) => f.includes('2 more steps would reach 3:2')), a.fixes.join(' | '));
+});
+
+test('explain: Best attacks picks the stacked Somme attack with a full barrage', () => {
+  const s = turnOneAttack(4);
+  const best = bestAttacks(s, eco(), 'entente');
+  check(best.length === 3, 'three suggestions');
+  check(best[0].target === 'l06-g1' && best[0].units.length === 3 && best[0].munitions === 2 && best[0].columnLabel === '3:1',
+    JSON.stringify(best[0]));
+  check(best[0].pTake >= best[1].pTake && best[1].pTake >= best[2].pTake, 'ranked');
+});
+
+test('explain: the battle report says what happened (taken)', () => {
+  let found = null;
+  for (let seed = 1; seed < 80 && !found; seed++) { const o = attackOutcome(seed); if (o.r.taken) found = o; }
+  const rep = battleReport(eco(), { side: 'entente', target: 'l06-g1', result: found.r, after: found.after });
+  const text = rep.lines.join(' ');
+  check(rep.taken && rep.title.includes('attack on'), rep.title);
+  check(/Rolled \d \+ \d = \d+ on column 3:1/.test(text), text);
+  check(text.includes('Advanced into') && text.includes('The front line moved'), text);
+  if (found.r.retreats.length) check(text.includes('Fell back to'), text);
+});
+
+test('explain: the battle report says what happened (repulsed)', () => {
+  let found = null;
+  for (let seed = 1; seed < 80 && !found; seed++) { const o = attackOutcome(seed); if (!o.r.taken) found = o; }
+  const rep = battleReport(eco(), { side: 'entente', target: 'l06-g1', result: found.r, after: found.after });
+  check(!rep.taken && rep.lines.includes('The line held.') && !rep.lines.join(' ').includes('Advanced'), rep.lines.join(' | '));
+});
+
+test('explain: the phase guide says what to do, with what\'s left', () => {
+  const s = turnOneAttack(4);
+  const g = phaseGuide(s, eco());
+  check(g.startsWith('Entente attack') && g.includes('OP: France 2 · Britain 1') && g.includes('Munitions: France 2'), g);
+  const m = copyOf(s); m.phase = phaseIndex('entente-move');
+  check(phaseGuide(m, eco()).includes('left: France 2 · Britain 1'), phaseGuide(m, eco()));
+  check(attackableBoxes(s, eco(), 'entente').includes('l06-g1'), 'l06-g1 can be attacked');
+  const ai = copyOf(s); ai.controllers.entente = 'ai';
+  check(phaseGuide(ai, eco()) === '', 'nothing in the computer\'s phase');
+});
+
+test('tutorial: the guided first turn picks a good attack and its steps work', () => {
+  const tut = data.tutorial;
+  let s = newGame(data.scenario, tut.seed, eco(), { player: tut.side, level: tut.level });
+  s.autoAllocate[tut.side] = true;
+  s = beginGame(s, eco());
+  check(phaseOf(s, eco()).id === 'entente-move' && !s.pendingBudget, 'starts at the Entente move, no budget page');
+  const p = tutorialPlan(s, eco());
+  check(p && p.target === 'l06-g1' && p.front === 'l06-e1', JSON.stringify(p));
+  s = queueOrder(s, eco(), { kind: 'move', unit: p.support.unit, to: p.front });
+  s = queueOrder(s, eco(), { kind: 'move', unit: p.side.unit, to: p.front });
+  s = queueOrder(s, eco(), { kind: 'move', unit: p.reserve.unit, to: p.side.box });   // a rail move
+  s = endPhase(commitQueued(s, eco()).state, eco());
+  check(phaseOf(s, eco()).id === 'entente-attack', 'attack phase');
+  const units = eligibleAttackers(s, eco(), p.target);
+  check(units.length === 3 && !units.includes(p.reserve.unit), 'three attackers; the railed reserve can\'t attack');
+  const odds = oddsPreview(s, eco(), { target: p.target, units, munitions: 2 });
+  check(odds.plan.columnLabel === '3:1' && Math.round(odds.pTake * 100) === 58, odds.plan.columnLabel);
+  const out = commitQueued(queueOrder(s, eco(), { kind: 'attack', target: p.target, units, munitions: 2 }), eco());
+  check(out.state.boxes[p.target].owner === 'entente', 'with this seed, the attack succeeds');
+  // every placeholder in the steps is a role in the plan
+  for (const step of tut.steps) for (const [, role] of step.text.matchAll(/\{(\w+)\}/g)) check(p[role], `${step.id}: {${role}}`);
+});
+
+test('help: every How to Play section has a title and text', () => {
+  check(data.help.sections.length >= 6 && data.help.sections.every((x) => x.title && x.paragraphs.length), 'sections');
+});
+
 // ---------------------------------------------------------------- pieces (STYLE.md §5)
 test('rule: every unit type has a silhouette for its piece', () => {
   const types = data.unitTypes.types;
@@ -1646,6 +1796,8 @@ export async function runAll(loadJson, loadText) {
     data.ai = await loadJson('data/ai.json');
     data.headlines = await loadJson('data/headlines.json');
     data.economy = await loadJson('data/economy.json');
+    data.tutorial = await loadJson('data/tutorial.json');
+    data.help = await loadJson('data/help.json');
   } catch (err) {
     results.push({ name: 'load data files', ok: false, error: err.message });
     return results;
