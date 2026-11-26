@@ -701,7 +701,7 @@ html, body {
 .slip-hint { margin: 2px 0 6px; font-size: 0.8rem; color: var(--ink-faded); }
 .slip-fixes { margin: 4px 0; padding-left: 1.1em; }
 .slip-fixes li { margin: 2px 0; }
-.dice-strip { display: grid; grid-template-columns: repeat(11, minmax(0, 1fr)); gap: 2px; margin: 4px 0 2px; }
+.dice-strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(36px, 1fr)); gap: 2px; margin: 4px 0 2px; }
 .dice-cell {
   display: flex; flex-direction: column; align-items: center; padding: 2px 0;
   border: 1px solid var(--ink-faded); font-size: 0.72rem; line-height: 1.15;
@@ -755,7 +755,8 @@ html, body {
 .coach-kicker { margin: 0; font-weight: 700; letter-spacing: 0.15em; font-size: 0.75rem; color: var(--stamp-red); }
 .coach-title { margin: 2px 0; font-weight: 700; }
 .coach-text { margin: 4px 0 8px; line-height: 1.35; }
-.coach-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+.coach-buttons { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.coach-buttons .coach-kicker { flex: 1 1 100%; }
 .coach .btn:not(.btn-primary) { color: var(--ink); border-color: var(--ink); }
 body.coaching .locator { display: none; }
 .map-svg .arrow.coach .plan-arrow { stroke: var(--stamp-red); opacity: 0.95; }

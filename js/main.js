@@ -930,6 +930,7 @@ function startCoach() {
       names: { place: placeName },
       phaseId: (s) => (phaseOf(s, orderData()) || {}).id,
       onEnd: () => { redraw(); },
+      focus: (a, b) => focusOn(a, b),
     });
   }
   coach.start(data.tutorial.steps, plan);

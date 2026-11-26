@@ -15,7 +15,8 @@ function el(tag, className, text) {
 //   names   — { place(boxId) → "Somme front line" }
 //   phaseId(state) — the id of the phase the game is in
 //   onEnd() — called when the tutorial finishes or is skipped
-export function createCoach({ strip, mapView, names, phaseId, onEnd }) {
+//   focus(a, b) — bring these territories into view
+export function createCoach({ strip, mapView, names, phaseId, onEnd, focus = () => {} }) {
   let steps = null;
   let plan = null;
   let i = 0;
@@ -54,27 +55,29 @@ export function createCoach({ strip, mapView, names, phaseId, onEnd }) {
   function draw() {
     const step = steps[i];
     strip.replaceChildren();
-    strip.appendChild(el('p', 'coach-kicker', `GUIDED FIRST TURN · ${i + 1} OF ${steps.length}`));
-    strip.appendChild(el('p', 'coach-title', step.title));
-    strip.appendChild(el('p', 'coach-text', fill(step.text)));
+    // the buttons come first, so they stay in reach when the panel covers the strip's foot
     const row = el('div', 'coach-buttons');
+    row.appendChild(el('span', 'coach-kicker', `GUIDED FIRST TURN \u00b7 ${i + 1} OF ${steps.length}`));
     if (step.waitFor.kind === 'next') {
-      const next = el('button', 'btn btn-small btn-primary', step.waitFor.label || 'Next ›');
+      const next = el('button', 'btn btn-small btn-primary', step.waitFor.label || 'Next \u203a');
       next.type = 'button';
       next.addEventListener('click', advance);
       row.appendChild(next);
     } else {
-      const skipStep = el('button', 'btn btn-small', 'Skip this step');
+      const skipStep = el('button', 'btn btn-small', 'Skip step');
       skipStep.type = 'button';
       skipStep.addEventListener('click', advance);
       row.appendChild(skipStep);
     }
-    const skip = el('button', 'btn btn-small', 'Skip tutorial');
+    const skip = el('button', 'btn btn-small', 'End tutorial');
     skip.type = 'button';
     skip.addEventListener('click', end);
     row.appendChild(skip);
     strip.appendChild(row);
+    strip.appendChild(el('p', 'coach-title', step.title));
+    strip.appendChild(el('p', 'coach-text', fill(step.text)));
     mapView.showCoach(step.arrow ? [{ from: boxOf(step.arrow.from), to: boxOf(step.arrow.to), kind: step.arrow.kind }] : []);
+    if (step.arrow) focus(boxOf(step.arrow.from), boxOf(step.arrow.to));   // bring the arrow into view
   }
 
   function advance() {

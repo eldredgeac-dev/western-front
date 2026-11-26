@@ -1675,7 +1675,7 @@ test('explain: each roll\'s outcome adds up to the slip\'s chance of taking it',
   }
   const advice = attackAdvice(s, eco(), { target: 'l06-g1', units, munitions: 2 });
   check(advice.rollLine === 'You take it on a roll of 7 or more on two dice (58%).', advice.rollLine);
-  check(advice.fixes.some((f) => f.startsWith('Winter -1: winter ends in March')), advice.fixes.join(' | '));
+  check(advice.fixes.some((f) => f.startsWith('Winter \u22121: winter ends in March')), advice.fixes.join(' | '));
 });
 
 test('explain: a dug-in box with 8 steps is 0% and says why', () => {
@@ -1727,9 +1727,9 @@ test('explain: the battle report says what happened (repulsed)', () => {
 test('explain: the phase guide says what to do, with what\'s left', () => {
   const s = turnOneAttack(4);
   const g = phaseGuide(s, eco());
-  check(g.startsWith('Entente attack') && g.includes('OP left: France 2 · Britain 1') && g.includes('Munitions: France 2'), g);
+  check(g.startsWith('Entente attack') && g.includes('OP: France 2 · Britain 1') && g.includes('Munitions: France 2'), g);
   const m = copyOf(s); m.phase = phaseIndex('entente-move');
-  check(phaseGuide(m, eco()).includes('Rail moves left: France 2 · Britain 1'), phaseGuide(m, eco()));
+  check(phaseGuide(m, eco()).includes('left: France 2 · Britain 1'), phaseGuide(m, eco()));
   check(attackableBoxes(s, eco(), 'entente').includes('l06-g1'), 'l06-g1 can be attacked');
   const ai = copyOf(s); ai.controllers.entente = 'ai';
   check(phaseGuide(ai, eco()) === '', 'nothing in the computer\'s phase');

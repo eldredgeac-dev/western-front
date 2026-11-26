@@ -104,16 +104,16 @@ export function attackAdvice(state, data, order) {
   const payer = plan.payer ? state.resources[plan.payer] : null;
   const maxBarrage = Math.min(barrageMax(data, month, state, plan.side), payer ? payer.munitions : 0);
   for (const s of negatives) {
-    const v = `${s.label} ${s.value}`;
+    const v = `${s.label} \u2212${-s.value}`;
     if (s.label.startsWith('Winter')) out.fixes.push(`${v}: winter ends in ${springAfter(data, month)}.`);
     else if (s.label.startsWith('Trench')) {
       out.fixes.push((order.munitions || 0) < maxBarrage
         ? `${v}: a barrage gives +1 per munition (you can use ${maxBarrage} here).`
-        : `${v}: trenches only fill in when a territory changes hands.`);
+        : `${v}: your barrage is already as big as it can be (${maxBarrage}).`);
     } else out.fixes.push(`${v}: this is the ground or the enemy's strength. Another territory may be easier.`);
   }
   const next = stepsToNextColumn(data, plan);
-  if (next) out.fixes.push(`Odds ${plan.attackSteps} to ${plan.defendSteps}: ${next.steps} more step${next.steps === 1 ? '' : 's'} would reach ${next.label} (up to 3 units can stand in one territory).`);
+  if (next && plan.attackers.length < 3) out.fixes.push(`Odds ${plan.attackSteps} to ${plan.defendSteps}: ${next.steps} more step${next.steps === 1 ? '' : 's'} would reach ${next.label} (up to 3 units can stand in one territory).`);
 
   // 4. The cost of failing at bad odds (RULES.md §9.4).
   const worst = data.combat.columns.findIndex((c) => c.label === data.combat.futile.worstColumn);
@@ -172,12 +172,10 @@ export function phaseGuide(state, data) {
     !(n.traits || []).some((t) => t.kind === 'cannot-attack'));
   const left = (key) => nations.map((n) => `${n.name} ${(state.resources[n.id] || {})[key] || 0}`).join(' · ');
   if (phase.kind === 'move') {
-    return `${side.name} move: tap a unit, then a brass territory (road: next door) or a blue dashed one ` +
-      `(rail: any distance through your own lines; a railed unit can't attack this turn). Rail moves left: ${left('rail')}. ` +
-      'To attack next phase, stack up to 3 units in one front territory. Then COMMIT.';
+    return `${side.name} move: tap a unit, then a territory: brass = road, blue = rail (left: ${left('rail')}). ` +
+      'Stack up to 3 in one front territory to attack. Then COMMIT.';
   }
-  return `${side.name} attack: tap an enemy territory outlined in red (only next to your units; each unit attacks once). ` +
-    `OP left: ${left('op')}. Munitions: ${left('munitions')}. Then COMMIT.`;
+  return `${side.name} attack: tap a territory outlined in red. OP: ${left('op')}. Munitions: ${left('munitions')}. Then COMMIT.`;
 }
 
 // The territories a side can attack right now (after its queued orders).
