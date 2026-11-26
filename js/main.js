@@ -12,12 +12,13 @@ import { showPanel } from './ui/panel.js';
 import { battleCounts, bigBattles, scarLevel, shortMonth } from './engine/battles.js';
 import { applyDemo } from './ui/demo.js';
 import { armisticeScore } from './engine/systems/will.js';
-import { chooseOption } from './engine/events.js';
 import { unseenTelegrams, markSeen, openQuestion } from './engine/telegrams.js';
 import { showTelegram, hideTelegram, showTelegramLog } from './ui/telegram.js';
 import { unitsIn, unitType, nationOf } from './engine/units.js';
 import { moveTargets, railTargets, phaseAllows, splitUnit, splitReason, mergeUnits, mergeReason } from './engine/moves.js';
-import { beginGame, endPhase, phaseOf, submitBudget } from './engine/turn.js';
+import { beginGame, endPhase, phaseOf, submitBudget, answerEvent, answerCommander } from './engine/turn.js';
+import { onceShift, cardById, cardFacts, currentCard, unseenCardNews, markCardSeen, sackReason, sackCommander, successors, sideOfHolder } from './engine/commanders.js';
+import { showCardNews, showCardQuestion, hideCardScreen, commanderSection } from './ui/commander.js';
 import { oddsPreview, eligibleAttackers, barrageMax } from './engine/combat.js';
 import { frontBoxes } from './engine/ai.js';
 import { queueCheck, addOrder, cancelOrder, commitOrders, snapshot, attackBoard, stagingBox, ordersPhase } from './engine/orders.js';
@@ -371,13 +372,112 @@ function situation() {
 
 // Answer an event's question (the U-boat decision, the Hindenburg Line), from the
 // buttons on its telegram.
-function answerChoice(optionId) {
+// The turn then carries on (the commanders and the War Office budget still come this
+// month), and anything the computer does next is played back, as after COMMIT.
+async function answerChoice(optionId) {
   const asked = openQuestion(state);
-  state = chooseOption(state, orderData(), optionId);
+  const actions = [];
+  state = answerEvent(state, orderData(), optionId, { record: (action, s) => actions.push({ ...action, after: snapshot(s) }) });
   if (asked) state = markSeen(state, asked.n);
   persist();
-  redraw();
-  refreshPanel();
+  if (actions.length) await playTurn(actions);
+  else { redraw(); refreshPanel(); }
+}
+
+// ---------------------------------------------------------------- commander cards
+// (RULES.md §15, js/ui/commander.js) The card screen shows, in this order: a question
+// waiting for your answer ("Replace Joffre with Nivelle?"), then any card that has
+// arrived since you last looked (yours or the enemy's). Never during a playback.
+const holderColor = (key) => {
+  const n = data.engine.nations.nations.find((x) => x.id === key);
+  return n ? n.color : (data.engine.nations.sides.find((x) => x.id === key) || {}).color;
+};
+const holderName = (key) => {
+  const n = data.engine.nations.nations.find((x) => x.id === key);
+  return n ? n.name : (data.engine.nations.sides.find((x) => x.id === key) || {}).name;
+};
+const cardOf = (id) => ({ facts: cardFacts(data.engine, id), color: holderColor(cardFacts(data.engine, id).key) });
+let cardShown = null;   // what's on the card screen ('q fra 25' or 'n 3'), so a redraw doesn't rebuild it
+function showCommanders() {
+  const host = $('commander-screen');
+  const busy = !state || state.over || gameScreen.hidden || (playback && playback.isPlaying());
+  const ask = busy ? null : (state.pendingCommander || [])[0];
+  if (ask) {
+    const key = `q ${ask.key} ${state.turn}`;
+    if (cardShown === key && !host.hidden) return;
+    cardShown = key;
+    const cur = cardById(data.engine, ask.current);
+    const names = ask.offers.map((id) => cardById(data.engine, id).name);
+    const rules = data.engine.commanders.rules;
+    showCardQuestion(host, {
+      month: currentMonth(state),
+      heading: `Replace ${cur.name} with ${names.join(' or ')}?`,
+      sub: `${holderName(ask.key)}: ${cur.name}'s time in command has passed.`,
+      offers: ask.offers.map(cardOf),
+      current: cardOf(ask.current),
+      keepText: `${rules.keepOldCommanderWill} ${holderName(ask.key)} Will now; you'll be asked again in ${rules.askAgainEveryTurns} months.`,
+    }, { monthName: monthLabel, onChoose: (choice) => answerCard(ask.key, choice) });
+    return;
+  }
+  const news = busy ? [] : unseenCardNews(state);
+  if (news.length) {
+    const x = news[0];
+    const key = `n ${x.n}`;
+    if (cardShown === key && !host.hidden) return;
+    cardShown = key;
+    const card = cardById(data.engine, x.card);
+    const old = x.replaced ? cardById(data.engine, x.replaced) : null;
+    const sideName = (data.engine.nations.sides.find((sd) => sd.id === sideOfHolder(data.engine, x.key)) || {}).name;
+    showCardNews(host, {
+      month: x.month, facts: cardFacts(data.engine, x.card), color: holderColor(x.key),
+      heading: old ? `${card.name} replaces ${old.name}` : `${card.name} takes command`,
+      sub: `${holderName(x.key)}${sideName && sideName !== holderName(x.key) ? ` (${sideName})` : ''}${x.how === 'sacked' ? '' : ''}.`,
+      place: { index: 1, count: news.length },
+    }, { monthName: monthLabel, onClose: () => { state = markCardSeen(state, x.n); persist(); cardShown = null; showCommanders(); showTelegrams(); } });
+    return;
+  }
+  if (!host.hidden) hideCardScreen(host);
+  cardShown = null;
+}
+// Your answer to a commander question; the turn then carries on.
+async function answerCard(key, choice) {
+  const actions = [];
+  try {
+    state = answerCommander(state, orderData(), key, choice, { record: (action, s) => actions.push({ ...action, after: snapshot(s) }) });
+  } catch (err) {
+    orderError = err.message;
+    return;
+  }
+  cardShown = null;
+  hideCardScreen($('commander-screen'));
+  persist();
+  if (actions.length) await playTurn(actions);
+  else { redraw(); refreshPanel(); }
+}
+// The commander section of a nation's page on the Nations screen: its card, any card
+// added alongside it (Foch for the Entente), and the sack control for your own.
+function commandersFor(nationId) {
+  const own = currentCard(state, data.engine, nationId);
+  if (!own) return null;
+  const side = nationOf(data.engine, nationId).side;
+  const cards = [cardOf(own.id)];
+  const alongside = currentCard(state, data.engine, side);
+  if (alongside) cards.push(cardOf(alongside.id));
+  let sack = null;
+  if (state.controllers[side] === 'human' && !own.cannotBeSacked && (own.next || []).length) {
+    const why = sackReason(state, data.engine, nationId);
+    sack = why ? { reason: why }
+      : { cost: data.engine.commanders.rules.sackWill, options: successors(state, data.engine, nationId).map((id) => ({ id, name: cardById(data.engine, id).name })) };
+  }
+  return commanderSection(cards, sack, { monthName: monthLabel, onSack: (newId) => {
+    try { state = sackCommander(state, orderData(), nationId, newId); } catch (err) { orderError = err.message; return; }
+    persist();
+    openWarOffice(true);
+    const page = document.getElementById(`nation-${nationId}`);   // back to the same nation's page
+    if (page) page.scrollIntoView({ block: 'nearest', inline: 'start' });
+    redraw();
+    refreshPanel();
+  } });
 }
 
 // ---------------------------------------------------------------- event telegrams
@@ -389,7 +489,7 @@ function showTelegrams() {
   const host = $('telegram');
   // a question only counts while the turn is really waiting for its answer
   const list = state ? unseenTelegrams(state).filter((t) => !(t.choice && !t.choice.answer && !state.pendingChoice)) : [];
-  if (!list.length || gameScreen.hidden || (playback && playback.isPlaying())) {
+  if (!list.length || gameScreen.hidden || (playback && playback.isPlaying()) || !$('commander-screen').hidden) {
     hideTelegram(host); telegramShown = null; telegramIndex = 0; return;
   }
   const t = list[0];
@@ -453,7 +553,7 @@ function refreshPanel() {
     onUnit: selectUnit, log: state.log, error: orderError, situation: situation(),
     onSplit: splitSelected, onMerge: mergeSelected,
     slip: attack ? attackSlip() : null,
-    onToggleUnit: toggleAttacker, onMunitions: changeMunitions, onConfirm: confirmAttack, onCancel: closeAttack,
+    onToggleUnit: toggleAttacker, onMunitions: changeMunitions, onCardShift: toggleCardShift, onConfirm: confirmAttack, onCancel: closeAttack,
     orders: ordersInfo(), onCancelOrder: dropOrder, onShowOrder: showOrder,
     suggestions: suggestionsInfo(), onSuggestion: useSuggestion,
     reports, onReport: (box) => { selectBox(box); focusOn(box); }, onCloseReports: () => { reports = []; refreshPanel(); },
@@ -480,7 +580,7 @@ const attackState = () => attackBoard(state, orderData());
 // The human side whose orders phase it is, or null.
 function humanPhase() {
   const phase = phaseOf(state, orderData());
-  if (!state || state.over || state.pendingBudget || state.pendingChoice || !phase || phase.auto) return null;
+  if (!state || state.over || state.pendingBudget || state.pendingChoice || state.pendingCommander || !phase || phase.auto) return null;
   return (state.controllers || {})[phase.side] === 'ai' ? null : phase;
 }
 // Outline what you can do: with a unit selected, where it can go (road brass, rail
@@ -645,7 +745,7 @@ function showAttackArrow() {
 function attackSlip() {
   const pv = attackState();            // after the queued orders (OP and munitions set aside), in the attack phase
   const box = data.boxesById[attack.target];
-  const order = { target: attack.target, units: attack.units, munitions: attack.munitions };
+  const order = { target: attack.target, units: attack.units, munitions: attack.munitions, cardShift: Boolean(attack.cardShift) };
   const defenders = unitsIn(state, attack.target);
   const defSteps = defenders.reduce((s, u) => s + u.steps, 0);
   const slip = {
@@ -689,6 +789,14 @@ function attackSlip() {
     slip.ratioText = `${plan.attackSteps} steps against ${plan.defendSteps} \u2192 below 1:2`;
     slip.advice = attackAdvice(pv, orderData(), order);
   }
+  // the commander's once-only bonus (the Nivelle Method, RULES.md §15), offered on the slip
+  const shift = payer && !plan.empty ? onceShift(pv, data.engine, payer.id) : null;
+  if (shift) {
+    const card = cardById(data.engine, shift.card);
+    const flaw = card.flaw ? ` If it fails to take the territory: ${card.flaw.text.replace(/^If that \+\d attack fails to take its box, /, '')}` : '';
+    slip.cardShift = { on: Boolean(attack.cardShift), name: shift.name, value: shift.value,
+      text: `${card.name}'s once-only bonus.${flaw}` };
+  }
   if (payer) {
     const left = pv.resources[payer.id];
     slip.cost = `${plan.opCost} OP from ${payer.name} (${left.op} left)`;
@@ -702,6 +810,10 @@ function toggleAttacker(unitId) {
   showAttackArrow();
   refreshPanel();
 }
+function toggleCardShift() {
+  attack.cardShift = !attack.cardShift;
+  refreshPanel();
+}
 function changeMunitions(change) {
   attack.munitions = Math.max(0, attack.munitions + change);
   refreshPanel();
@@ -711,7 +823,7 @@ function changeMunitions(change) {
 // when the orders are committed.
 function confirmAttack() {
   try {
-    state = addOrder(state, orderData(), { kind: 'attack', target: attack.target, units: attack.units, munitions: attack.munitions });
+    state = addOrder(state, orderData(), { kind: 'attack', target: attack.target, units: attack.units, munitions: attack.munitions, cardShift: Boolean(attack.cardShift) });
   } catch (err) {
     orderError = err.message;
     refreshPanel();
@@ -984,7 +1096,7 @@ function redraw() {
     : (phase ? (phase.ordersName && humanPhase() ? phase.ordersName : phase.name) : '');
   const n = (state.orders || []).length;
   $('commit-count').textContent = n ? String(n) : '';
-  $('btn-end-phase').disabled = state.over || Boolean(state.pendingChoice) || Boolean(state.pendingBudget) ||
+  $('btn-end-phase').disabled = state.over || Boolean(state.pendingChoice) || Boolean(state.pendingBudget) || Boolean(state.pendingCommander) ||
     Boolean(playback && playback.isPlaying());
   drawOrderArrows();
   $('phase-summary').textContent = phaseSummary(state, orderData());
@@ -995,6 +1107,7 @@ function redraw() {
   if (!attackOrdersNow(human)) clearSuggestions();
   refreshTargets();
   showPendingBudget();
+  showCommanders();
   showTelegrams();
   refreshNationsButton();
   if (coach) coach.update(state, Boolean(playback && playback.isPlaying()));
@@ -1045,7 +1158,7 @@ async function signBudget(side, budgets, auto) {
 // COMMIT ORDERS: carry out the queued orders, run on to the next phase that needs
 // your orders (the computer plays its side on the way), then play it all back.
 async function commit() {
-  if (!state || state.over || state.pendingChoice || state.pendingBudget || (playback && playback.isPlaying())) return;
+  if (!state || state.over || state.pendingChoice || state.pendingBudget || state.pendingCommander || (playback && playback.isPlaying())) return;
   clearSuggestions();
   const out = commitOrders(state, orderData());
   const actions = [...out.actions];
@@ -1119,7 +1232,8 @@ function describeAction(a) {
 }
 
 // The War Office ledger (STYLE.md §6): every figure from ledger() in history.js.
-function openWarOffice() {
+// keepScroll === true re-draws it where it was (after sacking a commander).
+function openWarOffice(keepScroll) {
   if (!state || (playback && playback.isPlaying())) return;
   const box = $('war-office');
   showLedger(box, ledger(state, data.engine), {
@@ -1127,9 +1241,10 @@ function openWarOffice() {
     nameOf: (id) => nationOf(data.engine, id).name,
     adjectiveOf: (id) => nationOf(data.engine, id).adjective || nationOf(data.engine, id).name,
     onClose: () => { box.hidden = true; },
+    commanders: data.engine.commanders ? commandersFor : null,
   });
   box.hidden = false;
-  box.scrollTop = 0;
+  if (keepScroll !== true) box.scrollTop = 0;
 }
 
 // How to Play (data/help.json): a page over whichever screen is showing.
@@ -1260,7 +1375,7 @@ async function boot() {
   $('btn-export').addEventListener('click', exportSave);
   $('btn-import').addEventListener('click', () => $('import-file').click());
   $('import-file').addEventListener('change', (e) => importSave(e.target));
-  $('btn-back').addEventListener('click', () => { if (coach) coach.stop(); $('war-office').hidden = true; $('telegram-log').hidden = true; hideTelegram($('telegram')); telegramShown = null; $('budget').hidden = true; budgetShown = null; showScreen(titleScreen); updateContinueButton(); });
+  $('btn-back').addEventListener('click', () => { if (coach) coach.stop(); $('war-office').hidden = true; $('telegram-log').hidden = true; hideTelegram($('telegram')); telegramShown = null; $('budget').hidden = true; budgetShown = null; hideCardScreen($('commander-screen')); cardShown = null; showScreen(titleScreen); updateContinueButton(); });
   $('btn-end-phase').addEventListener('click', () => { if (state) commit(); });
   $('btn-war-office').addEventListener('click', openWarOffice);
   $('btn-nations').addEventListener('click', openWarOffice);

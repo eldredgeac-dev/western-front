@@ -16,6 +16,7 @@ import { moveUnit, railMove, railTargets, moveTargets, mergeUnits, mergeReason }
 import { threat } from './systems/replacements.js';
 import { eligibleAttackers, oddsPreview, resolveAttack, barrageMax } from './combat.js';
 import { next as rngNext } from './rng.js';
+import { onceShift, cardById } from './commanders.js';
 
 const boxesOf = (data) => indexBoxes(data.map);
 
@@ -131,8 +132,8 @@ function urge(data, side, nation, boxId, month) {
 }
 
 // Score one possible attack (RULES.md §14 step 3). Returns null if not worth a look.
-function scoreAttack(state, data, side, nation, target, units, munitions, skill) {
-  const odds = oddsPreview(state, data, { target, units, munitions });
+function scoreAttack(state, data, side, nation, target, units, munitions, skill, cardShift = false) {
+  const odds = oddsPreview(state, data, { target, units, munitions, cardShift });
   if (!odds.plan.ok) return null;
   const minCol = data.combat.columns.findIndex((c) => c.label === skill.minColumn);
   if (!odds.plan.empty && odds.plan.finalColumn < minCol) return null;
@@ -168,23 +169,27 @@ export function aiAttack(state, data, side, record = null) {
       const res = state.resources[nation];
       if (!res || res.op < 1) continue;
       if ((spent[nation] || 0) > res.rp + skill.stopLoss) continue;
+      // A once-only commander shift (the Nivelle Method): the computer follows history
+      // and uses it in the card's last month (April 1917), as tools/wfsim.py does.
+      const shift = onceShift(state, data, nation);
+      const cardShift = Boolean(shift && month >= cardById(data, shift.card).to);
       for (const target of targets) {
         const units = eligibleAttackers(state, data, target).filter((id) => state.units.find((u) => u.id === id).nation === nation);
         if (!units.length) continue;
         const maxMun = Math.min(res.munitions, barrageMax(data, month, state, side));
         for (let mun = 0; mun <= maxMun; mun++) {
-          const s = scoreAttack(state, data, side, nation, target, units, mun, skill);
+          const s = scoreAttack(state, data, side, nation, target, units, mun, skill, cardShift);
           if (!s) continue;
           const { value: r, rng } = rngNext(state.rng);
           state.rng = rng;
           const noisy = s.score * (1 + (r * 2 - 1) * skill.noise);
-          if (!best || noisy > best.score) best = { score: noisy, nation, target, units, mun, loss: s.odds.attackerLoss };
+          if (!best || noisy > best.score) best = { score: noisy, nation, target, units, mun, cardShift, loss: s.odds.attackerLoss };
         }
       }
     }
     if (!best || best.score <= 0) break;
     const before = record ? unitsAt(state, best.units) : null;
-    const out = resolveAttack(state, data, { target: best.target, units: best.units, munitions: best.mun });
+    const out = resolveAttack(state, data, { target: best.target, units: best.units, munitions: best.mun, cardShift: best.cardShift });
     Object.assign(state, out.state);
     if (record) record({ kind: 'attack', side, target: best.target, units: best.units, munitions: best.mun, from: before, result: out.result }, state);
     spent[best.nation] = (spent[best.nation] || 0) + best.loss;

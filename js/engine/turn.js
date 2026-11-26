@@ -14,6 +14,8 @@ import { willPhase } from './systems/will.js';
 import { runEvents } from './events.js';
 import { recordMonth } from './history.js';
 import { hasEconomy, warOfficePhase, applyBudget } from './systems/economy.js';
+import { commandersPhase, answerQuestion } from './commanders.js';
+import { chooseOption } from './events.js';
 
 // Clear what units did last turn and hand out this month's resources.
 // With the war economy (RULES.md §19) munitions aren't handed out: the stockpile
@@ -21,6 +23,7 @@ import { hasEconomy, warOfficePhase, applyBudget } from './systems/economy.js';
 function startOfTurn(state, data) {
   for (const u of state.units) { u.moved = false; u.railed = false; u.attacked = false; }
   state.attackedBoxes = [];
+  state.lostDefending = {};             // steps lost defending each box (Falkenhayn, commanders.js)
   for (const id of Object.keys(state.lostThisTurn)) state.lostThisTurn[id] = 0;
   const fresh = applyDifficulty(resourcesFor(data, currentMonth(state)), data, state.resourceMult);
   if (hasEconomy(data)) {
@@ -47,6 +50,7 @@ export function digIn(state, data) {
 // the turn until their milestone arrives (see "until" in data/phases.json).
 const AUTO = {
   events: runEvents,
+  commanders: commandersPhase,
   'war-office': warOfficePhase,
   supply: supplyPhase,
   'dig-in': digIn,
@@ -89,6 +93,7 @@ function settle(state, data, record = null) {
     state.phase += 1;
     if (state.pendingChoice) return state; // a question for the player waits (events.js)
     if (state.pendingBudget) return state; // a War Office budget waits (systems/economy.js)
+    if (state.pendingCommander) return state; // a commander question waits (commanders.js)
   }
   return state;
 }
@@ -106,7 +111,7 @@ export function beginGame(state, data, options = {}) {
 //   options.record(action, state) — optional, see ai.js (the screen uses it to play
 //   the computer's turn back). Queued orders that weren't committed are dropped.
 export function endPhase(state, data, options = {}) {
-  if (state.over || state.pendingChoice || state.pendingBudget) return state;
+  if (state.over || state.pendingChoice || state.pendingBudget || state.pendingCommander) return state;
   const next = copyState(state);
   next.phase += 1;
   next.orders = [];
@@ -132,5 +137,25 @@ export function submitBudget(state, data, sideId, budgets, options = {}) {
   next.pendingBudget = next.pendingBudget.filter((s) => s !== sideId);
   if (next.pendingBudget.length) return next;
   delete next.pendingBudget;
+  return settle(next, data, options.record || null);
+}
+
+// The player answers an event's question (the U-boats, the Hindenburg Line). Returns a
+// NEW state, and carries on with the turn from the phase after the events (so the
+// commanders and the War Office budget still happen this month).
+//   options.record — as for endPhase
+export function answerEvent(state, data, optionId, options = {}) {
+  const next = chooseOption(state, data, optionId);
+  return settle(next, data, options.record || null);
+}
+
+// The player answers "Replace X with Y?" (RULES.md §15.2) for a holder (a nation, or
+// a side for a card like Foch's). `choice` is a card id, or 'keep'. Returns a NEW
+// state and carries on with the turn once no commander question is left.
+// Throws an Error if the answer isn't allowed (nothing is changed then).
+export function answerCommander(state, data, key, choice, options = {}) {
+  const next = copyState(state);
+  answerQuestion(next, data, key, choice);
+  if (next.pendingCommander) return next;
   return settle(next, data, options.record || null);
 }

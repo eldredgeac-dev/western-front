@@ -11,7 +11,7 @@
 //
 // An order is one of:
 //   { kind: 'move', unit, to }                     — a move, by road or by rail
-//   { kind: 'attack', target, units, munitions }   — an attack (js/engine/combat.js)
+//   { kind: 'attack', target, units, munitions, cardShift? } — an attack (js/engine/combat.js)
 //
 // What happened is described as a list of "actions" the screen plays back:
 //   { kind: 'move' | 'rail', side, unit, from, to, after }
@@ -105,6 +105,7 @@ export function queueCheck(state, data, orders = state.orders || []) {
     s.resources[plan.payer].op -= plan.opCost;
     s.resources[plan.payer].munitions -= plan.munitions;
     for (const id of plan.attackers) findUnit(s, id).attacked = true;
+    if (plan.cardShift) s.commanders[plan.cardShift.key].shiftUsed = true;   // once only (§15)
   }
   s.phase = startPhase;                    // the board after the moves, still in this phase
   return { checks, state: s };

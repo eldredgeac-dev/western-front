@@ -240,7 +240,7 @@ function adviceBlock(a) {
 // The attack order slip (STYLE.md §6): telegram paper, typed lines, every column
 // shift listed, the final odds stamped in red, and CONFIRM ORDER.
 //   slip    — worked out by main.js (see attackSlip there)
-//   actions — onToggleUnit(id), onMunitions(change), onConfirm(), onCancel()
+//   actions — onToggleUnit(id), onMunitions(change), onCardShift(), onConfirm(), onCancel()
 function orderSlip(slip, actions) {
   const card = el('section', 'order-slip');
   card.appendChild(el('p', 'slip-kicker', slip.result ? 'ORDER CARRIED OUT' : 'ORDER OF ATTACK'));
@@ -277,6 +277,16 @@ function orderSlip(slip, actions) {
     forces.appendChild(row);
     forces.appendChild(mun);
     card.appendChild(forces);
+    // A commander's once-only bonus (the Nivelle Method, RULES.md §15): a toggle.
+    if (slip.cardShift) {
+      const b = el('button', 'btn btn-small slip-card-shift');
+      b.type = 'button';
+      b.setAttribute('aria-pressed', String(slip.cardShift.on));
+      b.appendChild(el('strong', '', `${slip.cardShift.on ? '✓ ' : ''}${slip.cardShift.name}: +${slip.cardShift.value} columns`));
+      b.appendChild(el('span', 'slip-card-shift-text', slip.cardShift.text));
+      b.addEventListener('click', actions.onCardShift);
+      card.appendChild(b);
+    }
   }
 
   // The chance, big, with the expected losses: what you need to decide.

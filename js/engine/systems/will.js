@@ -10,6 +10,7 @@
 
 import { addLog } from '../moves.js';
 import { sendTelegram } from '../telegrams.js';
+import { cardLimit, cardWill } from '../commanders.js';
 
 const nationsOf = (data) => data.nations.nations;
 
@@ -20,12 +21,37 @@ function lossWill(state, data) {
     if (!lost) continue;
     const target = state.will[n.id] !== undefined ? n.id : n.willCountsAgainst;
     if (!target || state.will[target] === undefined) continue;
-    const drop = Math.floor(lost / (n.stepsPerWill || 2));
+    // a commander may change the rate for the nation's own losses (Pétain: 1 per 3)
+    const rate = (target === n.id && cardLimit(state, data, 'steps-per-will', n.id)) || n.stepsPerWill || 2;
+    const drop = Math.floor(lost / rate);
     if (drop) state.will[target] -= drop;
   }
 }
 
-// Mutinies (RULES.md §10): start the first time Will drops below the threshold.
+// Start a nation's mutinies now (RULES.md §10; also Nivelle's failed attack, §15).
+// They happen only once. Changes `state`; returns true if they started.
+//   why — optional words for the log ("The Nivelle Method failed")
+export function startMutiny(state, data, nationId, why = '') {
+  const n = nationsOf(data).find((x) => x.id === nationId);
+  state.mutinies = state.mutinies || {};
+  state.cannotAttack = state.cannotAttack || {};
+  if (!n || !n.mutiny || state.mutinies[n.id]) return false;
+  const turns = mutinyLength(state, data, n);
+  state.mutinies[n.id] = { left: turns, served: 0, month: state.turn };
+  state.cannotAttack[n.id] = n.mutiny.name;
+  addLog(state, `${n.mutiny.name.toUpperCase()}: ${why ? `${why}. ` : ''}${n.adjective || n.name} units refuse to attack for ${turns} turns.`);
+  if (n.mutiny.telegram) sendTelegram(state, 'mutiny-start', n.mutiny.telegram.start, { ...n.mutiny, turns, willAfter: mutinyWill(state, data, n) });
+  return true;
+}
+
+// How many turns a nation's mutinies last, and the Will it gets back after: the data's
+// numbers, unless the commander changes them (Pétain: 2 turns, then +15).
+const mutinyLength = (state, data, n) => cardLimit(state, data, 'mutiny-length', n.id) || n.mutiny.turns;
+const mutinyWill = (state, data, n) => cardLimit(state, data, 'mutiny-end-will', n.id) || n.mutiny.willAfter;
+
+// Mutinies (RULES.md §10): start the first time Will drops below the threshold. Each
+// Will phase after they start counts one turn served; they end when the turns served
+// reach the length under the commander in command then.
 function mutinies(state, data) {
   state.mutinies = state.mutinies || {};
   state.cannotAttack = state.cannotAttack || {};
@@ -33,18 +59,18 @@ function mutinies(state, data) {
     if (!n.mutiny || state.will[n.id] === undefined) continue;
     const m = state.mutinies[n.id];
     if (m && m.left > 0) {
-      m.left -= 1;
+      // (saves from before version 7 kept only the turns left)
+      m.served = (m.served ?? (n.mutiny.turns - m.left)) + 1;
+      m.left = Math.max(0, mutinyLength(state, data, n) - m.served);
       if (m.left === 0) {
-        state.will[n.id] += n.mutiny.willAfter;
+        const will = mutinyWill(state, data, n);
+        state.will[n.id] += will;
         delete state.cannotAttack[n.id];
-        addLog(state, `The ${n.mutiny.name} are over. ${n.name} gains ${n.mutiny.willAfter} Will.`);
-        if (n.mutiny.telegram) sendTelegram(state, 'mutiny-end', n.mutiny.telegram.end, n.mutiny);
+        addLog(state, `The ${n.mutiny.name} are over. ${n.name} gains ${will} Will.`);
+        if (n.mutiny.telegram) sendTelegram(state, 'mutiny-end', n.mutiny.telegram.end, { ...n.mutiny, willAfter: will });
       }
     } else if (!m && state.will[n.id] < n.mutiny.belowWill) {
-      state.mutinies[n.id] = { left: n.mutiny.turns, month: state.turn };
-      state.cannotAttack[n.id] = n.mutiny.name;
-      addLog(state, `${n.mutiny.name.toUpperCase()}: ${n.adjective || n.name} units refuse to attack for ${n.mutiny.turns} turns.`);
-      if (n.mutiny.telegram) sendTelegram(state, 'mutiny-start', n.mutiny.telegram.start, n.mutiny);
+      startMutiny(state, data, n.id);
     }
   }
 }
@@ -95,6 +121,7 @@ function finish(state, winner, reason) {
 // The National Will phase: losses, mutinies, then the victory check.
 export function willPhase(state, data) {
   lossWill(state, data);
+  if (data.commanders) cardWill(state, data);   // Joffre, Falkenhayn, Hindenburg & Ludendorff (§15)
   mutinies(state, data);
   zeroWillNoAttack(state, data);
   const sudden = suddenVictory(state, data);

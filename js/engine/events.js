@@ -12,6 +12,7 @@ import { rearColumn } from './supply.js';
 import { addLog, unitLabel } from './moves.js';
 import { next as rngNext } from './rng.js';
 import { sendTelegram, sentBefore, openQuestion, questionTelegram } from './telegrams.js';
+import { cardLimit } from './commanders.js';
 
 const monthOfYear = (month) => Number(month.slice(5, 7));
 const laneNumber = (data, boxId) => data.map.lanes.find((l) => l.id === data.map.boxes.find((b) => b.id === boxId).lane).number;
@@ -150,8 +151,10 @@ function reinforcements(state, data) {
   const arrived = {};
   for (const d of due) {
     const type = data.unitTypes.types.find((t) => t.id === d.type);
-    // Units that start Green for some turns (US Infantry): Green until then.
-    const greenUntil = d.greenUntil || (type.greenTurns ? addMonths(month, type.greenTurns) : null);
+    // Units that start Green for some turns (US Infantry): Green until then. A
+    // commander may shorten it (Pershing's Hard training: 2 turns instead of 3).
+    const greenTurns = type.greenTurns ? (cardLimit(state, data, 'green-turns', d.nation) || type.greenTurns) : 0;
+    const greenUntil = d.greenUntil || (greenTurns ? addMonths(month, greenTurns) : null);
     const unit = placeUnit(state, data, d.nation, d.type, { quality: greenUntil ? 'green' : d.quality, greenUntil });
     if (unit) arrived[d.nation] = (arrived[d.nation] || 0) + 1;
     else state.waiting.push(d);

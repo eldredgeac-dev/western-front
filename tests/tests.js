@@ -8,7 +8,9 @@ import { unitsIn, stepsIn, stackRoom, unitType } from '../js/engine/units.js';
 import { moveTargets, railTargets, moveUnit, railMove, splitUnit, splitReason, mergeUnits, mergeReason } from '../js/engine/moves.js';
 import { next as rngNext, rollD6, roll2d6 } from '../js/engine/rng.js';
 import { resourcesFor } from '../js/engine/resources.js';
-import { beginGame, endPhase, phaseOf, digIn, submitBudget } from '../js/engine/turn.js';
+import { beginGame, endPhase, phaseOf, digIn, submitBudget, answerEvent, answerCommander } from '../js/engine/turn.js';
+import { commandersPhase, applyCardResources, historicalCommanders, currentCard, successors, questionDue, sackReason,
+  sackCommander, onceShift, cardWill, unseenCardNews } from '../js/engine/commanders.js';
 import { manpower, industry, industryParts, cityEffects, researchOptions, techActive, checkBudget, applyBudget,
   autoBudget, warOfficePhase, expectedMonth, budgetChoice } from '../js/engine/systems/economy.js';
 import { inSupply, rearColumn, supplySources } from '../js/engine/supply.js';
@@ -468,7 +470,7 @@ function endUntil(state, id) {
 
 test('turn: phases follow RULES.md §7 order', () => {
   const ids = data.phases.phases.map((p) => p.id);
-  check(ids.join() === 'events,war-office,germany-move,germany-attack,entente-move,entente-attack,supply,dig-in,replacements,will,newspaper', ids.join());
+  check(ids.join() === 'events,commanders,war-office,germany-move,germany-attack,entente-move,entente-attack,supply,dig-in,replacements,will,newspaper', ids.join());
 });
 
 test('turn: a new game waits at the German move; End Phase steps through the turn', () => {
@@ -1889,26 +1891,27 @@ test('explain: the one-line phase summary for the guide strip', () => {
   check(phaseSummary(b, eco()) === 'War Office: sign the budget', phaseSummary(b, eco()));
 });
 
-test('tutorial: the guided first turn picks a good attack and its steps work', () => {
+test('tutorial: the guided first turn picks a good attack and its steps work (with every data file, as the game loads them)', () => {
+  const game10 = () => ({ ...eco(), commanders: data.commanders });
   const tut = data.tutorial;
-  let s = newGame(data.scenario, tut.seed, eco(), { player: tut.side, level: tut.level });
+  let s = newGame(data.scenario, tut.seed, game10(), { player: tut.side, level: tut.level });
   s.autoAllocate[tut.side] = true;
-  s = beginGame(s, eco());
-  check(phaseOf(s, eco()).id === 'entente-move' && !s.pendingBudget, 'starts at the Entente move, no budget page');
-  const p = tutorialPlan(s, eco());
+  s = beginGame(s, game10());
+  check(phaseOf(s, game10()).id === 'entente-move' && !s.pendingBudget, 'starts at the Entente move, no budget page');
+  const p = tutorialPlan(s, game10());
   check(p && p.target === 'l06-g1' && p.front === 'l06-e1', JSON.stringify(p));
-  s = queueOrder(s, eco(), { kind: 'move', unit: p.support.unit, to: p.front });
-  s = queueOrder(s, eco(), { kind: 'move', unit: p.side.unit, to: p.front });
-  s = queueOrder(s, eco(), { kind: 'move', unit: p.reserve.unit, to: p.side.box });   // a rail move
+  s = queueOrder(s, game10(), { kind: 'move', unit: p.support.unit, to: p.front });
+  s = queueOrder(s, game10(), { kind: 'move', unit: p.side.unit, to: p.front });
+  s = queueOrder(s, game10(), { kind: 'move', unit: p.reserve.unit, to: p.side.box });   // a rail move
   // one orders phase: the attack is queued in the move phase, against the board after the moves
-  const board = attackBoard(s, eco());
-  const units = eligibleAttackers(board, eco(), p.target);
+  const board = attackBoard(s, game10());
+  const units = eligibleAttackers(board, game10(), p.target);
   check(units.length === 3 && !units.includes(p.reserve.unit), 'three attackers; the railed reserve can\'t attack');
-  const odds = oddsPreview(board, eco(), { target: p.target, units, munitions: 2 });
+  const odds = oddsPreview(board, game10(), { target: p.target, units, munitions: 2 });
   check(odds.plan.columnLabel === '3:1' && Math.round(odds.pTake * 100) === 58, odds.plan.columnLabel);
-  const out = commitQueued(queueOrder(s, eco(), { kind: 'attack', target: p.target, units, munitions: 2 }), eco());
+  const out = commitQueued(queueOrder(s, game10(), { kind: 'attack', target: p.target, units, munitions: 2 }), game10());
   check(out.state.boxes[p.target].owner === 'entente', 'with this seed, the attack succeeds');
-  check(phaseOf(out.state, eco()).id === 'entente-attack', 'one COMMIT: moves, then the attack phase\'s attacks');
+  check(phaseOf(out.state, game10()).id === 'entente-attack', 'one COMMIT: moves, then the attack phase\'s attacks');
   // every placeholder in the steps is a role in the plan
   for (const step of tut.steps) for (const [, role] of step.text.matchAll(/\{(\w+)\}/g)) check(p[role], `${step.id}: {${role}}`);
 });
@@ -2033,6 +2036,342 @@ test('rule: piece shades are palette colours mixed with paper or ink', () => {
   check(mix('#6B6E63', '#2B241C', 0) === '#6B6E63', 'mixing 0 keeps the colour');
   check(mix('#6B6E63', '#2B241C', 1) === '#2B241C', 'mixing 1 gives the other colour');
   check(isDark('#6B6E63') && !isDark('#6F8FAF'), 'field grey is dark, horizon blue is light');
+});
+
+// ---------------------------------------------------------------- Milestone 12: commander cards (RULES.md §15)
+// The data bundle with the commander cards (and, for Industry, the economy).
+const cmd = (economy = false) => ({ ...bundle(), commanders: data.commanders, ...(economy ? { economy: data.economy } : {}) });
+const turnOf = (month) => { const [y, m] = month.split('-').map(Number); return (y * 12 + m) - (1914 * 12 + 12) + 1; };
+// A game in `month`, at the Commanders phase, with the historical cards for that date.
+//   player — who plays ('both' by default: every side is asked its questions)
+function commandGame(month, player = 'both', d = cmd()) {
+  const s = copyOf(beginGame(newGame(data.scenario, 7, d, { player, level: 'regular' }), d));
+  s.turn = turnOf(month);
+  s.phase = phaseIndex('commanders');
+  if (month >= '1917-04') s.will.usa = 90;          // the USA in the war (for Pershing)
+  s.commanders = {};
+  historicalCommanders(s, d);
+  s.resources = resourcesFor(d, month);
+  return s;
+}
+// Two units of different nations stacked together next to a German territory:
+// the order for their attack together.
+function coalition(s, a, b, at = 'l04-e1') {
+  for (const u of unitsIn(s, at)) u.box = 'l04-e3';
+  place(s, a, at); place(s, b, at);
+  const target = data.map.boxes.find((x) => x.id === at).neighbours.find((n) => s.boxes[n].owner === 'germany');
+  return { target, units: [a, b] };
+}
+// This month's resources with the cards applied.
+const withCards = (s, d = cmd()) => { s.resources = resourcesFor(d, currentMonth(s)); applyCardResources(s, d); return s.resources; };
+
+test('commanders: the opening cards, and the Old Contemptibles are Elite', () => {
+  const s = started(7);
+  check(!s.commanders || !s.commanders.fra, 'no cards without data/commanders.json');
+  const c = beginGame(newGame(data.scenario, 7, cmd()), cmd());
+  check(c.commanders.fra.card === 'joffre' && c.commanders.gbr.card === 'french' && c.commanders.ger.card === 'falkenhayn', JSON.stringify(c.commanders));
+  check(!c.commanders.usa && !c.commanders.entente, 'no Pershing or Foch in 1914');
+  check(unit(c, 'gbr-01').quality === 'elite' && unit(c, 'gbr-02').quality === 'elite', 'Old Contemptibles');
+  check(unseenCardNews(c).length === 0, 'the opening cards make no news');
+});
+
+test('commanders: every effect in data/commanders.json is one the engine knows', () => {
+  const known = ['op', 'will-if-no-attack', 'industry', 'once-attack-shift', 'mutiny-if-once-attack-fails', 'steps-per-will',
+    'mutiny-length', 'mutiny-end-will', 'op-max', 'coalition-op-cost', 'rail', 'elite-units', 'no-coalition-with', 'rp',
+    'extra-will-per-steps', 'rail-max', 'green-turns', 'no-coalition'];
+  for (const c of data.commanders.cards) {
+    for (const part of [c.strength, c.flaw]) for (const e of (part && part.effects) || []) check(known.includes(e.kind), `${c.id}: ${e.kind}`);
+  }
+});
+
+test('Joffre: +1 OP every March–October, not in winter', () => {
+  check(withCards(commandGame('1915-03')).fra.op === 3, 'March');
+  check(withCards(commandGame('1915-10')).fra.op === 3, 'October');
+  check(withCards(commandGame('1915-01')).fra.op === 2, 'January');
+});
+
+test('Joffre: −2 Will in a March–October month with no French attack', () => {
+  const s = commandGame('1915-05');
+  const will = s.will.fra;
+  cardWill(s, cmd());
+  check(s.will.fra === will - 2, `no attack: ${s.will.fra}`);
+  const t = commandGame('1915-05');
+  t.attacks = [{ side: 'entente', nations: ['fra', 'gbr'], month: '1915-05', box: 'l06-g1' }];
+  cardWill(t, cmd());
+  check(t.will.fra === will, 'a coalition attack with French units counts');
+  const w = commandGame('1915-12');
+  cardWill(w, cmd());
+  check(w.will.fra === will, 'not in December');
+});
+
+test('Sir John French: British units can\'t join French attacks (Prickly ally); under Haig they can', () => {
+  const s = commandGame('1915-06');
+  s.phase = phaseIndex('entente-attack');
+  const order = coalition(s, 'gbr-01', 'fra-01');
+  const plan = planAttack(s, cmd(), order);
+  check(plan.reasons.some((r) => r.includes('Prickly ally')), plan.reasons.join(' '));
+  s.commanders.gbr = { card: 'haig', since: 1, askAt: null };
+  check(!planAttack(s, cmd(), order).reasons.some((r) => r.includes('Prickly')), 'Haig lets them');
+});
+
+test('Haig: +1 OP from 1916, −1 Manpower in January–April 1918', () => {
+  check(withCards(commandGame('1916-02')).gbr.op === 3, 'GBR 2 + 1 in 1916');
+  const s = commandGame('1918-02');
+  check(withCards(s).gbr.rp === 2 && manpower(s, cmd(), 'gbr') === 2, 'GBR 3 − 1 in Feb 1918');
+  check(withCards(commandGame('1918-05')).gbr.rp === 3, 'back to 3 in May 1918');
+});
+
+test('Falkenhayn: at most 2 German rail moves; French steps lost defending Verdun cost extra Will', () => {
+  check(withCards(commandGame('1915-06')).ger.rail === 2, 'rail 3 → 2');
+  const s = commandGame('1916-03');
+  s.lostDefending = { 'l11-e1': { fra: 9 } };
+  const will = s.will.fra;
+  s.attacks = [{ side: 'entente', nations: ['fra'], month: '1916-03' }];   // (so Joffre's flaw doesn't count)
+  cardWill(s, cmd());
+  check(s.will.fra === will - 2, `9 steps → −2: ${s.will.fra}`);
+  check(withCards(commandGame('1916-10')).ger.rail === 3, 'Hindenburg & Ludendorff: 3 rail moves again');
+});
+
+test('Hindenburg & Ludendorff: +1 Manpower; −3 Will in Mar–Jul 1918 months with no German attack', () => {
+  const s = commandGame('1917-02');
+  check(withCards(s).ger.rp === 3 && manpower(s, cmd(), 'ger') === 3, 'GER 2 + 1 in 1917');
+  const t = commandGame('1918-04');
+  const will = t.will.ger;
+  cardWill(t, cmd());
+  check(t.will.ger === will - 3, 'no attack in April 1918');
+  const u = commandGame('1918-08');
+  cardWill(u, cmd());
+  check(u.will.ger === will, 'not in August');
+});
+
+test('Nivelle: +1 Industry; his +2 columns once, chosen on one attack', () => {
+  const d = cmd(true);
+  const s = commandGame('1917-02', 'both', d);
+  check(s.commanders.fra.card === 'nivelle', s.commanders.fra.card);
+  check(industryParts(s, d, 'fra').commander === 1, JSON.stringify(industryParts(s, d, 'fra')));
+  s.phase = phaseIndex('entente-attack');
+  s.resources.fra.op = 4; s.resources.fra.munitions = 0;
+  const target = 'l09-g1';
+  const from = data.map.boxes.find((b) => b.id === target).neighbours.find((n) => s.boxes[n].owner === 'entente');
+  for (const u of unitsIn(s, from)) u.box = 'l09-e3';
+  place(s, 'fra-01', from, { steps: 4, attacked: false });
+  const plain = planAttack(s, d, { target, units: ['fra-01'] });
+  const niv = planAttack(s, d, { target, units: ['fra-01'], cardShift: true });
+  const total = (p) => p.shifts.reduce((t, x) => t + x.value, 0);
+  check(shiftOf(niv, 'The Nivelle Method') === 2 && total(niv) === total(plain) + 2, niv.shifts.map((x) => x.label).join());
+  check(!shiftOf(plain, 'The Nivelle Method'), 'only when chosen');
+  check(onceShift(s, d, 'fra').value === 2, 'available');
+  // queued twice: the second is refused (once only)
+  const q = queueCheck(s, d, [{ kind: 'attack', target, units: ['fra-01'], cardShift: true },
+    { kind: 'attack', target: 'l09-g1', units: ['fra-01'], cardShift: true }]);
+  check(q.checks[0].ok && !q.checks[1].ok, 'the second use is refused');
+});
+
+test('Nivelle: if his +2 attack fails, the French mutinies start at once (and only once)', () => {
+  const d = cmd();
+  const s = commandGame('1917-03', 'both', d);
+  s.phase = phaseIndex('entente-attack');
+  // a hopeless attack: 4 steps against a dug-in box of 8
+  const target = 'l09-g1';
+  const from = data.map.boxes.find((b) => b.id === target).neighbours.find((n) => s.boxes[n].owner === 'entente');
+  for (const u of unitsIn(s, from)) u.box = 'l09-e3';
+  for (const u of unitsIn(s, target)) u.box = 'l09-g3';
+  place(s, 'fra-01', from, { steps: 4 });
+  place(s, 'ger-01', target, { steps: 4 }); place(s, 'ger-02', target, { steps: 4 });
+  s.boxes[target].trench = 3;
+  const order = { target, units: ['fra-01'], cardShift: true };
+  check(oddsPreview(s, d, order).pTake === 0, 'cannot be taken');
+  const out = resolveAttack(s, d, order);
+  check(out.result.mutiny === true && out.state.mutinies.fra && out.state.cannotAttack.fra, 'mutinies started');
+  check(out.state.commanders.fra.shiftUsed, 'used');
+  check(!onceShift(out.state, d, 'fra'), 'gone');
+  // without the shift, a failed attack starts nothing
+  const plain = resolveAttack(s, d, { target, units: ['fra-01'] });
+  check(!(plain.state.mutinies || {}).fra, 'no mutiny without the Nivelle Method');
+});
+
+test('Pétain: OP max 1; 1 Will per 3 French steps; mutinies last 2 turns, then +15', () => {
+  const s = commandGame('1917-06');
+  check(s.commanders.fra.card === 'petain', s.commanders.fra.card);
+  check(withCards(s).fra.op === 1, 'OP max 1');
+  const t = commandGame('1917-06');
+  t.phase = phaseIndex('will');
+  const will = t.will.fra;
+  t.lostThisTurn.fra = 6;
+  t.attacks = [{ side: 'entente', nations: ['fra'], month: '1917-06' }];
+  willPhase(t, cmd());
+  check(t.will.fra === will - 2, `6 steps → −2 (not −3): ${t.will.fra}`);
+  // mutinies under Pétain: 2 turns, then +15
+  const m = commandGame('1917-06');
+  m.will.fra = 30;
+  willPhase(m, cmd());
+  check(m.mutinies.fra && m.mutinies.fra.left === 2, JSON.stringify(m.mutinies));
+  const w0 = m.will.fra;
+  m.turn += 1; m.lostThisTurn = {}; willPhase(m, cmd());
+  check(m.cannotAttack.fra, 'still mutinying after 1 turn');
+  m.turn += 1; willPhase(m, cmd());
+  check(!m.cannotAttack.fra && m.will.fra === w0 + 15, `over after 2 turns, +15: ${m.will.fra - w0}`);
+  // without Pétain: 3 turns and +10
+  const j = commandGame('1915-12');
+  j.will.fra = 30;
+  willPhase(j, cmd());
+  for (let i = 0; i < 2; i++) { j.turn += 1; willPhase(j, cmd()); }
+  check(j.cannotAttack.fra, 'Joffre: still mutinying after 2 turns');
+});
+
+test('Foch: from April 1918, coalition attacks cost 1 OP; France and Britain +1 rail move', () => {
+  const s = commandGame('1918-04');
+  check(s.commanders.entente && s.commanders.entente.card === 'foch', 'Foch arrives');
+  const r = withCards(s);
+  check(r.fra.rail === 3 && r.gbr.rail === 2, `rail ${r.fra.rail} / ${r.gbr.rail}`);
+  s.phase = phaseIndex('entente-attack');
+  const plan = planAttack(s, cmd(), coalition(s, 'gbr-01', 'fra-01'));
+  check(plan.opCost === 1, `coalition costs ${plan.opCost}`);
+  const before = commandGame('1918-03');
+  before.phase = phaseIndex('entente-attack');
+  check(planAttack(before, cmd(), coalition(before, 'gbr-01', 'fra-01')).opCost === 2, 'March 1918: 2 OP');
+});
+
+test('Pershing: US units are Green for 2 turns; no US coalition attacks until September 1918', () => {
+  const d = cmd();
+  const s = commandGame('1918-05', 'both', d);
+  check(s.commanders.usa.card === 'pershing', 'Pershing arrives with the USA');
+  s.phase = phaseIndex('events');
+  s.usaEntry = '1917-04';
+  runEvents(s, d);
+  const us = s.units.filter((u) => u.nation === 'usa');
+  check(us.length && us.every((u) => u.greenUntil === '1918-07'), us.map((u) => u.greenUntil).join());
+  check(!sackReason(s, d, 'usa') || sackReason(s, d, 'usa').includes('can\'t be sacked'), 'Pershing can\'t be sacked');
+  const plan = (month) => {
+    const t = commandGame(month, 'both', d);
+    t.phase = phaseIndex('entente-attack');
+    t.units.push({ id: 'usa-x', nation: 'usa', type: 'us-infantry', box: 'l10-e3', steps: 5, quality: 'regular' });
+    return planAttack(t, d, coalition(t, 'usa-x', 'fra-01', 'l10-e1'));
+  };
+  check(plan('1918-08').reasons.some((r) => r.includes('No amalgamation')), 'August 1918: not allowed');
+  check(!plan('1918-09').reasons.some((r) => r.includes('No amalgamation')), 'September 1918: allowed');
+});
+
+test('choices: "Replace Sir John French with Haig?" waits for the player; accepting carries on the turn', () => {
+  const d = cmd();
+  let s = beginGame(newGame(data.scenario, 7, d, { player: 'both' }), d);
+  for (let i = 0; i < 200 && !s.pendingCommander; i++) s = endPhase(s, d);
+  check(currentMonth(s) === '1915-12' && s.pendingCommander[0].key === 'gbr', `${currentMonth(s)} ${JSON.stringify(s.pendingCommander)}`);
+  check(s.pendingCommander[0].offers.join() === 'haig', 'Haig offered');
+  check(endPhase(s, d) === s, 'End Phase waits for the answer');
+  const next = answerCommander(s, d, 'gbr', 'haig');
+  check(next.commanders.gbr.card === 'haig' && next.commanders.gbr.since === next.turn, 'Haig appointed');
+  check(!next.pendingCommander && phaseOf(next, d).id === 'germany-move', phaseOf(next, d).id);
+  check(next.resources.gbr.op === 1, `Haig's +1 OP only from 1916: ${next.resources.gbr.op}`);
+  check(s.commanders.gbr.card === 'french', 'the old state is unchanged');
+});
+
+test('choices: keeping the old commander costs 3 Will, and the question returns every 3 turns', () => {
+  const d = cmd();
+  const s = commandGame('1915-12');
+  s.commanders.gbr = { card: 'french', since: 1, askAt: null };
+  commandersPhase(s, d);
+  check(s.pendingCommander && s.pendingCommander[0].key === 'gbr', 'asked');
+  const will = s.will.gbr;
+  const kept = answerCommander(s, d, 'gbr', 'keep');
+  check(kept.will.gbr === will - 3 && kept.commanders.gbr.card === 'french', `${kept.will.gbr}`);
+  check(kept.commanders.gbr.askAt === kept.turn + 3, 'asked again in 3 turns');
+  const later = copyOf(kept);
+  later.turn += 1;
+  check(!questionDue(later, d, 'gbr'), 'not next month');
+  later.turn += 2;
+  check(questionDue(later, d, 'gbr'), '3 turns later');
+});
+
+test('choices: Nivelle or Pétain in December 1916; skip Nivelle and Pétain is offered in May 1917', () => {
+  const d = cmd();
+  const s = commandGame('1916-12');
+  s.commanders.fra = { card: 'joffre', since: 1, askAt: null };
+  check(successors(s, d, 'fra').join() === 'nivelle,petain', successors(s, d, 'fra').join());
+  check(successors(commandGame('1916-06'), d, 'fra').length === 0, 'neither before December 1916');
+  commandersPhase(s, d);
+  const ask = s.pendingCommander.find((a) => a.key === 'fra');
+  check(ask && ask.offers.join() === 'nivelle,petain', JSON.stringify(s.pendingCommander));
+  const kept = answerCommander(s, d, 'fra', 'keep');
+  const may = copyOf(kept);
+  may.turn = turnOf('1917-05');            // before the 3 turns are up from March, Pétain's own date
+  may.commanders.fra.askAt = turnOf('1917-06');
+  check(questionDue(may, d, 'fra') && successors(may, d, 'fra').join() === 'petain', 'May 1917: Pétain only (Nivelle\'s dates are over)');
+  const p = answerCommander(s, d, 'fra', 'petain');
+  check(p.commanders.fra.card === 'petain', 'Pétain instead of Nivelle');
+});
+
+test('choices: the computer follows history', () => {
+  const d = cmd();
+  const s = commandGame('1916-12', 'germany');
+  s.commanders.fra = { card: 'joffre', since: 1, askAt: null };
+  s.commanders.ger = { card: 'hindenburg-ludendorff', since: 22, askAt: null };
+  commandersPhase(s, d);
+  check(!s.pendingCommander && s.commanders.fra.card === 'nivelle', 'Nivelle in December 1916');
+  check(unseenCardNews(s).some((x) => x.card === 'nivelle' && x.replaced === 'joffre'), 'the card arrives full screen');
+  s.turn = turnOf('1917-05');
+  commandersPhase(s, d);
+  check(s.commanders.fra.card === 'petain', 'Pétain in May 1917');
+});
+
+test('sacking: −5 Will, never in the first 3 turns, never Foch or Pershing, only with a successor', () => {
+  const d = cmd();
+  const s = commandGame('1915-02');
+  s.phase = phaseIndex('germany-move');
+  for (const c of Object.values(s.commanders)) c.since = 1;
+  check(sackReason(s, d, 'ger') && sackReason(s, d, 'ger').includes('first 3'), sackReason(s, d, 'ger'));
+  s.turn = 4;
+  check(sackReason(s, d, 'fra') && sackReason(s, d, 'fra').includes('No successor'), 'Joffre: Nivelle not yet available');
+  check(sackReason(s, d, 'ger') === null, sackReason(s, d, 'ger'));
+  const will = s.will.ger;
+  const next = sackCommander(s, d, 'ger', 'hindenburg-ludendorff');
+  check(next.will.ger === will - 5 && next.commanders.ger.card === 'hindenburg-ludendorff' && next.commanders.ger.since === 4, 'sacked');
+  check(sackReason(next, d, 'ger') !== null, 'no one left after H&L');
+  const f = commandGame('1918-06');
+  f.phase = phaseIndex('entente-move');
+  check(sackReason(f, d, 'entente').includes('can\'t be sacked'), 'Foch');
+  const ai = commandGame('1915-06', 'entente');
+  ai.phase = phaseIndex('germany-move');
+  check(sackReason(ai, d, 'ger').includes('computer'), 'not the computer\'s commander');
+});
+
+test('choices: answering an event question carries the turn on through the War Office budget', () => {
+  const d = { ...cmd(true) };
+  let s = beginGame(newGame(data.scenario, 3, d, { player: 'germany', level: 'regular' }), d);
+  for (let i = 0; i < 400 && !s.pendingChoice; i++) {
+    s = s.pendingCommander ? answerCommander(s, d, s.pendingCommander[0].key, s.pendingCommander[0].offers[0]) : endPhase(s, d);
+  }
+  check(currentMonth(s) === '1917-02', currentMonth(s));
+  const option = pendingChoice(s, d).options[0].id;
+  const next = answerEvent(s, d, option);
+  check(next.budget.ger.month === '1917-02', `this month's budget was spent: ${JSON.stringify(next.budget.ger)}`);
+  check(phaseOf(next, d).id === 'germany-move', phaseOf(next, d).id);
+});
+
+test('saves: a version 6 save gets the Commanders phase and the historical cards', () => {
+  const d = cmd();
+  const v6 = copyOf(started());
+  v6.version = 6; delete v6.commanders; delete v6.cardNews;
+  v6.turn = turnOf('1917-02');
+  v6.phase = 2;                            // the German move in the old list of phases
+  const up = migrateState(v6, data.scenario, d);
+  check(up.version === STATE_VERSION && up.phase === 3 && phaseOf(up, d).id === 'germany-move', `phase ${up.phase}`);
+  check(up.commanders.fra.card === 'nivelle' && up.commanders.ger.card === 'hindenburg-ludendorff', JSON.stringify(up.commanders));
+});
+
+test('computer: uses the Nivelle Method in April 1917 (as tools/wfsim.py), never before', () => {
+  const d = cmd();
+  const s = commandGame('1917-03', 'germany', d);
+  s.phase = phaseIndex('entente-attack');
+  s.resources = withCards(s, d);
+  aiAttack(s, d, 'entente');
+  check(onceShift(s, d, 'fra'), 'kept in March');
+  const a = commandGame('1917-04', 'germany', d);
+  a.phase = phaseIndex('entente-attack');
+  a.resources = withCards(a, d);
+  aiAttack(a, d, 'entente');
+  const french = (a.attacks || []).some((x) => x.nations.includes('fra'));
+  check(!french || a.commanders.fra.shiftUsed, 'used on a French attack in April');
 });
 
 export async function runAll(loadJson, loadText) {
