@@ -86,10 +86,10 @@ function setUpSides(state, data, options) {
   state.resourceMult = {};
   state.willBonus = {};
   const level = data.ai ? data.ai.levels.find((l) => l.id === state.level) : null;
-  // Auto-allocate the War Office budget (RULES.md §19.4): on by default on Recruit,
-  // and when one person plays both sides (they can turn it off on the budget screen).
-  const autoLevels = (data.economy && data.economy.autoAllocateLevels) || [];
-  state.autoAllocate = Object.fromEntries(sides.map((id) => [id, player === 'both' || autoLevels.includes(state.level)]));
+  // Auto-allocate the War Office budget (RULES.md §19.4): on by default
+  // (data/economy.json autoAllocateDefault); the player can turn it off in the ☰ menu.
+  const autoOn = !data.economy || data.economy.autoAllocateDefault !== false;
+  state.autoAllocate = Object.fromEntries(sides.map((id) => [id, player === 'both' || autoOn]));
   if (!level || player === 'both') return;
   for (const side of sides) {
     const ai = state.controllers[side] === 'ai';

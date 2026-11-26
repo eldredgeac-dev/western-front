@@ -3,7 +3,7 @@
   "stockCap": 3,
   "munitionCost": 1,
   "aiResearchCap": 3,
-  "autoAllocateLevels": ["recruit"],
+  "autoAllocateDefault": true,
   "industryBonus": {
     "ger": [{"from": "1914-12", "value": 1}],
     "fra": [{"from": "1914-12", "value": 0}, {"from": "1916-01", "value": 1}],

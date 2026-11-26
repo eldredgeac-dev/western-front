@@ -57,6 +57,19 @@ function legend(terrainData) {
   return box;
 }
 
+// A section that opens with one tap (a <details>), for the advanced numbers: column
+// shifts, territory facts, the war situation and so on. The panel is rebuilt after
+// every tap, so which sections are open is remembered here by name.
+const openSections = new Set();
+function more(key, title, ...children) {
+  const d = el('details', 'more');
+  d.open = openSections.has(key);
+  d.addEventListener('toggle', () => { if (d.open) openSections.add(key); else openSections.delete(key); });
+  d.appendChild(el('summary', 'more-title', title));
+  for (const c of children.filter(Boolean)) d.appendChild(c);
+  return d;
+}
+
 // One "label: value" row in the territory details.
 function row(list, label, value) {
   list.appendChild(el('dt', '', label));
@@ -91,42 +104,48 @@ function splitMerge(u, actions) {
   return box.childNodes.length ? box : null;
 }
 
-function unitList(info, onUnit, onCancelOrder, actions = {}) {
+// The pieces in the territory, as a row of chips to tap (select one to see where it
+// can go). Under the row: what the selected piece can do, and Cancel order.
+// Split, merge and the unit's rules are one tap away.
+function unitChips(info, onUnit, onCancelOrder, actions = {}) {
   const section = el('section', 'unit-list');
-  section.appendChild(el('h3', 'panel-subtitle', info.units.length ? 'Units here' : 'No units here'));
+  if (!info.units.length) { section.appendChild(el('p', 'unit-hint', 'No units here.')); return section; }
+  const row = el('div', 'unit-chips');
   for (const u of info.units) {
-    const b = el('button', 'unit-row');
+    const b = el('button', 'unit-chip');
     b.type = 'button';
     b.setAttribute('aria-pressed', String(info.selectedUnit === u.id));
-    b.appendChild(counterIcon(u.unit, u.look));
-    const text = el('span', 'unit-text');
-    text.appendChild(el('strong', '', u.title));
-    text.appendChild(el('span', 'unit-detail', `${u.steps} of ${u.maxSteps} steps · ${u.quality}`));
-    if (u.status && u.status.length) {
-      const tags = el('span', 'unit-tags');
-      for (const t of u.status) tags.appendChild(el('span', 'unit-tag', t));
-      text.appendChild(tags);
-    }
+    b.setAttribute('aria-label', `${u.title}, ${u.steps} of ${u.maxSteps} steps, ${u.quality}${u.status.length ? ', ' + u.status.join(', ') : ''}`);
+    b.appendChild(counterIcon(u.unit, u.look, 40));
+    const text = el('span', 'chip-text');
+    text.appendChild(el('strong', '', `${u.steps}/${u.maxSteps}`));
+    if (u.status && u.status.length) text.appendChild(el('span', 'unit-tag', u.status[0].split(' ')[0]));
     b.appendChild(text);
-    if (u.ordered) text.appendChild(el('span', 'unit-detail', u.ordered.text));
     b.addEventListener('click', () => onUnit(u.id));
-    section.appendChild(b);
-    if (info.selectedUnit === u.id) {
-      const hint = u.moves || u.rails
-        ? `By road to ${u.moves} territor${u.moves === 1 ? 'y' : 'ies'} (brass outline), or by rail to ${u.rails} (blue dashed).`
-        : (u.why || 'This unit can\u2019t move now.');
-      section.appendChild(el('p', 'unit-hint', u.ordered ? `${hint} Tap one to change its order.` : hint));
-      if (u.rule) section.appendChild(el('p', 'unit-rule', u.rule));
-      const sm = actions.onSplit ? splitMerge(u, actions) : null;
-      if (sm) section.appendChild(sm);
-      if (u.ordered && onCancelOrder) {
-        const c = el('button', 'btn btn-small', 'Cancel order');
-        c.type = 'button';
-        c.addEventListener('click', () => onCancelOrder(u.ordered.index));
-        section.appendChild(c);
-      }
-    }
+    row.appendChild(b);
   }
+  section.appendChild(row);
+  const u = info.units.find((x) => x.id === info.selectedUnit);
+  if (!u) {
+    section.appendChild(el('p', 'unit-hint', 'Tap a piece to see where it can go.'));
+    return section;
+  }
+  const hint = u.moves || u.rails
+    ? 'Tap a territory outlined in brass (road) or dashed blue (rail).'
+    : (u.why || 'This unit can\u2019t move now.');
+  const line = el('p', 'unit-hint');
+  line.appendChild(el('strong', 'unit-title', `${u.title}, ${u.quality.toLowerCase()}. `));
+  line.appendChild(document.createTextNode(u.ordered ? `${u.ordered.text}. ${hint}` : hint));
+  section.appendChild(line);
+  if (u.ordered && onCancelOrder) {
+    const c = el('button', 'btn btn-small', 'Cancel order');
+    c.type = 'button';
+    c.addEventListener('click', () => onCancelOrder(u.ordered.index));
+    section.appendChild(c);
+  }
+  const sm = actions.onSplit ? splitMerge(u, actions) : null;
+  const rule = u.rule ? el('p', 'unit-rule', u.rule) : null;
+  if (sm || rule) section.appendChild(more('unit-rules', sm ? 'Split, merge and the rules' : 'The rules for this unit', rule, sm));
   return section;
 }
 
@@ -205,55 +224,60 @@ function orderSlip(slip, actions) {
   card.appendChild(el('p', 'slip-defenders', slip.defenderText));
 
   if (!slip.result) {
-    card.appendChild(el('p', 'slip-section', 'Attacking units (tap to add or remove):'));
     if (!slip.units.length) card.appendChild(el('p', 'slip-note', 'No unit can attack this territory now.'));
+    const row = el('div', 'unit-chips');
     for (const u of slip.units) {
-      const b = el('button', 'slip-unit');
+      const b = el('button', 'unit-chip slip-chip');
       b.type = 'button';
       b.setAttribute('aria-pressed', String(u.chosen));
+      b.setAttribute('aria-label', `${u.title}, ${u.steps} steps, ${u.chosen ? 'attacking' : 'not attacking'}`);
       b.appendChild(counterIcon(u.unit, u.look, 34));
-      b.appendChild(el('span', '', `${u.title} \u00b7 ${u.steps} steps ${u.chosen ? '\u2014 ATTACKING' : ''}`));
+      b.appendChild(el('strong', 'chip-text', `${u.steps}${u.chosen ? ' \u2713' : ''}`));
       b.addEventListener('click', () => actions.onToggleUnit(u.id));
-      card.appendChild(b);
+      row.appendChild(b);
     }
     const mun = el('div', 'slip-munitions');
     const less = el('button', 'btn btn-small slip-step', '\u2212');
-    const more = el('button', 'btn btn-small slip-step', '+');
-    less.type = more.type = 'button';
+    const plus = el('button', 'btn btn-small slip-step', '+');
+    less.type = plus.type = 'button';
     less.setAttribute('aria-label', 'One munition less');
-    more.setAttribute('aria-label', 'One munition more');
+    plus.setAttribute('aria-label', 'One munition more');
     less.disabled = slip.munitions <= 0;
-    more.disabled = slip.munitions >= slip.munitionsMax;
+    plus.disabled = slip.munitions >= slip.munitionsMax;
     less.addEventListener('click', () => actions.onMunitions(-1));
-    more.addEventListener('click', () => actions.onMunitions(1));
+    plus.addEventListener('click', () => actions.onMunitions(1));
     mun.appendChild(less);
-    mun.appendChild(el('span', 'slip-mun-text', `Barrage: ${slip.munitions} munition${slip.munitions === 1 ? '' : 's'} (up to ${slip.munitionsMax})`));
-    mun.appendChild(more);
-    card.appendChild(mun);
+    mun.appendChild(el('span', 'slip-mun-text', `Barrage ${slip.munitions}/${slip.munitionsMax}`));
+    mun.appendChild(plus);
+    const forces = el('div', 'slip-forces');
+    forces.appendChild(row);
+    forces.appendChild(mun);
+    card.appendChild(forces);
   }
 
-  const lines = el('div', 'slip-lines');
+  // The chance, big, with the expected losses: what you need to decide.
   if (slip.empty) {
-    slipLine(lines, 'Defenders', 'none \u2014 taken without a fight');
-  } else if (slip.ratioText) {
-    slipLine(lines, 'Odds', slip.ratioText);
-    for (const sh of slip.shifts) slipLine(lines, sh.label, signed(sh.value));
-  }
-  if (slip.cost) slipLine(lines, 'Cost', slip.cost);
-  card.appendChild(lines);
-
-  if (slip.finalLabel && !slip.result) {
-    const stamp = el('p', 'slip-stamp', `COLUMN ${slip.finalLabel}`);
-    card.appendChild(stamp);
-    const odds = el('div', 'slip-lines');
-    slipLine(odds, 'Chance of taking it', pct(slip.pTake));
-    slipLine(odds, 'Expected losses, ours', `${slip.attackerLoss.toFixed(1)} steps`);
-    slipLine(odds, 'Expected losses, theirs', `${slip.defenderLoss.toFixed(1)} steps`);
+    card.appendChild(el('p', 'slip-losses', 'No defenders: taken without a fight.'));
+  } else if (slip.finalLabel && !slip.result) {
+    const odds = el('div', 'slip-odds');
+    odds.appendChild(el('span', 'slip-chance', pct(slip.pTake)));
+    odds.appendChild(el('span', 'slip-chance-text', 'chance to take it'));
     card.appendChild(odds);
+    card.appendChild(el('p', 'slip-losses', `Expected losses: ours ${slip.attackerLoss.toFixed(1)} \u00b7 theirs ${slip.defenderLoss.toFixed(1)} steps`));
   }
-  if (slip.advice && !slip.result) card.appendChild(adviceBlock(slip.advice));
   if (slip.warning) card.appendChild(el('p', 'slip-warning', slip.warning));
   for (const r of slip.reasons || []) card.appendChild(el('p', 'slip-note', r));
+  if (!slip.result) card.appendChild(slipButtons(slip, actions));
+  if (slip.cost) card.appendChild(el('p', 'slip-cost', `Cost: ${slip.cost}`));
+
+  // Why these odds, one tap away: the ratio, every column shift, the column, the dice strip.
+  if (!slip.empty && slip.ratioText && !slip.result) {
+    const lines = el('div', 'slip-lines');
+    slipLine(lines, 'Odds', slip.ratioText);
+    for (const sh of slip.shifts) slipLine(lines, sh.label, signed(sh.value));
+    const stamp = slip.finalLabel ? el('p', 'slip-stamp', `COLUMN ${slip.finalLabel}`) : null;
+    card.appendChild(more('slip-why', 'Why these odds', lines, stamp, slip.advice ? adviceBlock(slip.advice) : null));
+  }
 
   if (slip.result) {
     const res = el('div', 'slip-lines');
@@ -262,6 +286,12 @@ function orderSlip(slip, actions) {
     card.appendChild(el('p', 'slip-stamp' + (slip.taken ? '' : ' failed'), slip.taken ? 'OBJECTIVE TAKEN' : 'REPULSED'));
   }
 
+  if (slip.result) card.appendChild(slipButtons(slip, actions));
+  return card;
+}
+
+// The slip's buttons: ADD TO ORDERS (until the attack is made) and Cancel / Close.
+function slipButtons(slip, actions) {
   const buttons = el('div', 'slip-buttons');
   if (!slip.result) {
     const go = el('button', 'btn btn-primary', slip.confirmLabel || 'Confirm order');
@@ -274,8 +304,7 @@ function orderSlip(slip, actions) {
   cancel.type = 'button';
   cancel.addEventListener('click', () => actions.onCancel());
   buttons.appendChild(cancel);
-  card.appendChild(buttons);
-  return card;
+  return buttons;
 }
 
 // The queued orders (orders, then commit): one line each, with CANCEL; a tapped
@@ -342,19 +371,6 @@ function reportsSection(reports, onShow, onClose) {
   return section;
 }
 
-// Settings kept on this phone: fast mode (STYLE.md §8).
-function settingsSection(settings, onFast) {
-  const section = el('section', 'settings');
-  section.appendChild(el('h3', 'panel-subtitle', 'Settings'));
-  const b = el('button', 'btn btn-small', settings.fast ? 'Fast mode: on' : 'Fast mode: off');
-  b.type = 'button';
-  b.setAttribute('aria-pressed', String(Boolean(settings.fast)));
-  b.addEventListener('click', onFast);
-  section.appendChild(b);
-  section.appendChild(el('p', 'unit-hint', 'Fast mode plays turns back with only the capture animation. With Reduce Motion on in your phone\u2019s settings, nothing animates.'));
-  return section;
-}
-
 // A decision an event asks for (RULES.md §10). The turn waits until it's answered.
 function choiceCard(choice, onChoose) {
   const card = el('section', 'order-slip choice-card');
@@ -387,17 +403,23 @@ export function showPanel(container, info, terrainData, actions = {}) {
   if (actions.orders) parts.push(ordersSection(actions.orders, actions.onCancelOrder));
   if (!info) {
     parts.push(el('p', 'panel-hint', 'Tap a territory on the map to see its details. Pinch to zoom.'));
-  } else {
+  } else if (!actions.slip) {
+    // The tray: the name, one line of facts, and the pieces.
     parts.push(el('h2', 'box-title', info.name));
+    const facts = [info.ownerName, `trench ${info.trench}`, info.vp > 0 ? `${info.vp} VP` : null,
+      ...info.terrain.map((t) => t.name)].filter(Boolean);
+    parts.push(el('p', 'tray-facts', facts.join(' \u00b7 ')));
+    parts.push(unitChips(info, actions.onUnit || (() => {}), actions.onCancelOrder, actions));
+    // Everything else about the territory, one tap away.
     const dl = el('dl', 'box-facts');
     row(dl, 'Near', info.town);
-    row(dl, 'Lane', `${info.laneNumber} · ${info.laneName}`);
-    row(dl, 'Line', `${info.columnLabel} – ${info.columnName}`);
+    row(dl, 'Lane', `${info.laneNumber} \u00b7 ${info.laneName}`);
+    row(dl, 'Line', `${info.columnLabel} \u2013 ${info.columnName}`);
     row(dl, 'Owner', info.ownerName);
     row(dl, 'Trench', `level ${info.trench} (max ${info.trenchMax} in ${info.monthLabel})`);
-    row(dl, 'Victory points', info.vp > 0 ? String(info.vp) : '—');
+    row(dl, 'Victory points', info.vp > 0 ? String(info.vp) : '\u2014');
     const terrainList = el('ul', 'terrain-list');
-    if (info.terrain.length === 0) terrainList.appendChild(el('li', '', 'Plain — no effect'));
+    if (info.terrain.length === 0) terrainList.appendChild(el('li', '', 'Plain \u2014 no effect'));
     for (const t of info.terrain) {
       const li = el('li');
       li.appendChild(el('strong', '', t.name + ': '));
@@ -405,12 +427,13 @@ export function showPanel(container, info, terrainData, actions = {}) {
       terrainList.appendChild(li);
     }
     row(dl, 'Terrain', terrainList);
-    parts.push(unitList(info, actions.onUnit || (() => {}), actions.onCancelOrder, actions));
-    parts.push(dl);
+    parts.push(more('territory', 'Territory details', dl));
   }
-  if (actions.situation) parts.push(situationSection(actions.situation));
-  if (actions.log && actions.log.length) parts.push(dispatches(actions.log));
-  if (actions.settings) parts.push(settingsSection(actions.settings, actions.onFast));
-  parts.push(legend(terrainData));
+  const extras = [];
+  if (actions.situation) extras.push(more('war', 'The war: Will and Armistice Score', situationSection(actions.situation)));
+  if (actions.log && actions.log.length) extras.push(more('dispatches', 'Dispatches', dispatches(actions.log)));
+  extras.push(more('legend', 'Map key', legend(terrainData)));
+  for (const x of extras) x.classList.add('panel-extra');
+  parts.push(...extras);
   container.replaceChildren(...parts);
 }

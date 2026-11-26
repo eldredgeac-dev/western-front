@@ -178,6 +178,24 @@ export function phaseGuide(state, data) {
   return `${side.name} attack: tap a territory outlined in red. OP: ${left('op')}. Munitions: ${left('munitions')}. Then COMMIT.`;
 }
 
+// The phase guide in one short line, for the slim strip under the top bar (the full
+// sentence from phaseGuide() opens when the strip is tapped). Empty when there's
+// nothing for a player to do.
+//   "Entente move · rail left: FRA 2 · GBR 1"
+//   "Entente attack · OP: FRA 2 · GBR 1"
+export function phaseSummary(state, data) {
+  if (state.over) return 'The war is over.';
+  if (state.pendingBudget) return 'War Office: sign the budget';
+  if (state.pendingChoice) return 'A decision is waiting';
+  const phase = data.phases.phases[state.phase];
+  if (!phase || phase.auto || (state.controllers || {})[phase.side] === 'ai') return '';
+  const side = data.nations.sides.find((s) => s.id === phase.side);
+  const nations = data.nations.nations.filter((n) => n.side === phase.side && state.will[n.id] !== undefined &&
+    !(n.traits || []).some((t) => t.kind === 'cannot-attack'));
+  const left = (key) => nations.map((n) => `${n.short} ${(state.resources[n.id] || {})[key] || 0}`).join(' · ');
+  return phase.kind === 'move' ? `${side.name} move · rail left: ${left('rail')}` : `${side.name} attack · OP: ${left('op')}`;
+}
+
 // The territories a side can attack right now (after its queued orders).
 export function attackableBoxes(state, data, side) {
   const s = queueCheck(state, data).state;

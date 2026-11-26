@@ -1,11 +1,13 @@
-# Rules — Western Front 1914–18 (Version 1.4)
+# Rules — Western Front 1914–18 (Version 1.5)
 
 These rules are the source of truth. The code must do what this file says.
 
 Version 1.2 added commander cards, the Butcher's Bill, the monthly newspaper and Real
 Voices (§15–18). Version 1.3 adds the war economy: Manpower and Industry, the munitions
 stockpile, research and industrial cities (§19). Version 1.4 lets road moves go up to 2
-territories and lets you split and merge pieces (§8). It has been **balance-tested**: thousands of simulated computer-vs-computer games
+territories and lets you split and merge pieces (§8). Version 1.5 turns Auto-allocate
+on by default and shows the budget screen only when there's a real choice (§19.4);
+that changes no numbers, so the balance results stand. It has been **balance-tested**: thousands of simulated computer-vs-computer games
 (see `docs/BALANCE.md`). Numbers marked **[balanced]** were tuned by that testing. Change
 them only if playtesting shows a problem, and then re-run `tools/wfsim.py`.
 
@@ -575,10 +577,13 @@ screen (styled per STYLE.md §6 as a ledger with brass sliders):
     "artillery left" number on the dashboard.
   - **Research:** IP put towards one tech at a time (§19.5). Progress carries over
     between months.
-- **Auto-allocate** (default ON on Recruit, and when one person plays both sides; a
-  checkbox on the budget screen turns it on or off): tops the stockpile up to 3 first
-  and puts the rest into the cheapest available research. With it off, the budget
-  screen appears every month before you move.
+- **Auto-allocate** (default **ON** at every level; the ☰ menu and a checkbox on the
+  budget screen turn it on or off): tops the stockpile up to 3 first and puts the rest
+  into the cheapest available research. The budget screen doesn't appear.
+- With Auto-allocate off, the budget screen appears before you move **only in months
+  with a real choice**: one of your nations has Industry and a tech it can research.
+  In other months there's nothing to choose (Industry can only buy munitions), so it
+  is spent automatically as above.
 - Unspent Industry is lost. The stockpile starts the war empty.
 
 Barrages spend munitions from the stockpile. The per-attack maximum is still 2, or 3

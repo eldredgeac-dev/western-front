@@ -20,7 +20,7 @@ import { frontBoxes } from './engine/ai.js';
 import { queueCheck, addOrder, cancelOrder, commitOrders, snapshot } from './engine/orders.js';
 import { createPlayback } from './ui/animate.js';
 import { ledger } from './engine/history.js';
-import { attackAdvice, bestAttacks, phaseGuide, attackableBoxes, battleReport } from './engine/explain.js';
+import { attackAdvice, bestAttacks, phaseGuide, phaseSummary, attackableBoxes, battleReport } from './engine/explain.js';
 import { showLedger } from './ui/ledger.js';
 import { showBudget } from './ui/budget.js';
 import { showHelp } from './ui/help.js';
@@ -397,7 +397,6 @@ function refreshPanel() {
     orders: ordersInfo(), onCancelOrder: dropOrder, onShowOrder: showOrder,
     suggestions: suggestionsInfo(), onSuggestion: useSuggestion,
     reports, onReport: (box) => { selectBox(box); focusOn(box); }, onCloseReports: () => { reports = []; refreshPanel(); },
-    settings: { fast: Boolean(settings.fast) }, onFast: toggleFast,
   });
   orderError = null;
 }
@@ -675,7 +674,42 @@ function dropOrder(i) {
 function toggleFast() {
   settings.fast = !settings.fast;
   saveSettings();
-  refreshPanel();
+  refreshMenu();
+}
+
+// ---------------------------------------------------------------- the menu
+// The menu under the three brass rules: War Office, How to play, settings, title screen.
+function openMenu(open) {
+  $('game-menu').hidden = !open;
+  $('btn-menu').setAttribute('aria-expanded', String(open));
+  if (open) refreshMenu();
+}
+// The sides you give orders for (one, or both when two players share the phone).
+function humanSides() {
+  return Object.entries((state && state.controllers) || {}).filter(([, who]) => who === 'human').map(([side]) => side);
+}
+// Show the settings as they are now on the menu's buttons.
+function refreshMenu() {
+  const auto = state ? humanSides().every((side) => (state.autoAllocate || {})[side]) : true;
+  $('btn-auto').textContent = `Auto budget: ${auto ? 'on' : 'off'}`;
+  $('btn-auto').setAttribute('aria-pressed', String(auto));
+  $('btn-fast').textContent = `Fast mode: ${settings.fast ? 'on' : 'off'}`;
+  $('btn-fast').setAttribute('aria-pressed', String(Boolean(settings.fast)));
+}
+// Auto-allocate (RULES.md §19.4): on, the War Office spends your Industry for you;
+// off, the budget page appears in months when there's research to choose. It takes
+// effect from next month's budget.
+function toggleAuto() {
+  if (!state) return;
+  const on = !humanSides().every((side) => (state.autoAllocate || {})[side]);
+  state = { ...state, autoAllocate: { ...(state.autoAllocate || {}), ...Object.fromEntries(humanSides().map((side) => [side, on])) } };
+  persist();
+  refreshMenu();
+}
+// The phase guide strip: tap the one-line summary to open or close the full sentence.
+function toggleGuide(open = $('phase-guide').hidden) {
+  $('phase-guide').hidden = !open || !$('phase-guide').textContent;
+  $('btn-guide').setAttribute('aria-expanded', String(!$('phase-guide').hidden));
 }
 
 function closeAttack() {
@@ -692,6 +726,7 @@ function selectBox(boxId) {
   mapView.select(boxId);
   refreshPanel();
   openSheet(true);
+  focusOn(boxId);              // keep it in view above the sheet
 }
 
 // Draw the map the first time; afterwards just repaint it for the new state.
@@ -764,9 +799,11 @@ function redraw() {
   $('btn-end-phase').disabled = state.over || Boolean(state.pendingChoice) || Boolean(state.pendingBudget) ||
     Boolean(playback && playback.isPlaying());
   drawOrderArrows();
+  $('phase-summary').textContent = phaseSummary(state, orderData());
   $('phase-guide').textContent = phaseGuide(state, orderData());
+  toggleGuide(!$('phase-guide').hidden);
   const human = humanPhase();
-  $('btn-best').hidden = !human;
+  $('btn-best').hidden = !human || human.kind !== 'attack';   // it only helps in your attack phase
   if (!human || human.kind !== 'attack') clearSuggestions();
   refreshTargets();
   if (state.pendingChoice) openSheet(true);
@@ -839,6 +876,11 @@ async function playTurn(actions) {
   openSheet(false);
   $('btn-end-phase').disabled = true;
   $('commit-count').textContent = '';
+  // the guide strip says what's happening, not the phase that just ended
+  $('phase-summary').textContent = 'The turn is playing out: tap the map to hurry it';
+  $('phase-guide').textContent = '';
+  toggleGuide(false);
+  $('btn-best').hidden = true;
   mapView.drawOrders([]);
   // the panel would give the results away: show a short note while the turn plays
   const note = document.createElement('p');
@@ -859,15 +901,22 @@ function showBoard(snap) {
   mapView.drawUnits(snap.units, lookFor);
   gameTitle.textContent = monthLabel(snap.month);
 }
-// During playback: if a territory being acted on is off screen, move the map to it.
+// If a territory is off screen (or hidden under the sheet on a folded phone), move
+// the map so it sits in the part of the map you can see.
 function focusOn(...ids) {
   const [x, y, w, h] = zoom.current();
+  const area = $('map-area').getBoundingClientRect();
+  // how much of the map's height the open sheet covers (none when unfolded: the panel is beside it)
+  const sheetTop = sheet.classList.contains('open') && getComputedStyle(sheet).position === 'fixed'
+    ? window.innerHeight - sheet.offsetHeight : Infinity;
+  const covered = Math.max(0, Math.min(area.height, area.bottom - sheetTop)) / area.height;
+  const seenH = h * (1 - covered);                 // the visible part, in map units
   const pts = ids.filter(Boolean).map((id) => { const t = document.getElementById(id); return [Number(t.dataset.x), Number(t.dataset.y)]; });
   const margin = 0.15;
-  const seen = (p) => p[0] > x + w * margin && p[0] < x + w * (1 - margin) && p[1] > y + h * margin && p[1] < y + h * (1 - margin);
+  const seen = (p) => p[0] > x + w * margin && p[0] < x + w * (1 - margin) && p[1] > y + seenH * margin && p[1] < y + seenH * (1 - margin);
   if (!pts.length || pts.every(seen)) return;
   const cx = pts.reduce((a, p) => a + p[0], 0) / pts.length; const cy = pts.reduce((a, p) => a + p[1], 0) / pts.length;
-  zoom.centreOn(cx, cy);
+  zoom.centreOn(cx, cy + (h - seenH) / 2);         // the middle of the visible part
 }
 
 // Words for an action, for the playback bar and slip.
@@ -1027,6 +1076,16 @@ async function boot() {
   $('btn-war-office').addEventListener('click', openWarOffice);
   $('btn-best').addEventListener('click', () => { if (state) toggleBest(); });
   $('btn-help').addEventListener('click', openHelp);
+  $('btn-auto').addEventListener('click', toggleAuto);
+  $('btn-fast').addEventListener('click', toggleFast);
+  $('btn-guide').addEventListener('click', () => toggleGuide());
+  $('btn-menu').addEventListener('click', () => openMenu($('game-menu').hidden));
+  // a choice in the menu closes it (except the two settings, so you see them change)
+  for (const id of ['btn-war-office', 'btn-help', 'btn-back']) $(id).addEventListener('click', () => openMenu(false));
+  // so does a tap anywhere outside it
+  document.addEventListener('pointerdown', (e) => {
+    if (!$('game-menu').hidden && !e.target.closest('#game-menu, #btn-menu')) openMenu(false);
+  });
   $('btn-title-help').addEventListener('click', openHelp);
   wireSheet();
 

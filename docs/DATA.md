@@ -164,7 +164,7 @@ schedule, both in `nations.json`. This file adds the rest:
 | `stockCap` | Most munitions a nation can hold in its stockpile (3) |
 | `munitionCost` | IP per munition (1) |
 | `aiResearchCap` | Most IP the computer puts into research each month (3) |
-| `autoAllocateLevels` | Difficulty levels where Auto-allocate starts on (`recruit`) |
+| `autoAllocateDefault` | Whether Auto-allocate starts on for a player (`true`). With it off, the budget page only appears when there is research to choose (RULES.md §19.4) |
 | `industryBonus` | Per nation, a schedule `[{from, value}]` of the war-economy bonus |
 | `cities` | Industrial cities: `box`, `holder` (the side that starts with it), `effects` `{nation: IP}` that apply while the other side owns it, and a `note` |
 | `techs` | Research: `id`, `name`, `nations` that can pay for it (France and Britain share the creeping barrage), `historical` month it arrives free (`null` = never happened), `earliest` month it can be researched, `cost` in IP, `effect`, optional `replaces`, `text` (what it does) and `note` (one line of history) |
