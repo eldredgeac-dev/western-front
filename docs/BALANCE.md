@@ -265,3 +265,12 @@ the balance tests and tell me if anything got lopsided."*
 engine (fixed seeds). The first run (no commanders yet) gave Germany 52%, Entente 12%,
 draw 36%, against the simulator's 48 / 35 / 18. The difference is being looked into; see
 docs/DECISIONS.md, decisions 58–60. None of the numbers above were changed.
+
+## One orders phase (RULES.md Version 1.6, milestone 10f, 26 November 2026)
+A player now orders moves and attacks together and commits once; the moves are still
+carried out before the attacks, exactly as the simulator and the computer play. Re-run to
+confirm: `python3 tools/levels.py` gave the **same table as above to the percent**
+(Recruit 74 / 81 / 71 / 75, Regular 52 / 32 / 6 / 38, Veteran 35 / 28 / 1 / 38, Field
+Marshal 9 / 18 / 0 / 16), and `node tools/js-sim.mjs 50` gave the same **46% / 22% / 32%**.
+**No [balanced] number was changed.** (The "move in to attack" helper only queues a road
+move the player could already have ordered.)

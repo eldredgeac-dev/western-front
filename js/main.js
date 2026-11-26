@@ -624,6 +624,7 @@ function attackSlip() {
     slip.ratioText = `${plan.attackSteps} steps against ${plan.defendSteps} \u2192 ${data.engine.combat.columns[plan.ratioColumn].label}`;
     slip.finalLabel = plan.columnLabel;
     slip.pTake = odds.pTake; slip.attackerLoss = odds.attackerLoss; slip.defenderLoss = odds.defenderLoss;
+    slip.attackSteps = plan.attackSteps; slip.defendSteps = plan.defendSteps;
     // the plain-English explanation: roll needed, why, what would help (explain.js)
     slip.advice = attackAdvice(pv, orderData(), order);
     // The Recruit advisor (RULES.md §13): warn before a futile attack.

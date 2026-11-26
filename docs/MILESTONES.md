@@ -149,7 +149,7 @@ Do one milestone per Claude Code session. For each one:
     appears in months when there is a real choice (research is open). RULES.md §19.4.
   - The phase guide no longer shows stale text while a turn plays back.
 
-- [ ] **10f. Board view, attack by moving in, A&A-style results**
+- [x] **10f. Board view, attack by moving in, A&A-style results**
   - **Board view** is the main playing view: the same 72 territories drawn as chunky,
     outlined regions that roughly follow the front (each at least 55–60 px on a phone),
     with the city name, a VP badge and one stack of pieces. It follows docs/STYLE.md
@@ -259,7 +259,9 @@ milestone in brackets, confirm the fix, then update RULES.md and the code togeth
   98–101): in 1915–16 the game's computer attacks about half as often.
 - With Auto-allocate on, a one-line notice when research first opens (Jan 1916), so a
   new player learns it exists without the budget page interrupting (milestone 10e).
-- Some pieces with no room in a thin territory get pushed outside it (the Belgian piece
-  on the Yser stands in the sea). The board view (10f) should give every territory a
-  fixed spot for its piece.
+- Some pieces with no room in a thin territory get pushed outside it on the campaign map
+  (the Belgian piece on the Yser stands in the sea). The board (10f) gives every square a
+  fixed spot; the map could get the same from tools/build-map.mjs.
+- On a folded phone the locator covers the board's top-left square until you scroll;
+  it could shrink or tuck away on the board.
 (Claude Code: add ideas here instead of building them.)

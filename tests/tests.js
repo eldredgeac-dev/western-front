@@ -1736,6 +1736,9 @@ test('explain: the battle report says what happened (taken)', () => {
   const rep = battleReport(eco(), { side: 'entente', target: 'l06-g1', result: found.r, after: found.after });
   const text = rep.lines.join(' ');
   check(rep.taken && rep.title.includes('attack on'), rep.title);
+  const t = rep.tally;
+  check(t && t.ours.steps === 12 && t.theirs.steps === 4 && t.theirs.lost >= 1 && t.theirs.lost <= 4 && t.ours.lost <= t.ours.steps,
+    'the tally of steps and losses: ' + JSON.stringify(t));
   check(/Rolled \d \+ \d = \d+ on column 3:1/.test(text), text);
   check(text.includes('Advanced into') && text.includes('The front line moved'), text);
   if (found.r.retreats.length) check(text.includes('Fell back to'), text);

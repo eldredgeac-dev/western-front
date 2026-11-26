@@ -211,7 +211,8 @@ export function attackableBoxes(state, data, side) {
 // ---------------------------------------------------------------- battle reports
 // A plain-English report of one attack after it happened, for the panel's "Battle
 // reports". `action` is a recorded attack (js/engine/orders.js / ai.js):
-// { side, target, result, after }. Returns { box, title, lines: [..], taken }.
+// { side, target, result, after }. Returns { box, title, lines: [..], taken, tally }, where
+// tally = { ours: { steps, lost }, theirs: { steps, lost } } (null if no one held it).
 export function battleReport(data, action) {
   const r = action.result;
   const nation = (id) => data.nations.nations.find((n) => n.id === id);
@@ -246,5 +247,11 @@ export function battleReport(data, action) {
   const will = Object.entries(r.will || {}).filter(([, v]) => v);
   if (r.futile) lines.push(`A futile attack at bad odds: ${nation(r.plan.payer).name} −${data.combat.futile.will} Will.`);
   if (will.length) lines.push(`Will: ${will.map(([n, v]) => `${nation(n).name} ${v > 0 ? '+' : '−'}${Math.abs(v)}`).join(', ')}.`);
-  return { box: action.target, title: `${sideName} attack on ${place(action.target)}`, lines, taken: Boolean(r.taken) };
+  // the tally, for drawing each side's steps with the lost ones crossed out (A&A style)
+  const theirLost = total(r.defenderLost) + total(r.retreatLost);
+  const tally = r.empty ? null : {
+    ours: { steps: r.plan.attackSteps, lost: Math.min(r.plan.attackSteps, total(r.attackerLost)) },
+    theirs: { steps: r.plan.defendSteps, lost: Math.min(r.plan.defendSteps, theirLost) },
+  };
+  return { box: action.target, title: `${sideName} attack on ${place(action.target)}`, lines, taken: Boolean(r.taken), tally };
 }

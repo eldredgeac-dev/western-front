@@ -838,3 +838,18 @@ body.coaching .locator { display: none; }
 /* on the board the pieces are always the full ones (the board is never "zoomed out") */
 .board-svg.far .piece-full { display: inline; }
 .board-svg .piece-simple { display: none; }
+
+/* ---------- Losses, the Axis & Allies way: each side's steps as squares, the lost ones
+   crossed out in red (the attack slip: expected; battle reports: what happened). ---------- */
+.loss-tally { margin: 6px 0; display: grid; gap: 4px; }
+.loss-row { display: grid; grid-template-columns: 4.2em 1fr; align-items: center; column-gap: 8px; }
+.loss-label { font-weight: 700; }
+.loss-pips { display: flex; flex-wrap: wrap; gap: 3px; }
+.loss-words { grid-column: 2; font-size: 0.85rem; color: var(--ink-faded); }
+.loss-pip { position: relative; width: 14px; height: 14px; border: 1.5px solid var(--ink); border-radius: 2px; background: var(--paper); }
+.loss-pip.lost { border-color: var(--front-red); background: var(--telegram); }
+.loss-pip.lost::before, .loss-pip.lost::after {
+  content: ""; position: absolute; left: -2px; right: -2px; top: 50%; height: 2px; margin-top: -1px; background: var(--front-red);
+}
+.loss-pip.lost::before { transform: rotate(45deg); }
+.loss-pip.lost::after { transform: rotate(-45deg); }
