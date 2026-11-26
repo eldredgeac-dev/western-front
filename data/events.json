@@ -282,7 +282,7 @@
    "id": "kaiserschlacht",
    "month": "1918-11",
    "name": "The Kaiserschlacht gamble",
-   "text": "Germany made no attack between April and October 1918: −15 Will.",
+   "text": "Germany made no attack between April and October 1918: −20 Will.",
    "effects": [
     {
      "kind": "will-if-no-attack",
@@ -290,25 +290,25 @@
      "nation": "ger",
      "from": "1918-04",
      "to": "1918-10",
-     "value": -15
+     "value": -20
     }
    ],
    "telegram": {
     "title": "THE GAMBLE LOST",
     "text": "Germany let the summer of 1918 pass without an offensive. The Americans are here in force.",
-    "meaning": "Germany loses 15 Will."
+    "meaning": "Germany loses 20 Will."
    }
   },
   {
    "id": "kaiserschlacht-warning",
    "month": "1918-04",
    "name": "The Kaiserschlacht",
-   "text": "Germany must attack by October 1918 or lose 15 Will.",
+   "text": "Germany must attack by October 1918 or lose 20 Will.",
    "effects": [],
    "telegram": {
     "title": "KAISERSCHLACHT",
     "text": "Divisions freed from the East give Germany one last chance to win before the Americans arrive in force.",
-    "meaning": "Germany must make at least one attack between April and October 1918, or lose 15 Will at the start of November."
+    "meaning": "Germany must make at least one attack between April and October 1918, or lose 20 Will at the start of November."
    }
   },
   {

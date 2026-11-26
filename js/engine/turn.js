@@ -63,7 +63,9 @@ const phasesOf = (data) => data.phases.phases;
 // Run automatic phases until we reach one that needs orders (or the game ends).
 // Passing the last phase ends the month and starts the next one.
 //   record — optional: passed to the computer's moves and attacks (see ai.js)
-function settle(state, data, record = null) {
+//   probe(state, side) — optional, for tools/count.mjs: called just before the computer
+//            makes a side's attacks. It only looks; it never changes the game.
+function settle(state, data, record = null, probe = null) {
   const phases = phasesOf(data);
   let guard = 0;
   while (!state.over && guard++ < 1000) {
@@ -83,7 +85,7 @@ function settle(state, data, record = null) {
       // The computer plays its own side's phases; a person's phase waits for orders.
       if (!data.ai || (state.controllers || {})[phase.side] !== 'ai') return state;
       if (phase.kind === 'move') aiMove(state, data, phase.side, record);
-      if (phase.kind === 'attack') aiAttack(state, data, phase.side, record);
+      if (phase.kind === 'attack') { if (probe) probe(state, phase.side); aiAttack(state, data, phase.side, record); }
       if (state.over) return state;
       state.phase += 1;
       continue;
@@ -103,7 +105,7 @@ function settle(state, data, record = null) {
 export function beginGame(state, data, options = {}) {
   const next = copyState(state);
   addLog(next, `${monthLabel(currentMonth(next))} begins.`);
-  return settle(next, data, options.record || null);
+  return settle(next, data, options.record || null, options.probe || null);
 }
 
 // The player presses End Phase: move on to the next phase that needs orders,
@@ -115,7 +117,7 @@ export function endPhase(state, data, options = {}) {
   const next = copyState(state);
   next.phase += 1;
   next.orders = [];
-  return settle(next, data, options.record || null);
+  return settle(next, data, options.record || null, options.probe || null);
 }
 
 // The current phase record from data/phases.json.
