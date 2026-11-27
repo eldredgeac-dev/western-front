@@ -487,7 +487,7 @@ I'll change it.
      half as often as the simulator's (Entente 2–3 a year against 7–8), and it attacks
      empty territories much less. I've put "find the rest" in Later ideas rather than
      guess. No [balanced] number was changed.
-102. **The guided first turn** uses seed 4. If you follow the steps, the attack succeeds
+102. **The guided first turn** uses seed 4 (seed 1 since decision 137). If you follow the steps, the attack succeeds
      (it's a 58% attack, so on another seed it might not). Auto-allocate is on, so the
      budget page doesn't interrupt it.
 103. **Battle reports aren't saved.** They're kept until your next COMMIT, so reloading
@@ -702,6 +702,32 @@ I'll change it.
      computer attacks less than the simulator's), made bigger by more pieces. I haven't
      found the exact cause, so I haven't changed the computer. See the question below.
 
+137. **Found it: the computer's move phase** (answers 101 and 136). `aiMove` in
+     js/engine/ai.js didn't move pieces the way `ai_move` in tools/wfsim.py does:
+     - it ranked the front by threat **once**; the simulator ranks it again at the
+       start of each of its **two passes**;
+     - a piece whose target wasn't next door made a road move of up to 2 territories
+       first, and only then tried rail. The simulator tries **rail first**, otherwise steps
+       1 territory towards the target, and carries on in the second pass.
+     So the game's computer piled its pieces into a few territories and spent its rail
+     moves differently. Both sides then got fewer good attacks, and the more pieces
+     the Entente had, the worse it got. The attack phase (`aiAttack`) already matched.
+     **Fix:** `aiMove` now copies `ai_move` exactly. The two passes are worked out on a
+     scratch copy of the board, then each piece gets **one** real order from where it
+     started (a road move of up to 2 territories, or a rail move), so the rules are
+     unchanged. RULES.md §14 step 3 now describes the move in full. No [balanced]
+     number changed.
+     **Results** (`node tools/js-par.mjs 200`, with purchases): **Germany 48%, Entente
+     40%, draw 13%** (it was 62 / 26 / 12). Attacks per war 61 → 77. The Entente now
+     attacks 10–13 times a year in 1915–16, as in the simulator (it was 5–8). Without
+     Entente infantry purchases it's 40 / 46 / 14. Infantry still costs the computer
+     Entente about 6 points, nearly all in 1918 (4.6 attacks against 6.1), but that's
+     close to the noise of 200 wars (the simulator's own gap is 2 points: 46 / 40 / 14
+     against 44 / 42 / 14). So **the computer Entente keeps buying infantry**, as the rule
+     says (question 7 below).
+     The guided first turn moved from seed 4 to **seed 1**: Germany's computer turn now
+     plays out differently, and on seed 4 the 58% attack failed (102).
+
 ## Questions for you (milestone 12)
 5. **Approve the AI fix in decision 128? — answered: yes.** Applied. With 200 wars the
    game's engine went from Germany 57 / Entente 33 / draw 11 to **45 / 37 / 18**, inside
@@ -714,7 +740,8 @@ I'll change it.
 
 ## Questions for you (V2a)
 7. **The computer Entente gets worse when it buys infantry (decision 136). What should I
-   do?**
+   do? — answered: find the cause and fix it.** Found and fixed (decision 137). The
+   tanks-only switch for the computer was never committed, so nothing had to be undone.
    - **(a) Recommended: the computer Entente buys tanks only, for now.** Players and the
      German computer buy as the rule says. Tested: 44 / 37 / 19, back inside every
      range. A player playing the Entente can still buy infantry. Then, as a separate

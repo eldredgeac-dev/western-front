@@ -399,8 +399,13 @@ The AI uses the same rules and the same order format as the player.
 2. **Merge:** at the start of its move phase, the computer merges damaged units of the
    same nation and type in a box when they fit in one (§8.1). It never splits units.
 3. **Defend:** threat of a box = adjacent enemy steps − own steps − 2 × trench
-   + 0.3 × VP (+6 if empty). Fill the highest-threat front boxes first, using normal
-   moves, then rail.
+   + 0.3 × VP (+6 if empty). Fill the highest-threat front boxes first, in two passes
+   (the front is ranked by threat again at the start of each pass). In each pass a
+   piece stays if it's alone in a front box or its front box has threat above −4.
+   Otherwise it picks the most threatened front box with room and threat above −6. It
+   steps 1 territory into that box if it's next door, otherwise goes there by rail (if
+   it hasn't stepped yet), otherwise steps 1 territory towards it. A piece's two steps
+   are one road move (§8).
 4. **Attack:** for each possible attack and munitions spend, work out:
 
    `score = P(take) × (box value + depth bonus) + W × (enemy Will lost − own Will lost) × 3
