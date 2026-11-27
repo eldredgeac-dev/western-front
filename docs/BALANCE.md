@@ -456,3 +456,35 @@ when the units are free in Manpower or arrive at full strength. The counting too
 against 0.48), and more Entente pieces stand in the rear (1916: 6.7 against 4.1). That
 matches the open question from DECISIONS.md 101: in 1915–16 the game's computer attacks
 about half as often as the simulator's. Extra pieces make that gap bigger.
+
+## The computer's move phase copies the simulator's (Version 11.2, 27 November 2026)
+**The cause of the gap above (and of DECISIONS.md 101):** the game's computer moved its
+pieces differently from `ai_move` in tools/wfsim.py. It ranked the front by threat once
+instead of before each of two passes, and made a 2-territory road move before trying
+rail. Now `aiMove` copies `ai_move` (DECISIONS.md 137). No rule or [balanced] number
+changed; the simulator is unchanged.
+
+`node tools/js-par.mjs 200` (Standard vs Standard, with purchases, as the rule says):
+
+| | Germany | Entente | Draw | Mutinies | Attacks a war | Captures |
+|---|---|---|---|---|---|---|
+| Before this fix | 62% | 26% | 12% | 74% | 61 | 41.1 |
+| **After** | **48%** | **40%** | **13%** | 69% | 77 | 54.8 |
+| After, Entente buys no infantry (test only) | 40% | 46% | 14% | 69% | — | — |
+
+Attacks a year (200 wars, game engine, after the fix; the simulator in brackets):
+
+| | 1915 | 1916 | 1917 | 1918 |
+|---|---|---|---|---|
+| Entente | 10.6 (10.4) | 12.7 (9.0) | 9.6 (8.5) | 4.6 (4.5) |
+| Germany | 11.0 (10.8) | 8.2 (7.1) | 10.4 (9.8) | 9.3 (9.2) |
+
+The game's engine now fights about as many battles as the simulator, and every
+even-game range holds. Entente infantry purchases still cost the computer Entente a few
+points (40 against 46), mostly in 1918, but that's near the noise of 200 wars (in the
+simulator the same test gives 46 / 40 / 14 against 44 / 42 / 14). So the computer
+buys infantry as the rule says.
+
+Re-run in the simulator (unchanged by this fix): `python3 tools/matchups.py 200` and
+`python3 tools/levels.py` give exactly the V2a tables above (Standard vs Standard
+43 / 47 / 10, Expert vs Expert 48 / 38 / 14; every difficulty level the same).

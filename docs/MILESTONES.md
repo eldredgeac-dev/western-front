@@ -257,8 +257,6 @@ milestone in brackets, confirm the fix, then update RULES.md and the code togeth
 - A separate Research page reachable from the War Office at any time (for now the
   research ledger is at the bottom of the budget page, and progress is on the dashboard).
 - A guided first turn as Germany too (the coach and its data already allow it).
-- Find the rest of the gap between the game's computer and the simulator (DECISIONS.md
-  98–101): in 1915–16 the game's computer attacks about half as often.
 - With Auto-allocate on, a one-line notice when research first opens (Jan 1916), so a
   new player learns it exists without the budget page interrupting (milestone 10e).
 - Some pieces with no room in a thin territory get pushed outside it on the campaign map
