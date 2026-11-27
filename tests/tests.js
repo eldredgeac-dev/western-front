@@ -1801,6 +1801,22 @@ test('buying §19.9: Auto-allocate and the computer save the rest towards a unit
   check((g.purchased.ger || {}).infantry > 0, 'the German computer bought infantry: ' + JSON.stringify(g.purchased));
 });
 
+test('buying §19.9: the computer Entente buys tanks only; a player\'s Auto-allocate buys infantry too', () => {
+  const s = ecoAt('1915-06', { player: 'germany', level: 'regular' });   // the computer plays the Entente
+  s.resources.fra.munitions = 3;
+  check(autoBudget(s, eco(), 'fra', 3).build === 0, 'computer France saves nothing in 1915 (no tanks yet)');
+  const t = ecoAt('1918-07', { player: 'germany', level: 'regular' });
+  t.resources.fra.munitions = 3;
+  check(autoBudget(t, eco(), 'fra', 3).buildType === 'tanks', 'computer France buys tanks once it can');
+  const p = ecoAt('1915-06', { player: 'entente', level: 'regular' });   // a player's Entente
+  p.resources.fra.munitions = 3;
+  const b = autoBudget(p, eco(), 'fra');
+  check(b.buildType === 'infantry' && b.build > 0, 'a player\'s Auto-allocate still buys infantry: ' + JSON.stringify(b));
+  const g = ecoAt('1915-06', { player: 'entente', level: 'regular' });   // the computer plays Germany
+  g.resources.ger.munitions = 3;
+  check(autoBudget(g, eco(), 'ger', 3).buildType === 'infantry', 'the German computer buys infantry');
+});
+
 test('saves: a version 7 save gets empty purchases', () => {
   const v7 = copyOf(started());
   v7.version = 7; delete v7.production; delete v7.purchased; delete v7.ordered;

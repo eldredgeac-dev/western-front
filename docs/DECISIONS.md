@@ -702,6 +702,16 @@ I'll change it.
      computer attacks less than the simulator's), made bigger by more pieces. I haven't
      found the exact cause, so I haven't changed the computer. See the question below.
 
+137. **The computer Entente buys tanks only** (your answer (a) to question 7). A new line
+     in `data/economy.json` (`units.computerBuys`) lists the types the computer may buy for
+     each nation: France and Britain, tanks only. So the computer France saves nothing for
+     units until June 1918 (the Renault FT), and the computer Britain until September 1916
+     (Landships). You, Auto-allocate and the German computer buy as RULES.md §19.9 says.
+     The simulator does the same (`buy_only`; `levels.py` lifts it when the Entente is the
+     player). Results are in BALANCE.md. Finding why extra pieces make the game's computer
+     attack less (decisions 101 and 136) is still open; once it's fixed, the computer
+     Entente can buy infantry again by deleting that line.
+
 ## Questions for you (milestone 12)
 5. **Approve the AI fix in decision 128? — answered: yes.** Applied. With 200 wars the
    game's engine went from Germany 57 / Entente 33 / draw 11 to **45 / 37 / 18**, inside
@@ -714,7 +724,7 @@ I'll change it.
 
 ## Questions for you (V2a)
 7. **The computer Entente gets worse when it buys infantry (decision 136). What should I
-   do?**
+   do? — answered: (a).** Done in decision 137.
    - **(a) Recommended: the computer Entente buys tanks only, for now.** Players and the
      German computer buy as the rule says. Tested: 44 / 37 / 19, back inside every
      range. A player playing the Entente can still buy infantry. Then, as a separate

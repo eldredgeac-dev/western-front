@@ -305,9 +305,13 @@ export function autoBudget(state, data, nationId, researchCap = Infinity) {
   return { munitions, research, tech: research > 0 ? tech.id : null, build, buildType: buy ? buy.type : null, city: null };
 }
 
-// The unit Auto-allocate and the computer save towards: a tank if possible.
+// The unit Auto-allocate and the computer save towards: a tank if possible. The
+// computer only buys the types data/economy.json allows it for that nation
+// ("computerBuys": the Entente computer buys tanks only, DECISIONS.md 137).
 export function autoUnit(state, data, nationId) {
-  const options = buyOptions(state, data, nationId);
+  const side = sideOfNation(data, nationId);
+  const only = (state.controllers || {})[side] === 'ai' ? (unitsRules(data).computerBuys || {})[nationId] : null;
+  const options = buyOptions(state, data, nationId).filter((o) => !only || only.includes(o.type));
   return options.find((o) => o.type === 'tanks') || options[0] || null;
 }
 
