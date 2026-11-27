@@ -456,3 +456,39 @@ when the units are free in Manpower or arrive at full strength. The counting too
 against 0.48), and more Entente pieces stand in the rear (1916: 6.7 against 4.1). That
 matches the open question from DECISIONS.md 101: in 1915–16 the game's computer attacks
 about half as often as the simulator's. Extra pieces make that gap bigger.
+
+### The computer Entente buys tanks only (Version 11.2, DECISIONS.md 137, 27 November 2026)
+Your answer (a): the computer playing the Entente buys tanks only. Players and the German
+computer buy as §19.9 says. In the simulator, `buy_only={'E': ('tank',)}`; `levels.py`
+lifts it when the Entente is the player.
+
+| `node tools/js-par.mjs 200` | Germany | Entente | Draw | Mutinies | Attacks a war | Captures |
+|---|---|---|---|---|---|---|
+| Before V2a (Version 1.7) | 45% | 37% | 18% | 74% | 66 | 46.7 |
+| V2a as first built | 62% | 26% | 12% | 74% | 61 | 41.1 |
+| **Computer Entente buys tanks only** | **44%** | **37%** | **19%** | 77% | 69 | 47.3 |
+
+| Matchup (`matchups.py 200`) | Version 1.7 | V2a as first built | **Tanks only** |
+|---|---|---|---|
+| Standard vs Standard | 48 / 38 / 14 | 43 / 47 / 10 | **44 / 44 / 12** |
+| Expert vs Expert | 50 / 39 / 11 | 48 / 38 / 14 | **42 / 44 / 14** |
+| Turtle Germany vs Standard | 0 / 100 / 0 | 0 / 100 / 0 | 0 / 100 / 0 |
+| Standard vs Turtle Entente | 100 / 0 / 0 | 100 / 0 / 0 | 100 / 0 / 0 |
+| Beginner Germany vs Standard | 4 / 92 / 4 | 3 / 93 / 4 | 4 / 94 / 3 |
+| Standard vs Beginner Entente | 50 / 46 / 4 | 49 / 44 / 7 | 48 / 46 / 6 |
+| Reckless Germany vs Standard | 0 / 100 / 0 | 0 / 100 / 0 | 0 / 100 / 0 |
+| Standard vs Reckless Entente | 60 / 40 / 0 | 60 / 39 / 0 | 64 / 36 / 0 |
+
+| Level (80 games, player win %) | Careful as GER | Careful as ENT | Beginner as GER | Beginner as ENT |
+|---|---|---|---|---|
+| Recruit | 76% | 86% | 20% | 78% |
+| Regular | 43% | 49% | 4% | 38% |
+| Veteran | 31% | 35% | 1% | 34% |
+| Field Marshal | 20% | 11% | 1% | 16% |
+
+**The game's engine is back inside every even-game range** (44 / 37 / 19), and agrees
+with the simulator (44 / 44 / 12) within the ±7 points of 200 games. Each difficulty
+level still steps down. Changes worth watching: a careful player as Germany now wins 20%
+on Field Marshal (was 11%), because the computer Entente there no longer gets extra
+infantry. Standard vs Reckless Entente is 36%, still over the 20% target, as it has been
+since Version 1.2.
