@@ -3,6 +3,7 @@
 #   python3 tools/waste.py [games=200] ['{"attack_ip":1,"stock_cap":6,"mun_target":6}']
 # Standard vs Standard. The JSON changes tools/wfsim.py's DEFAULT settings.
 import sys, os, json; sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import wfsim
 from multiprocessing import Pool
 cfg = json.loads(sys.argv[2]) if len(sys.argv) > 2 else {}
 N = int(sys.argv[1]) if len(sys.argv) > 1 else 100
