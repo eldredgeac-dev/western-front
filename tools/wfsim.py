@@ -81,6 +81,10 @@ DEFAULT = dict(
   buy_cap={'GER':(4,1), 'FRA':(2,3), 'GBR':(3,3), 'USA':(0,0)},  # most units bought in the war (infantry, tanks)
   buy_delay=1,                                             # months between paying in full and arriving
   buy_from=191501,                                         # first month an order can be placed
+  # V2c (C4): attacks cost Industry instead of Offensive Points. attack_ip=0 plays
+  # Version 1.8 exactly (OP). With attack_ip=N each attack takes N munitions from the
+  # stockpile (on top of its barrage), and attack_limit caps a nation's attacks a month.
+  attack_ip=0, attack_limit=3, ger_ip_1918=0, usa_ip_late=0,
 )
 # §19.9: which research lets a nation buy tanks.
 TANK_TECH = {'GBR': 'tanks', 'FRA': 'renault', 'GER': 'a7v'}
@@ -203,10 +207,19 @@ class Game:
     def res(self, nat, s):
         op, mu, rp = resources(nat, self.t, self.cfg, s)
         c = cmdr(self, nat); y, m = ym(self.t); k = mkey(self.t)
-        if c == 'joffre' and 3 <= m <= 10: op += 1
+        ipm = self.cfg.get('attack_ip', 0) > 0      # V2c: no OP; the attack limit takes its place
+        if ipm:
+            op = self.cfg['attack_limit']
+            if nat == 'GER' and y >= 1918: mu += self.cfg.get('ger_ip_1918', 0)
+            if nat == 'USA' and k >= 191808: mu += self.cfg.get('usa_ip_late', 0)
+        if c == 'joffre' and 3 <= m <= 10:
+            if ipm: mu += 1
+            else: op += 1
         if c == 'nivelle': mu += 1
         if c == 'petain': op = min(op, 1)
-        if c == 'haig' and y >= 1916: op += 1
+        if c == 'haig' and y >= 1916:
+            if ipm: mu += 1
+            else: op += 1
         if c == 'haig' and 191801 <= k <= 191804: rp = max(0, rp - 1)
         if c == 'hl': rp += 1
         return op, mu, rp
@@ -276,6 +289,9 @@ class Game:
                 extra = min(p, max(0, need - rp)); rp += extra; p -= extra
                 mun += p
             self.econ_rp[nat] = rp
+            # IP the stockpile can't hold is thrown away (BALANCE.md "IP thrown away per year").
+            w = self.stats.setdefault('waste', {}).setdefault(nat, {})
+            w[ym(self.t)[0]] = w.get(ym(self.t)[0], 0) + max(0, mun - (cap - self.stock[nat]))
             mun = min(mun, cap - self.stock[nat])
             self.stock[nat] += mun
             self.ppspent[nat]['mun'] += mun; self.ppspent[nat]['rp'] += rp; self.ppspent[nat]['res'] += res
@@ -374,8 +390,12 @@ class Game:
             if box[0] in WET_LANES: m = min(m, 2)
         return m
     def max_mun(self, side=None):
-        if self.cfg.get('economy') and side == 'E' and 'creeping' in self.tech: return 3
-        return 3 if mkey(self.t) >= 191606 else 2
+        if self.cfg.get('economy') and side == 'E' and 'creeping' in self.tech: m = 3
+        else: m = 3 if mkey(self.t) >= 191606 else 2
+        # V2c option: heavier barrages late in the war ({side: first month}, +1 each).
+        hb = self.cfg.get('heavy_barrage') or {}
+        if side in hb and mkey(self.t) >= hb[side]: m += 1
+        return m
     def column(self, att, box, mun, side, gas=0):
         dsteps = sum(u['steps'] for u in self.at(box))
         asteps = sum(u['steps'] for u in att)
@@ -578,6 +598,9 @@ class Game:
                 if nat == 'FRA' and self.mutiny_left > 0: continue
                 op, mu, rp = res[nat]
                 if op < 1: continue
+                cost = self.cfg.get('attack_ip', 0)        # V2c: the attack's own IP, from the stockpile
+                if cost and mu < cost: continue
+                mu -= cost
                 if sk['stop_loss'] and spent_loss[nat] > rp + 2: continue
                 targets = set(n for b in self.front_boxes(s) for n in self.adj(b) if self.owner[n] != s)
                 for tb in targets:
@@ -593,7 +616,11 @@ class Game:
                     for mn in mun_opts:
                         col = self.column(att, tb, mn, s, gas)
                         if col is None: continue
-                        if col < min(sk['min_col'],5) or sk['min_col'] > 5: continue
+                        mc = sk['min_col']
+                        # V2c option: with shells to spare (stockpile full), a careful computer
+                        # also takes attacks one column worse.
+                        if self.cfg.get('spare_col') and mc <= 5 and self.stock.get(nat, 0) >= self.cfg['stock_cap'] - self.cfg.get('spare_col') + 1: mc -= 1
+                        if col < min(mc,5) or sk['min_col'] > 5: continue
                         ea, ed, pt = self.exp_outcome(col, tb)
                         val = VP.get(tb, 1) if VP.get(tb) else 1
                         # depth value: boxes deeper toward enemy rear
@@ -621,8 +648,9 @@ class Game:
             if gas and nat == 'GER': gas_used = True
             niv = gas and nat == 'FRA' and cmdr(self, 'FRA') == 'nivelle'
             if niv: self.nivelle_used = True
-            res[nat][0] -= 1; res[nat][1] -= mn
-            if self.cfg.get('economy'): self.stock[nat] -= mn
+            cost = self.cfg.get('attack_ip', 0)
+            res[nat][0] -= 1; res[nat][1] -= mn + cost
+            if self.cfg.get('economy'): self.stock[nat] -= mn + cost
             spent_loss[nat] += ea
             self.stats['attacks'][s] += 1
             took = self.resolve(att, tb, mn, s, lost, gas)
