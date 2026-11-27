@@ -81,6 +81,8 @@ DEFAULT = dict(
   buy_cap={'GER':(4,1), 'FRA':(2,3), 'GBR':(3,3), 'USA':(0,0)},  # most units bought in the war (infantry, tanks)
   buy_delay=1,                                             # months between paying in full and arriving
   buy_from=191501,                                         # first month an order can be placed
+  buy_only={'E': ('tank',)},                               # the COMPUTER Entente buys tanks only (DECISIONS 137);
+                                                           # levels.py lifts it when the Entente is the player
 )
 # §19.9: which research lets a nation buy tanks.
 TANK_TECH = {'GBR': 'tanks', 'FRA': 'renault', 'GER': 'a7v'}
@@ -298,10 +300,11 @@ class Game:
         """What this nation's next order is: 'tank' if it has its tank tech and tanks
         left under the cap, else 'inf' if infantry is left under the cap, else None."""
         ci, ct = self.cfg['buy_cap'].get(nat, (0, 0))
+        only = self.cfg.get('buy_only', {}).get(self.side(nat))     # None: any type
         tt = TANK_TECH.get(nat)
-        if tt and self.bought[nat]['tank'] < ct and (tt in self.tech or (TECHS[tt][1] and self.has(tt))):
+        if tt and self.bought[nat]['tank'] < ct and (tt in self.tech or (TECHS[tt][1] and self.has(tt))) and (not only or 'tank' in only):
             return 'tank'
-        if self.bought[nat]['inf'] < ci: return 'inf'
+        if self.bought[nat]['inf'] < ci and (not only or 'inf' in only): return 'inf'
         return None
     def buy_cost(self, typ): return self.cfg['buy_tank'] if typ == 'tank' else self.cfg['buy_inf']
     def buy_spend(self, nat, ip):

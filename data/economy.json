@@ -5,7 +5,7 @@
   "aiResearchCap": 3,
   "autoAllocateDefault": true,
   "units": {
-    "_about": "Buying units with Industry (RULES.md §19.9) [balanced]. 'from': the first month an order can be placed. 'arriveAfter': months between paying in full and arriving. 'types': what each unit costs (IP, then MP when it's paid in full) and the steps it arrives with; 'needsTech' names the research a nation needs first (per nation). 'limits': the most of each type a nation can buy in the whole war. 'depots': the rear cities each nation's new units can arrive in.",
+    "_about": "Buying units with Industry (RULES.md §19.9) [balanced]. 'from': the first month an order can be placed. 'arriveAfter': months between paying in full and arriving. 'types': what each unit costs (IP, then MP when it's paid in full) and the steps it arrives with; 'needsTech' names the research a nation needs first (per nation). 'limits': the most of each type a nation can buy in the whole war. 'depots': the rear cities each nation's new units can arrive in. 'computerBuys': per nation, the only types the COMPUTER buys for it (a nation not listed buys any type); players and Auto-allocate are not limited (DECISIONS.md 137).",
     "from": "1915-01",
     "arriveAfter": 1,
     "types": [
@@ -20,6 +20,7 @@
       "gbr": {"infantry": 3, "tanks": 3},
       "usa": {"infantry": 0, "tanks": 0}
     },
+    "computerBuys": {"fra": ["tanks"], "gbr": ["tanks"]},
     "depots": {
       "ger": ["l01-g3", "l05-g3", "l06-g3", "l08-g3", "l10-g3", "l11-g3", "l12-g3"],
       "fra": ["l01-e3", "l02-e3", "l06-e3", "l07-e3", "l09-e3", "l11-e3", "l12-e3"],

@@ -675,7 +675,10 @@ The War Office dashboard (UI overhaul milestone) also shows, for each nation:
 - **Manpower:** repair the most threatened units first (§14).
 - **Industry:** buy munitions up to 3 in stock, then put up to 3 IP a month into the
   cheapest available research, then put the rest towards a new unit (§19.9: a tank if
-  it can buy one, otherwise infantry, in a random rear city).
+  it can buy one, otherwise infantry, in a random rear city). **The computer Entente buys
+  tanks only** (France and Britain save nothing for units until they can buy a tank).
+  Testing with the game's engine showed extra infantry made the computer Entente play
+  worse (docs/BALANCE.md, V2a). A player, and the German computer, buy as §19.9 says.
 - The computer does research. On average it gets the creeping barrage, Defence in
   depth and Landships a few months early.
 
@@ -756,6 +759,8 @@ nation can buy at most this many units in the whole war:
 
 The USA buys nothing: its build-up was limited by shipping, which is the arrival
 timetable in §10.
+
+(The computer playing the Entente buys tanks only: see §19.7.)
 
 **How it works:**
 1. On the War Office budget (§19.4), choose the unit and the **rear city** it should

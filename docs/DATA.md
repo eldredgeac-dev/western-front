@@ -196,6 +196,7 @@ schedule, both in `nations.json`. This file adds the rest:
 | `arriveAfter` | Months between paying in full and arriving (1) |
 | `types` | One entry per unit type that can be bought: `type` (a `unit-types.json` id), `ip` cost, `mp` cost (taken when it's paid in full), `steps` it arrives with, optional `needsTech` `{nation: tech id}` (the tech that nation needs first; a nation not listed can't buy it), and a `note` |
 | `limits` | Per nation, `{type: n}`: the most of each type it can buy in the whole war. A nation with all limits 0 (the USA) buys nothing |
+| `computerBuys` | Per nation, the only types the **computer** buys for it (`{"fra": ["tanks"], "gbr": ["tanks"]}`); a nation not listed buys any type. Players and Auto-allocate aren't limited (RULES.md §19.7) |
 | `depots` | Per nation, the rear-city box ids its new units can arrive in (the player picks one; the computer and Auto-allocate pick at random) |
 
 Tech `effect` kinds:

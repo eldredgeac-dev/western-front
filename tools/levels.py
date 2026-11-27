@@ -13,6 +13,9 @@ def cfg_for(level, player_side):
     pw, aw, am, ask = LEVELS[level]
     ai = 'E' if player_side=='G' else 'G'
     c=dict(BASE); c['will_bonus']={player_side:pw, ai:aw}; c['res_mult']={player_side:1.0, ai:am}
+    # the computer Entente buys tanks only (DECISIONS.md 137); a player buys anything
+    from wfsim import DEFAULT
+    c['buy_only']={k:v for k,v in DEFAULT['buy_only'].items() if k==ai}
     return c, ask
 if __name__=='__main__':
     cases=[]

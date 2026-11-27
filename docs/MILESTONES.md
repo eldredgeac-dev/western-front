@@ -199,7 +199,7 @@ Do one milestone per Claude Code session. For each one:
   re-run (`tools/wfsim.py`, `python3 tools/levels.py`) and a report on what changed:
   - **V2a (C2): Buy units with Industry.** A purchase step in the War Office; new units
     are placed in your rear cities. *(Built in Version 11.1, RULES.md §19.9; not ticked
-    until it's checked on the phone. Open question: DECISIONS.md 136.)* Part 1 of the economy (Manpower, Industry, munitions
+    until it's checked on the phone. The computer Entente buys tanks only: DECISIONS.md 137.)* Part 1 of the economy (Manpower, Industry, munitions
     stockpile, research, industrial cities) is milestone 10b.
   - **V2b (C3): Income from territory.** Every named city pays Industry each month to
     whoever holds it (extending the industrial cities of §19.3), so taking ground pays.
@@ -273,4 +273,6 @@ milestone in brackets, confirm the fix, then update RULES.md and the code togeth
 - Bought units could be Green for their first month or two, like Kitchener's men
   (V2a keeps them Regular; it would need a balance re-run).
 - A tap on a rear city tab could flash that city on the map, so you can see where it is.
+- Find why extra pieces make the game's computer attack less (DECISIONS.md 101, 136),
+  then let the computer Entente buy infantry again (delete `units.computerBuys`).
 (Claude Code: add ideas here instead of building them.)
