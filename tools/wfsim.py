@@ -85,6 +85,7 @@ DEFAULT = dict(
   # Version 1.8 exactly (OP). With attack_ip=N each attack takes N munitions from the
   # stockpile (on top of its barrage), and attack_limit caps a nation's attacks a month.
   attack_ip=0, attack_limit=3, ger_ip_1918=0, usa_ip_late=0,
+  heavy_barrage_e=0, heavy_barrage_g=0,                    # V2c: +1 max barrage from this month (0 = never)
 )
 # §19.9: which research lets a nation buy tanks.
 TANK_TECH = {'GBR': 'tanks', 'FRA': 'renault', 'GER': 'a7v'}
@@ -212,14 +213,12 @@ class Game:
             op = self.cfg['attack_limit']
             if nat == 'GER' and y >= 1918: mu += self.cfg.get('ger_ip_1918', 0)
             if nat == 'USA' and k >= 191808: mu += self.cfg.get('usa_ip_late', 0)
-        if c == 'joffre' and 3 <= m <= 10:
-            if ipm: mu += 1
-            else: op += 1
+        # With attack_ip on, op is the month's attack limit, so Joffre's and Haig's +1
+        # become +1 attack a month and Pétain's limit of 1 becomes 1 attack a month.
+        if c == 'joffre' and 3 <= m <= 10: op += 1
         if c == 'nivelle': mu += 1
         if c == 'petain': op = min(op, 1)
-        if c == 'haig' and y >= 1916:
-            if ipm: mu += 1
-            else: op += 1
+        if c == 'haig' and y >= 1916: op += 1
         if c == 'haig' and 191801 <= k <= 191804: rp = max(0, rp - 1)
         if c == 'hl': rp += 1
         return op, mu, rp
@@ -392,9 +391,9 @@ class Game:
     def max_mun(self, side=None):
         if self.cfg.get('economy') and side == 'E' and 'creeping' in self.tech: m = 3
         else: m = 3 if mkey(self.t) >= 191606 else 2
-        # V2c option: heavier barrages late in the war ({side: first month}, +1 each).
-        hb = self.cfg.get('heavy_barrage') or {}
-        if side in hb and mkey(self.t) >= hb[side]: m += 1
+        # V2c: heavier barrages, +1 from a month (YYYYMM; 0 = never) for each side.
+        hb = self.cfg.get('heavy_barrage_e' if side == 'E' else 'heavy_barrage_g', 0)
+        if hb and mkey(self.t) >= hb: m += 1
         return m
     def column(self, att, box, mun, side, gas=0):
         dsteps = sum(u['steps'] for u in self.at(box))
