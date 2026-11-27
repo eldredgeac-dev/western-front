@@ -921,7 +921,8 @@ I'll change it.
       answer the U-boat telegram. The War Office budget should still happen that month
       (Nations → Germany: the stockpile was topped up in February).
 - [ ] **Buying units (Version 11.1).** Check the title screen says "Version 11.1".
-      - Start a New Campaign as the Entente, open ☰ and turn **Auto-allocate** off.
+      - Start a New Campaign as the Entente, open ☰ and tap **Auto budget: on** so it
+        reads **Auto budget: off** (the menu's name for Auto-allocate).
       - In January 1915 the "Estimates" page appears. Under France: a **NEW UNITS** heading,
         an "Infantry · 2 steps" tab (6 IP + 2 MP · 2 left) and a row of city tabs. Tap
         **Paris**. The line under it says how much is paid (for example "Infantry: 2 of 6
