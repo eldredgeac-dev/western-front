@@ -383,3 +383,76 @@ js-sim on every processor core):
 With 200 wars each figure is good to about ±7 points. The 50-war run (28 / 44 / 28) was
 mostly bad luck in those 50 seeds. **The game's engine is now inside every healthy range
 for even games** and close to the simulator (48 / 38 / 14).
+
+## V2a: buying units with Industry (RULES.md Version 1.8, §19.9, 26 November 2026)
+**Infantry 6 IP + 2 MP (arrives with 2 steps); Tanks 8 IP + 1 MP (2 steps, needs the
+nation's tank tech). War limits: Germany 4 infantry and 1 tank, France 2 and 3, Britain 3
+and 3, USA none.** Orders from January 1915; IP carries over; the unit arrives the month
+after it's paid for, in a rear city. In the simulator: `buy=True` (now the default; set
+`buy=False` to play Version 1.7).
+
+**Why a war limit:** before this rule, Industry thrown away each year (stockpile full,
+nothing to research) averaged:
+
+| IP thrown away per year | 1915 | 1916 | 1917 | 1918 |
+|---|---|---|---|---|
+| Germany | 29 | 21 | 13 | 3 |
+| France | 12 | 24 | 67 | 67 |
+| Britain | 7 | 18 | 41 | 39 |
+
+With no limit, win rates barely moved (Manpower already limits buying), but France
+raised about 14 extra infantry units and Britain about 10 extra tanks. With the limits,
+every nation reaches its limit in the simulator (Germany's 4 infantry all in 1915).
+
+**Matchups** (`python3 tools/matchups.py 200`; Germany / Entente / draw):
+
+| Matchup | Before (Version 1.7) | With purchases |
+|---|---|---|
+| Standard vs Standard | 48 / 38 / 14 | **43 / 47 / 10** |
+| Expert vs Expert | 50 / 39 / 11 | **48 / 38 / 14** |
+| Turtle Germany vs Standard | 0 / 100 / 0 | 0 / 100 / 0 |
+| Standard vs Turtle Entente | 100 / 0 / 0 | 100 / 0 / 0 |
+| Beginner Germany vs Standard | 4 / 92 / 4 | 3 / 93 / 4 |
+| Standard vs Beginner Entente | 50 / 46 / 4 | 49 / 44 / 7 |
+| Reckless Germany vs Standard | 0 / 100 / 0 | 0 / 100 / 0 |
+| Standard vs Reckless Entente | 60 / 40 / 0 | 60 / 39 / 0 |
+
+**Difficulty** (`python3 tools/levels.py`, 80 games; player win %, before → after):
+
+| Level | Careful as GER | Careful as ENT | Beginner as GER | Beginner as ENT |
+|---|---|---|---|---|
+| Recruit | 74 → 66 | 81 → 86 | 16 → 10 | 79 → 78 |
+| Regular | 50 → 41 | 34 → 49 | 2 → 4 | 39 → 38 |
+| Veteran | 34 → 32 | 28 → 35 | 1 → 0 | 38 → 34 |
+| Field Marshal | 9 → 11 | 18 → 11 | 0 → 0 | 16 → 16 |
+
+Other designs tried (Standard vs Standard / Expert vs Expert, G–E–D): no limits 46–44–10 /
+46–40–14; infantry arriving at 4 steps 48–42–11 / 52–36–12; infantry only 42–45–13 /
+48–40–12; dearer (10 IP infantry, 12 IP tanks) 46–44–10 / 36–44–20.
+
+In the simulator every even-game range holds, and each level steps down from the one
+before. (Standard vs Reckless Entente was already 40%, over the 20% target, before
+this change.)
+
+### The game's own engine disagrees (question in DECISIONS.md 136)
+`node tools/js-par.mjs 200` (Standard vs Standard):
+
+| | Germany | Entente | Draw | Mutinies | Attacks a war | Captures |
+|---|---|---|---|---|---|---|
+| Before (Version 1.7) | 45% | 37% | 18% | 74% | 66 | 46.7 |
+| **With purchases, as approved** | **62%** | **26%** | **12%** | 74% | 61 | 41.1 |
+| Only Germany buys | 47% | 36% | 18% | 80% | 68 | 46.8 |
+| Only the Entente buys | 59% | 25% | 16% | 67% | 60 | 41.4 |
+| Entente buys infantry only | 61% | 27% | 13% | 66% | 59 | 40.4 |
+| Entente buys tanks only | 42% | 39% | 20% | 67% | 68 | 48.2 |
+| Entente infantry with no MP cost | 59% | 30% | 12% | 69% | 62 | 43.0 |
+| Entente infantry arriving at 4 steps | 64% | 24% | 13% | 65% | 58 | 38.8 |
+| Germany buys all; the Entente only tanks | 44% | 37% | 19% | 77% | 69 | 47.3 |
+
+In the game's engine, **extra Entente infantry makes the computer Entente worse**, even
+when the units are free in Manpower or arrive at full strength. The counting tool
+(`node tools/count.mjs 40`) shows France gets the same number of 2:1 attacks on offer
+(1916: 1.50 a month with purchases, 1.54 without), but makes fewer of them (0.39 a month
+against 0.48), and more Entente pieces stand in the rear (1916: 6.7 against 4.1). That
+matches the open question from DECISIONS.md 101: in 1915–16 the game's computer attacks
+about half as often as the simulator's. Extra pieces make that gap bigger.

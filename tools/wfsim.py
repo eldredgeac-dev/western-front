@@ -74,7 +74,16 @@ DEFAULT = dict(
   mun_target=3,                                            # §19.7 the computer tops the stockpile up to 3
   res_cap=3,                                               # §19.7 ...then up to 3 IP a month into research
   pp_extra={'GER':(1,1), 'FRA':(0,1), 'GBR':(0,0), 'USA':(0,0)},  # §19.2 war-economy bonus (1915, 1916+)
+  # §19.9 buying units with Industry (Version 1.8, V2a). buy=False plays Version 1.7 exactly.
+  buy=True,
+  buy_inf=(6, 2, 2),                                       # infantry: IP, MP, steps it arrives with
+  buy_tank=(8, 1, 2),                                      # tank: IP, MP, steps (needs the nation's tank tech)
+  buy_cap={'GER':(4,1), 'FRA':(2,3), 'GBR':(3,3), 'USA':(0,0)},  # most units bought in the war (infantry, tanks)
+  buy_delay=1,                                             # months between paying in full and arriving
+  buy_from=191501,                                         # first month an order can be placed
 )
+# §19.9: which research lets a nation buy tanks.
+TANK_TECH = {'GBR': 'tanks', 'FRA': 'renault', 'GER': 'a7v'}
 
 def resources(nat, t, cfg, side):
     y, m = ym(t); k = y*100+m
@@ -186,6 +195,9 @@ class Game:
         self.econ_rp = {n: 0 for n in ['GER','FRA','GBR','USA']}
         self.rprog = {}; self.tech = set(); self.ppspent = {n: {'mun':0,'rp':0,'res':0} for n in ['GER','FRA','GBR','USA']}
         self.month_att = {}
+        self.bprog = {n: 0 for n in ['GER','FRA','GBR','USA']}       # §19.9 IP put towards the next unit
+        self.bought = {n: {'inf':0,'tank':0} for n in ['GER','FRA','GBR','USA']}
+        self.arrivals = []                                           # (month key, nation, type, steps)
 
     def side(self, nat): return 'G' if nat == 'GER' else 'E'
     def res(self, nat, s):
@@ -224,6 +236,7 @@ class Game:
         k = mkey(self.t); sk = self.sk[s]
         nats = ['GER'] if s == 'G' else ['FRA','GBR'] + (['USA'] if self.us_declare and k >= self.us_declare else [])
         sm = self.supply_maps()
+        if s == 'G': self.buy_arrive()
         for nat in nats:
             p = self.pp(nat, s); hist_rp = self.res(nat, s)[2]
             if self.cfg.get('no_stock'): self.stock[nat] = 0
@@ -239,13 +252,18 @@ class Game:
                 rp = hist_rp                      # manpower: replacements only
                 p = max(0, p - hist_rp)           # industry = the rest (never below 0)
                 assert p >= 0, 'Industry can never go below 0 (RULES.md §19.2)'
+                self.econ_rp[nat] = rp
                 if not sk['smart_mun']:
                     res = min(self.rng.randint(0, p), left); mun = p - res
+                    over = max(0, mun - (cap - self.stock[nat]))   # what the stockpile can't hold
+                    mun -= self.buy_spend(nat, over)
                 else:
                     tgt = self.cfg.get('mun_target', 4)
                     mun = min(max(0, tgt - self.stock[nat]), p); p -= mun
                     res = min(p, left, self.cfg.get('res_cap', 3)) if sk.get('research', True) else 0; p -= res
+                    p -= self.buy_spend(nat, p)               # §19.9 the rest towards a new unit
                     mun += p
+                rp = self.econ_rp[nat]
             elif not sk['smart_mun']:   # beginner/novice: random split
                 rp = self.rng.randint(0, p); p -= rp
                 res = min(self.rng.randint(0, p), left); p -= res
@@ -275,6 +293,47 @@ class Game:
                             n_ = 0
                             for u in self.units:
                                 if u['nat'] == 'GER' and u['typ'] == 'inf' and n_ < 4: u['typ'] = 'storm'; n_ += 1
+    # ---------- §19.9 buying units ----------
+    def buy_target(self, nat):
+        """What this nation's next order is: 'tank' if it has its tank tech and tanks
+        left under the cap, else 'inf' if infantry is left under the cap, else None."""
+        ci, ct = self.cfg['buy_cap'].get(nat, (0, 0))
+        tt = TANK_TECH.get(nat)
+        if tt and self.bought[nat]['tank'] < ct and (tt in self.tech or (TECHS[tt][1] and self.has(tt))):
+            return 'tank'
+        if self.bought[nat]['inf'] < ci: return 'inf'
+        return None
+    def buy_cost(self, typ): return self.cfg['buy_tank'] if typ == 'tank' else self.cfg['buy_inf']
+    def buy_spend(self, nat, ip):
+        """Put spare Industry towards the next unit. Returns the IP actually used.
+        When the order is paid in full and there's enough Manpower this month, the unit
+        is ordered and arrives buy_delay months later."""
+        if not self.cfg.get('buy') or mkey(self.t) < self.cfg['buy_from']: return 0
+        typ = self.buy_target(nat)
+        if typ is None: return 0
+        ipc, mpc, steps = self.buy_cost(typ)
+        use = min(ip, max(0, ipc - self.bprog[nat])); self.bprog[nat] += use
+        if self.bprog[nat] >= ipc and self.econ_rp[nat] >= mpc:
+            self.econ_rp[nat] -= mpc; self.bprog[nat] = 0; self.bought[nat][typ] += 1
+            t2 = self.t + self.cfg['buy_delay']
+            self.arrivals.append((mkey(t2), nat, typ, steps))
+            self.stats.setdefault('bought', {}).setdefault(nat, 0); self.stats['bought'][nat] += 1
+        return use
+    def buy_arrive(self):
+        """Units whose month has come appear in a rear city (a named E3/G3 territory)
+        their side holds with room. GBR uses lanes 1-6. No room: they wait a month."""
+        k = mkey(self.t); keep = []
+        for a in self.arrivals:
+            ak, nat, typ, steps = a
+            if ak > k: keep.append(a); continue
+            s_ = self.side(nat); col = self.rear_col(s_)
+            boxes = [(l, col) for l in range(LANES) if (l, col) in VP and self.owner[(l, col)] == s_
+                     and len(self.at((l, col))) < self.cfg['stack']]
+            if nat == 'GBR': boxes = [b for b in boxes if b[0] <= 5]
+            if boxes: self.add(nat, 'inf' if typ == 'inf' else 'tank', self.rng.choice(boxes), steps=steps)
+            else: keep.append(a)
+        self.arrivals = keep
+
     def rear_box(self, s):
         col = self.rear_col(s)
         b = [(l, col) for l in range(LANES) if self.owner[(l, col)] == s and len(self.at((l, col))) < self.cfg['stack']]

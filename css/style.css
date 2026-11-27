@@ -705,6 +705,12 @@ html, body {
 .tech-option[aria-checked="true"] { border: 2px solid var(--ink); background: var(--paper-dark); }
 .tech-option[aria-checked="true"] .tech-name::before { content: "✓ "; }
 .tech-figures { font-size: 0.85rem; }
+/* New units (§19.9): a small ruled heading, and the rear cities as a wrapping row of
+   ledger tabs (each still 44px tall to tap). */
+.budget-sub-heading { margin: 14px 0 0; font: 700 0.9rem var(--font-type); letter-spacing: 0.06em; text-transform: uppercase;
+  border-bottom: 1px solid rgba(110, 98, 83, 0.45); }
+.city-pick { display: flex; flex-wrap: wrap; gap: 6px; }
+.city-option { grid-template-columns: auto; flex: 0 1 auto; }
 .budget-auto { display: flex; align-items: center; gap: 10px; min-height: var(--tap); margin: 14px 0 6px; font-size: 0.95rem; }
 .budget-auto input { width: 24px; height: 24px; flex: none; accent-color: var(--ink); }
 .budget-sign { width: 100%; margin: 6px 0 4px; }

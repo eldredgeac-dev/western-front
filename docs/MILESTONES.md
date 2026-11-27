@@ -198,7 +198,8 @@ Do one milestone per Claude Code session. For each one:
 - V2: The Axis & Allies turn. Each is a separate milestone with its own simulator
   re-run (`tools/wfsim.py`, `python3 tools/levels.py`) and a report on what changed:
   - **V2a (C2): Buy units with Industry.** A purchase step in the War Office; new units
-    are placed in your rear cities. Part 1 of the economy (Manpower, Industry, munitions
+    are placed in your rear cities. *(Built in Version 11.1, RULES.md §19.9; not ticked
+    until it's checked on the phone. Open question: DECISIONS.md 136.)* Part 1 of the economy (Manpower, Industry, munitions
     stockpile, research, industrial cities) is milestone 10b.
   - **V2b (C3): Income from territory.** Every named city pays Industry each month to
     whoever holds it (extending the industrial cities of §19.3), so taking ground pays.
@@ -269,4 +270,7 @@ milestone in brackets, confirm the fix, then update RULES.md and the code togeth
   ("War Office budget") rather than "Commanders"; it could name the question instead.
 - Commander cards in the newspaper ("NIVELLE OUT — PÉTAIN TAKES COMMAND") come with
   milestone 13, and the wax seal on the cards with milestone 6.
+- Bought units could be Green for their first month or two, like Kitchener's men
+  (V2a keeps them Regular; it would need a balance re-run).
+- A tap on a rear city tab could flash that city on the map, so you can see where it is.
 (Claude Code: add ideas here instead of building them.)

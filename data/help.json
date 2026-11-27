@@ -6,7 +6,7 @@
     {
       "title": "A month of the war",
       "paragraphs": [
-        "1. Events and reinforcements arrive. 2. The War Office budget: Industry buys shells and research (done for you unless you turn Auto-allocate off in the menu (top left)). 3. The German turn: moves, then attacks. 4. The Entente turn: moves, then attacks. 5. Supply, digging in, replacements and National Will happen by themselves.",
+        "1. Events and reinforcements arrive. 2. The War Office budget: Industry buys shells, research and new units (done for you unless you turn Auto-allocate off in the menu (top left)). 3. The German turn: moves, then attacks. 4. The Entente turn: moves, then attacks. 5. Supply, digging in, replacements and National Will happen by themselves.",
         "The line under the date always says what you can do now, and what you have left to spend."
       ]
     },
@@ -63,7 +63,7 @@
       "title": "The War Office budget",
       "paragraphs": [
         "Manpower goes to replacements by itself: 1 Manpower adds a step to a damaged unit, 2 rebuild a destroyed one.",
-        "Industry buys munitions (1 each) for the stockpile, which holds at most 3 and carries over, or goes into research to bring a new weapon or tactic before its historical date. Unspent Industry is lost. Auto-allocate starts on and does this for you. Turn it off in the menu (top left) to choose yourself: the budget page then appears in months when there's research to pick."
+        "Industry buys munitions (1 each) for the stockpile, which holds at most 3 and carries over, or goes into research to bring a new weapon or tactic before its historical date. From January 1915 it can also pay for new units: Infantry (6 IP + 2 MP, arrives with 2 steps) or, once you have the tank research, Tanks (8 IP + 1 MP). IP carries over until a unit is paid for; its men then come from that month's Manpower, and it arrives the month after in the rear city you pick. Each nation can only buy a few in the whole war (Germany 4 infantry and 1 tank, France 2 and 3, Britain 3 and 3). Unspent Industry is lost. Auto-allocate starts on and does this for you. Turn it off in the menu (top left) to choose yourself: the budget page then appears in months when there's research or a unit to pick."
       ]
     },
     {

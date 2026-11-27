@@ -657,6 +657,51 @@ I'll change it.
 129. **`tools/matchups.py`** prints BALANCE.md's matchups table (there was no script for
      it). `turn.js` gained an optional "probe" for the counting tool; it only looks.
 
+### V2a: buying units with Industry (Version 11.1, RULES.md Version 1.8, §19.9)
+130. **The design you approved:** Infantry 6 IP + 2 MP, arriving with 2 steps; Tanks 8 IP +
+     1 MP, 2 steps, once the nation has its tank research. War limits: Germany 4 infantry
+     and 1 tank, France 2 and 3, Britain 3 and 3, the USA none. Orders open in January
+     1915. IP carries over like research; the Manpower is taken in the month it's paid in
+     full (or it waits for a month with enough); it arrives the month after. History and
+     the simulator results are in RULES.md §19.9 and BALANCE.md.
+131. **You pick the rear city** (your answer). On the budget page, under "New units", a row
+     of ledger tabs lists the nation's rear cities that your side holds (Britain: the
+     Channel Ports, Hazebrouck and Amiens). If that city is lost or full when the unit
+     arrives, it goes to a random other rear city with room, or waits a month. The
+     computer and Auto-allocate pick at random. The rear cities are listed in
+     `data/economy.json` (`units.depots`), not in the code.
+132. **The budget page** keeps its brass slider (Munitions ↔ the rest). When a nation
+     can both research and buy a unit, a second slider splits the rest between Research
+     and New units. Below the research list: the unit tabs (each with its progress bar,
+     its cost and how many are left in the war), the city tabs, and one line saying what
+     happens this month ("Infantry: 5 of 6 IP paid. 1 more to go." / "paid for. It takes
+     2 MP from Replacements now and arrives at Paris in April 1917." / "…needs 2 MP and
+     there is only 1 this month. It waits."). The Nations screen has a new "New units"
+     row: what's being paid for, what's on its way, and "Bought: Infantry 1 of 4".
+133. **Auto-allocate and the computer** buy a tank when they can, otherwise infantry, with
+     whatever is left after munitions and research (the computer still puts at most 3
+     IP a month into research). The simulator does the same.
+134. **The budget page now appears more often** with Auto-allocate off: from January 1915
+     there's a real choice (save for a unit or not) until a nation has used its limit.
+     Auto-allocate is still on by default, so most players won't see it.
+135. **Small choices I made:** new units are Regular (not Green); IP put in beyond a
+     unit's cost (switching from tanks to infantry) carries over to the next unit; the
+     War Office's Manpower figure is the month's Manpower before a new unit takes its
+     men. **The computer's stop-loss** ("stop once expected losses pass RP + 2", §14) now
+     counts the month's full Manpower, before any went to a new unit, as the simulator
+     does. That changed nothing measurable, but it keeps the two the same. Saves are now
+     version 8 (older saves start with nothing bought).
+136. **The game's engine disagrees with the simulator** (BALANCE.md, V2a). With purchases
+     the simulator gives 43 / 47 / 10, but `node tools/js-par.mjs 200` gives **Germany 62%,
+     Entente 26%, draw 12%** (it was 45 / 37 / 18). The Entente's 26% is outside the healthy
+     range (35–55%). I split it up: German purchases change almost nothing (47 / 36 / 18);
+     **Entente infantry purchases are what hurts the computer Entente**, even when they
+     cost no Manpower or arrive at full strength. Its tanks don't (42 / 39 / 20). The
+     computer France gets the same number of good attacks on offer but takes fewer, and
+     more of its pieces stand in the rear. It's the same gap as decision 101 (the game's
+     computer attacks less than the simulator's), made bigger by more pieces. I haven't
+     found the exact cause, so I haven't changed the computer. See the question below.
+
 ## Questions for you (milestone 12)
 5. **Approve the AI fix in decision 128? — answered: yes.** Applied. With 200 wars the
    game's engine went from Germany 57 / Entente 33 / draw 11 to **45 / 37 / 18**, inside
@@ -666,6 +711,20 @@ I'll change it.
 6. **Are the interpretations in decision 121 right?** Especially: sacking needs an
    available successor (so Joffre can't be sacked before December 1916), and a sacked
    commander's OP, Manpower and rail count from next month.
+
+## Questions for you (V2a)
+7. **The computer Entente gets worse when it buys infantry (decision 136). What should I
+   do?**
+   - **(a) Recommended: the computer Entente buys tanks only, for now.** Players and the
+     German computer buy as the rule says. Tested: 44 / 37 / 19, back inside every
+     range. A player playing the Entente can still buy infantry. Then, as a separate
+     job, I'd find why the computer handles extra pieces badly (the gap from decision 101)
+     and give it infantry back once that's fixed.
+   - **(b) Find the cause first,** and merge this only once the engine agrees with the
+     simulator.
+   - **(c) Merge as it is.** Playing the Entente against the computer is unchanged, but
+     playing Germany against the computer gets easier (the computer Entente buys
+     infantry and does worse).
 
 ## Questions for you (answered)
 1. **Combat table — answered: RULES.md is right.**
@@ -861,3 +920,16 @@ I'll change it.
 - [ ] **After answering the U-boat question (Version 11.0):** as Germany in February 1917,
       answer the U-boat telegram. The War Office budget should still happen that month
       (Nations → Germany: the stockpile was topped up in February).
+- [ ] **Buying units (Version 11.1).** Check the title screen says "Version 11.1".
+      - Start a New Campaign as the Entente, open ☰ and turn **Auto-allocate** off.
+      - In January 1915 the "Estimates" page appears. Under France: a **NEW UNITS** heading,
+        an "Infantry · 2 steps" tab (6 IP + 2 MP · 2 left) and a row of city tabs. Tap
+        **Paris**. The line under it says how much is paid (for example "Infantry: 2 of 6
+        IP paid. 4 more to go.").
+      - Sign each month. In the month it's paid for, the line says "paid for. It takes 2 MP
+        from Replacements now and arrives at Paris in …". The next month a 2-step French
+        piece stands in Paris, and Dispatches says "NEW UNIT: … arrives at Paris."
+      - **Nations** → France: a "New units" row shows "Bought: Infantry 1 of 2, Tanks 0 of 3".
+      - In 1916 (research open) a second slider appears: Research ↔ New units. Drag it right:
+        New units goes up, Research goes down.
+      - On the folded phone: are the city tabs easy to tap, and is the page still easy to read?

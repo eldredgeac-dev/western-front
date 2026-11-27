@@ -12,7 +12,8 @@ import { beginGame, endPhase, phaseOf, digIn, submitBudget, answerEvent, answerC
 import { commandersPhase, applyCardResources, historicalCommanders, currentCard, successors, questionDue, sackReason,
   sackCommander, onceShift, cardWill, unseenCardNews } from '../js/engine/commanders.js';
 import { manpower, industry, industryParts, cityEffects, researchOptions, techActive, checkBudget, applyBudget,
-  autoBudget, warOfficePhase, expectedMonth, budgetChoice } from '../js/engine/systems/economy.js';
+  autoBudget, warOfficePhase, expectedMonth, budgetChoice, buyOptions, production, purchasesLeft, depotsFor,
+  deliverUnits } from '../js/engine/systems/economy.js';
 import { inSupply, rearColumn, supplySources } from '../js/engine/supply.js';
 import { supplyPhase } from '../js/engine/systems/supply.js';
 import { spendReplacements, threat } from '../js/engine/systems/replacements.js';
@@ -1567,9 +1568,10 @@ test('economy §19.4: the stockpile starts empty, holds at most 3 and carries ov
   s = beginGame(s, eco());
   check(!s.pendingBudget && s.resources.ger.munitions === 3, 'no research in 1914: no choice, so 3 munitions bought automatically');
   check(s.resources.fra.munitions === 2 && s.resources.gbr.munitions === 1, 'the computer bought munitions with all its Industry');
-  // play on to January: the stockpile is still there, and no budget page waits
+  // play on to January: the stockpile is still there, and now the budget page waits,
+  // because Industry can pay for new units from January 1915 (§19.9)
   for (let i = 0; i < 20 && currentMonth(s) === '1914-12'; i++) s = endPhase(s, eco());
-  check(currentMonth(s) === '1915-01' && !s.pendingBudget, 'January: nothing to choose, no budget page');
+  check(currentMonth(s) === '1915-01' && s.pendingBudget, 'January: new units can be bought, so the budget page waits');
   check(s.resources.ger.munitions === 3, 'carried over: ' + s.resources.ger.munitions);
   check(checkBudget(s, eco(), 'ger', { munitions: 1, research: 0 }).length > 0, 'no room for more than 3');
 });
@@ -1688,6 +1690,124 @@ test('economy §19.7: the computer tops up munitions to 3, then ≤3 IP into the
   check(autoBudget(ecoAt('1915-03'), eco(), 'gbr', 3).research === 0, 'nothing to research in 1915');
 });
 
+// ---------------------------------------------------------------- buying units (RULES.md §19.9)
+const boughtOf = (s, nation) => s.units.filter((u) => u.nation === nation && /-b\d/.test(u.id));
+// Move a state on to the start of the next month (only the date and the resources).
+function nextMonth(s) {
+  s.turn += 1;
+  const month = currentMonth(s);
+  const fresh = resourcesFor(eco(), month);
+  for (const [id, r] of Object.entries(fresh)) r.munitions = (s.resources[id] || {}).munitions || 0;
+  s.resources = fresh;
+  return s;
+}
+
+test('buying §19.9: what each nation can buy, and when', () => {
+  check(buyOptions(ecoAt('1914-12'), eco(), 'ger').length === 0, 'no orders before January 1915');
+  const jan = ecoAt('1915-01');
+  check(buyOptions(jan, eco(), 'ger').map((o) => o.type).join() === 'infantry', 'Jan 1915: Germany can buy infantry, no tanks');
+  check(buyOptions(jan, eco(), 'usa').length === 0, 'the USA never buys units');
+  const inf = buyOptions(jan, eco(), 'fra')[0];
+  check(inf.ip === 6 && inf.mp === 2 && inf.steps === 2 && inf.left === 2, 'infantry: 6 IP + 2 MP, 2 steps, France 2 in the war');
+  check(purchasesLeft(jan, eco(), 'ger', 'infantry') === 4 && purchasesLeft(jan, eco(), 'gbr', 'infantry') === 3, 'limits 4 / 3');
+  check(!buyOptions(ecoAt('1916-08'), eco(), 'gbr').some((o) => o.type === 'tanks'), 'Britain: no tanks before Landships');
+  const t = buyOptions(ecoAt('1916-09'), eco(), 'gbr').find((o) => o.type === 'tanks');
+  check(t && t.ip === 8 && t.mp === 1 && t.left === 3, 'Britain: tanks from Sep 1916 (8 IP + 1 MP, 3 in the war)');
+  const early = ecoAt('1916-05');
+  early.techs = ['landships'];
+  check(buyOptions(early, eco(), 'gbr').some((o) => o.type === 'tanks'), 'Landships researched early: tanks early');
+  check(!buyOptions(ecoAt('1918-05'), eco(), 'ger').some((o) => o.type === 'tanks'), 'Germany: tanks only with the A7V');
+  const a7v = ecoAt('1918-05');
+  a7v.techs = ['a7v'];
+  check(buyOptions(a7v, eco(), 'ger').find((o) => o.type === 'tanks').left === 1, 'with the A7V: one more German tank');
+  check(buyOptions(ecoAt('1918-06'), eco(), 'fra').some((o) => o.type === 'tanks'), 'France: tanks with the Renault FT (June 1918)');
+  check(depotsFor(jan, eco(), 'gbr').join() === 'l01-e3,l02-e3,l06-e3', 'British units arrive only at the Channel Ports, Hazebrouck, Amiens');
+  check(depotsFor(jan, eco(), 'ger').length === 7, 'Germany has 7 rear cities');
+});
+
+test('buying §19.9: IP carries over; paid in full takes the MP; it arrives next month where you chose', () => {
+  const s = ecoAt('1915-01');
+  applyBudget(s, eco(), 'ger', { munitions: 0, research: 0, build: 4, buildType: 'infantry', city: 'l11-g3' });
+  check(production(s, 'ger').progress === 4 && !(s.ordered || []).length, '4 of 6 IP: not ordered yet');
+  const rp = s.resources.ger.rp;
+  nextMonth(s);
+  const mp = s.resources.ger.rp;
+  applyBudget(s, eco(), 'ger', { munitions: 0, research: 0, build: 2, buildType: 'infantry' });
+  check(production(s, 'ger').progress === 0 && s.ordered.length === 1, 'paid in full: ordered');
+  check(s.resources.ger.rp === mp - 2 && rp === 3, '2 MP taken from this month\'s replacements');
+  check(s.ordered[0].month === '1915-03' && s.ordered[0].box === 'l11-g3', 'arrives March 1915 at Metz');
+  deliverUnits(s, eco());
+  check(boughtOf(s, 'ger').length === 0, 'not before its month');
+  nextMonth(s);
+  deliverUnits(s, eco());
+  const u = boughtOf(s, 'ger')[0];
+  check(u && u.box === 'l11-g3' && u.steps === 2 && u.type === 'infantry' && u.quality === 'regular', JSON.stringify(u));
+  check(!s.ordered.length && purchasesLeft(s, eco(), 'ger', 'infantry') === 3, 'one fewer left');
+});
+
+test('buying §19.9: no Manpower, no unit; it waits for a month with enough', () => {
+  const s = ecoAt('1918-02');
+  s.resources.fra.rp = 1;
+  applyBudget(s, eco(), 'fra', { munitions: 0, research: 0, build: 6, buildType: 'infantry' });
+  check(!(s.ordered || []).length && production(s, 'fra').progress === 6 && s.resources.fra.rp === 1, 'paid, but waits for 2 MP');
+  nextMonth(s);
+  s.resources.fra.rp = 2;
+  applyBudget(s, eco(), 'fra', { munitions: 0, research: 0 });
+  check(s.ordered.length === 1 && s.resources.fra.rp === 0, 'ordered once there is enough Manpower');
+});
+
+test('buying §19.9: the war limit, and where it goes when its city is lost or full', () => {
+  let s = ecoAt('1915-05');
+  s.purchased = { ger: { infantry: 4 } };
+  check(!buyOptions(s, eco(), 'ger').length, 'Germany has bought all 4: no more');
+  check(checkBudget(s, eco(), 'ger', { munitions: 0, research: 0, build: 2, buildType: 'infantry' }).length > 0, 'refused');
+  s = ecoAt('1915-05');
+  s.boxes['l11-g3'].owner = 'entente';
+  check(checkBudget(s, eco(), 'ger', { munitions: 0, research: 0, build: 1, buildType: 'infantry', city: 'l11-g3' }).length > 0,
+    'can\'t choose a city the enemy holds');
+  s.ordered = [{ nation: 'ger', type: 'infantry', steps: 2, month: '1915-05', box: 'l11-g3' }];
+  deliverUnits(s, eco());
+  const u = boughtOf(s, 'ger')[0];
+  check(u && depotsFor(s, eco(), 'ger').includes(u.box), 'city lost: it goes to another German rear city');
+  s = ecoAt('1915-05');
+  s.ordered = [{ nation: 'gbr', type: 'infantry', steps: 2, month: '1915-05', box: null }];
+  for (const id of depotsFor(s, eco(), 'gbr')) for (let i = 0; i < 3; i++) s.units.push({ id: `x-${id}-${i}`, nation: 'gbr', type: 'infantry', box: id, steps: 1, quality: 'regular' });
+  deliverUnits(s, eco());
+  check(!boughtOf(s, 'gbr').length && s.ordered.length === 1, 'no room in any British rear city: it waits');
+  check(checkBudget(ecoAt('1915-05'), eco(), 'ger', { munitions: 0, research: 0, build: 7, buildType: 'infantry' }).length > 0, 'no more than it needs');
+  check(checkBudget(ecoAt('1915-05'), eco(), 'ger', { munitions: 3, research: 0, build: 2, buildType: 'infantry' }).length > 0, 'no more than this month\'s Industry');
+});
+
+test('buying §19.9: Auto-allocate and the computer save the rest towards a unit, a tank first', () => {
+  let s = ecoAt('1915-06');
+  s.resources.ger.munitions = 3;
+  let b = autoBudget(s, eco(), 'ger', 3);
+  check(b.munitions === 0 && b.research === 0 && b.build === 4 && b.buildType === 'infantry', JSON.stringify(b));
+  s = ecoAt('1917-03');
+  s.resources.gbr.munitions = 3;
+  b = autoBudget(s, eco(), 'gbr', 3);
+  check(b.buildType === 'tanks' && b.build === Math.min(8, industry(s, eco(), 'gbr')), 'Britain saves for a tank: ' + JSON.stringify(b));
+  s = ecoAt('1916-02');
+  s.resources.fra.munitions = 3;
+  b = autoBudget(s, eco(), 'fra', 3);
+  check(b.research === 3 && b.build === industry(s, eco(), 'fra') - 3, 'the computer: 3 IP research, the rest to a unit: ' + JSON.stringify(b));
+  // a whole computer-vs-computer war: the limits hold
+  let g = beginGame(newGame(data.scenario, 11, eco(), { player: 'none' }), eco());
+  for (let i = 0; i < 2000 && !g.over; i++) g = endPhase(g, eco());
+  check(g.over, 'the war ends');
+  for (const [n, lim] of Object.entries(data.economy.units.limits)) {
+    for (const [type, max] of Object.entries(lim)) check(((g.purchased[n] || {})[type] || 0) <= max, `${n} ${type} within its limit`);
+  }
+  check((g.purchased.ger || {}).infantry > 0, 'the German computer bought infantry: ' + JSON.stringify(g.purchased));
+});
+
+test('saves: a version 7 save gets empty purchases', () => {
+  const v7 = copyOf(started());
+  v7.version = 7; delete v7.production; delete v7.purchased; delete v7.ordered;
+  const up = migrateState(v7, data.scenario, eco());
+  check(up.version === STATE_VERSION && up.ordered.length === 0 && Object.keys(up.purchased).length === 0, 'upgraded');
+});
+
 test('economy §19.4: the War Office phase — the computer spends; a player\'s budget waits only for a real choice', () => {
   const s = ecoAt('1916-08', { player: 'entente', level: 'regular' });
   check(s.autoAllocate.entente === true, 'Auto-allocate is on by default');
@@ -1698,7 +1818,8 @@ test('economy §19.4: the War Office phase — the computer spends; a player\'s 
   check(endPhase(s, eco()) === s, 'End Phase waits for the budget');
   const quiet = ecoAt('1915-06', { player: 'entente', level: 'regular' });
   quiet.autoAllocate.entente = false;
-  check(!budgetChoice(quiet, eco(), 'entente'), 'Jun 1915: nothing to research, no choice');
+  quiet.purchased = { fra: { infantry: 2 }, gbr: { infantry: 3 } };
+  check(!budgetChoice(quiet, eco(), 'entente'), 'Jun 1915: nothing to research and no units left to buy, no choice');
   warOfficePhase(quiet, eco());
   check(!quiet.pendingBudget && quiet.resources.fra.munitions > 0, 'no choice: spent automatically on munitions');
   const auto = ecoAt('1916-08', { player: 'entente', level: 'regular' });

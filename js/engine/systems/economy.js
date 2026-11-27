@@ -4,7 +4,8 @@
 // Each month every nation in the war gets two resources:
 //   Manpower (MP) — fresh men. It all goes to Replacements (state.resources[n].rp).
 //   Industry (IP) — factories. It buys munitions for the stockpile (1 IP each, up to
-//                   3 in stock) or goes into research. Anything not spent is lost.
+//                   3 in stock), goes into research, or pays for new units (§19.9).
+//                   Anything not spent is lost.
 // The munitions stockpile IS state.resources[n].munitions: it carries over from month
 // to month (turn.js keeps it), barrages spend it (combat.js), and the War Office
 // budget adds to it here.
@@ -14,11 +15,13 @@
 // automatically; otherwise the turn waits (state.pendingBudget) for the player to
 // fill in the budget screen, and submitBudget() in turn.js carries on.
 
-import { currentMonth, addMonths } from '../state.js';
+import { currentMonth, addMonths, monthLabel } from '../state.js';
 import { scheduleValue } from '../resources.js';
 import { placeUnit, applyEffect } from '../events.js';
-import { addLog } from '../moves.js';
+import { addLog, unitLabel } from '../moves.js';
 import { cardValue } from '../commanders.js';
+import { sideOfNation, stackRoom } from '../units.js';
+import { next as rngNext } from '../rng.js';
 
 const nationOf = (data, id) => data.nations.nations.find((n) => n.id === id);
 const techOf = (data, id) => data.economy.techs.find((t) => t.id === id);
@@ -75,6 +78,103 @@ function completeTech(state, data, tech) {
   }
 }
 
+// ---------------------------------------------------------------- buying units (§19.9)
+// Industry can pay for new units. IP put towards the next unit carries over from month
+// to month, like research (state.production[nation] = { progress, type, city }). When
+// it's paid in full, the Manpower is taken from this month's replacements, and the
+// unit arrives the month after in a rear city (state.ordered). Each nation can buy only
+// so many units in the war (data/economy.json "limits", counted in state.purchased).
+
+const unitsRules = (data) => (hasEconomy(data) && data.economy.units) || null;
+const nameOfBox = (data, id) => data.map.boxes.find((b) => b.id === id).name;
+
+// How many units of a type a nation has bought so far, and may still buy.
+export const purchased = (state, nationId, type) => ((state.purchased || {})[nationId] || {})[type] || 0;
+export function purchasesLeft(state, data, nationId, type) {
+  const u = unitsRules(data);
+  const limit = u ? ((u.limits[nationId] || {})[type] || 0) : 0;
+  return Math.max(0, limit - purchased(state, nationId, type));
+}
+
+// The order a nation is saving towards: { progress, type, city }.
+export function production(state, nationId) {
+  return { progress: 0, type: null, city: null, ...((state.production || {})[nationId] || {}) };
+}
+
+// The unit types a nation can order this month: from the start month, under its war
+// limit, and (for tanks) once its tank research is done or has arrived historically.
+// Each is { type, ip, mp, steps, note, left }.
+export function buyOptions(state, data, nationId, month = currentMonth(state)) {
+  const u = unitsRules(data);
+  if (!u || month < u.from) return [];
+  return u.types
+    .filter((t) => purchasesLeft(state, data, nationId, t.type) > 0)
+    .filter((t) => !t.needsTech || (t.needsTech[nationId] && techActive(state, data, t.needsTech[nationId], month)))
+    .map((t) => ({ ...t, left: purchasesLeft(state, data, nationId, t.type) }));
+}
+
+// The rear cities a nation's new units can arrive in now: its depots that its side
+// holds. `withRoom` also drops the ones already full (3 units).
+export function depotsFor(state, data, nationId, withRoom = false) {
+  const u = unitsRules(data);
+  if (!u) return [];
+  const side = sideOfNation(data, nationId);
+  return (u.depots[nationId] || [])
+    .filter((id) => state.boxes[id].owner === side && (!withRoom || stackRoom(state, data, id) > 0));
+}
+
+// The order is paid in full: if this month's Manpower covers it, take the men and
+// send the unit on its way. Otherwise it waits for a month with enough Manpower.
+function placeOrder(state, data, nationId) {
+  const prod = production(state, nationId);
+  const t = buyOptions(state, data, nationId).find((o) => o.type === prod.type);
+  if (!t || prod.progress < t.ip) return;
+  const r = state.resources[nationId];
+  if (!r || r.rp < t.mp) {
+    addLog(state, `NEW UNIT: ${nationOf(data, nationId).name}'s ${t.type === 'tanks' ? 'tanks are' : 'new corps is'} paid for, but it needs ${t.mp} Manpower; it waits.`);
+    return;
+  }
+  r.rp -= t.mp;
+  r.unitMP = (r.unitMP || 0) + t.mp;      // remembered: the computer's stop-loss counts this month's full Manpower (ai.js)
+  state.production = { ...(state.production || {}), [nationId]: { ...prod, progress: prod.progress - t.ip } };
+  const mine = { ...((state.purchased || {})[nationId] || {}) };
+  mine[t.type] = (mine[t.type] || 0) + 1;
+  state.purchased = { ...(state.purchased || {}), [nationId]: mine };
+  const arrives = addMonths(currentMonth(state), unitsRules(data).arriveAfter);
+  const where = prod.city ? ` at ${nameOfBox(data, prod.city)}` : '';
+  state.ordered = [...(state.ordered || []), { nation: nationId, type: t.type, steps: t.steps, month: arrives, box: prod.city || null }];
+  addLog(state, `NEW UNIT: ${nationOf(data, nationId).name} orders ${t.type === 'tanks' ? 'a Tank unit' : 'an Infantry unit'} (${t.ip} IP, ${t.mp} MP). It arrives${where} in ${monthLabel(arrives)}.`);
+}
+
+// Put a new unit on the map: in the city chosen for it if that's still held and has
+// room, otherwise in a random one of the nation's rear cities with room.
+function placeBought(state, data, order) {
+  const options = depotsFor(state, data, order.nation, true);
+  if (!options.length) return null;
+  let box = options.includes(order.box) ? order.box : null;
+  if (!box) {
+    const { value, rng } = rngNext(state.rng);
+    state.rng = rng;
+    box = options[Math.floor(value * options.length)];
+  }
+  state.bought = (state.bought || 0) + 1;
+  const unit = { id: `${order.nation}-b${String(state.bought).padStart(2, '0')}`, nation: order.nation, type: order.type, box,
+    steps: order.steps, quality: 'regular', moved: false, railed: false, attacked: false };
+  state.units.push(unit);
+  addLog(state, `NEW UNIT: ${unitLabel(data, unit)} arrives at ${nameOfBox(data, box)}.`);
+  return unit;
+}
+
+// Units ordered last month (or earlier, if they waited for room) arrive.
+export function deliverUnits(state, data) {
+  const month = currentMonth(state);
+  const keep = [];
+  for (const order of state.ordered || []) {
+    if (order.month > month || !placeBought(state, data, order)) keep.push(order);
+  }
+  state.ordered = keep;
+}
+
 // ---------------------------------------------------------------- income
 // The industrial cities (§19.3): each with whether it's lost (held by the other
 // side) and what that does to each nation's Industry.
@@ -123,9 +223,11 @@ export const industry = (state, data, nationId, month) => industryParts(state, d
 export const stockpile = (state, nationId) => (state.resources[nationId] || {}).munitions || 0;
 
 // ---------------------------------------------------------------- spending
-// A budget for one nation: { munitions, research, tech }.
+// A budget for one nation: { munitions, research, tech, build, buildType, city }.
 //   munitions — IP spent on shells (1 each), added to the stockpile
 //   research  — IP put into `tech` (a tech id, or null)
+//   build     — IP put towards a new unit of `buildType` ('infantry' or 'tanks', §19.9)
+//   city      — the rear city it should arrive in (a box id, or null for any)
 
 // Check a budget. Returns a list of problems in plain English (empty = fine).
 export function checkBudget(state, data, nationId, budget) {
@@ -133,9 +235,16 @@ export function checkBudget(state, data, nationId, budget) {
   const ip = industry(state, data, nationId);
   const mun = budget.munitions || 0;
   const res = budget.research || 0;
+  const build = budget.build || 0;
   const cost = data.economy.munitionCost;
-  if (!Number.isInteger(mun) || !Number.isInteger(res) || mun < 0 || res < 0) problems.push('Amounts must be whole numbers, 0 or more.');
-  if (mun * cost + res > ip) problems.push(`That spends more than this month’s ${ip} Industry.`);
+  if (![mun, res, build].every((x) => Number.isInteger(x) && x >= 0)) problems.push('Amounts must be whole numbers, 0 or more.');
+  if (mun * cost + res + build > ip) problems.push(`That spends more than this month’s ${ip} Industry.`);
+  if (build > 0 || budget.buildType) {
+    const t = buyOptions(state, data, nationId).find((o) => o.type === budget.buildType);
+    if (!t) problems.push('Choose a unit that can be bought this month.');
+    else if (build > Math.max(0, t.ip - production(state, nationId).progress)) problems.push(`That unit needs only ${Math.max(0, t.ip - production(state, nationId).progress)} more IP.`);
+  }
+  if (budget.city && !depotsFor(state, data, nationId).includes(budget.city)) problems.push('New units can only arrive in a rear city you hold.');
   if (stockpile(state, nationId) + mun > data.economy.stockCap) problems.push(`The stockpile holds at most ${data.economy.stockCap} munitions.`);
   if (res > 0) {
     const tech = researchOptions(state, data, nationId).find((t) => t.id === budget.tech);
@@ -153,21 +262,34 @@ export function applyBudget(state, data, nationId, budget) {
   const ip = industry(state, data, nationId);
   const mun = budget.munitions || 0;
   const res = budget.research || 0;
+  const build = budget.build || 0;
+  const mpBefore = state.resources[nationId].rp;
   state.resources[nationId].munitions += mun;
   const tech = res > 0 ? techOf(data, budget.tech) : null;
   if (tech) {
     state.research = { ...(state.research || {}), [tech.id]: researchProgress(state, tech.id) + res };
     if (state.research[tech.id] >= tech.cost) completeTech(state, data, tech);
   }
+  // a new unit (§19.9): the IP carries over until it's paid in full
+  if (build > 0 || budget.buildType) {
+    const prod = production(state, nationId);
+    state.production = { ...(state.production || {}), [nationId]: { progress: prod.progress + build,
+      type: budget.buildType || prod.type, city: budget.city !== undefined ? budget.city : prod.city } };
+  }
+  placeOrder(state, data, nationId);
   // this month's budget, for the War Office dashboard
   state.budget = state.budget || {};
-  state.budget[nationId] = { month: currentMonth(state), manpower: state.resources[nationId].rp, industry: ip,
-    munitions: mun, research: res, tech: tech ? tech.id : null, unspent: ip - mun * data.economy.munitionCost - res };
+  state.budget[nationId] = { month: currentMonth(state), manpower: mpBefore, industry: ip,
+    munitions: mun, research: res, tech: tech ? tech.id : null, build, buildType: budget.buildType || null,
+    unitMP: mpBefore - state.resources[nationId].rp,
+    unspent: ip - mun * data.economy.munitionCost - res - build };
 }
 
 // The automatic budget (§19.4, §19.7): top the stockpile up to 3, then put IP into
 // the cheapest tech on offer (at most `researchCap` a month — the computer uses 3,
-// Auto-allocate for a player has no cap). Anything left over is lost.
+// Auto-allocate for a player has no cap), then the rest towards a new unit (§19.9: a
+// tank if the nation can buy one, otherwise infantry; it arrives in any rear city).
+// Anything left over is lost.
 export function autoBudget(state, data, nationId, researchCap = Infinity) {
   const e = data.economy;
   let ip = industry(state, data, nationId);
@@ -177,7 +299,16 @@ export function autoBudget(state, data, nationId, researchCap = Infinity) {
   const options = [...researchOptions(state, data, nationId)].sort((a, b) => a.cost - b.cost);
   const tech = options[0] || null;
   const research = tech ? Math.max(0, Math.min(ip, researchCap, tech.cost - researchProgress(state, tech.id))) : 0;
-  return { munitions, research, tech: research > 0 ? tech.id : null };
+  ip -= research;
+  const buy = autoUnit(state, data, nationId);
+  const build = buy ? Math.max(0, Math.min(ip, buy.ip - production(state, nationId).progress)) : 0;
+  return { munitions, research, tech: research > 0 ? tech.id : null, build, buildType: buy ? buy.type : null, city: null };
+}
+
+// The unit Auto-allocate and the computer save towards: a tank if possible.
+export function autoUnit(state, data, nationId) {
+  const options = buyOptions(state, data, nationId);
+  return options.find((o) => o.type === 'tanks') || options[0] || null;
 }
 
 // Who spends a side's budget automatically: the computer, or a player who has
@@ -187,11 +318,11 @@ export function autoSpends(state, sideId) {
 }
 
 // Is there a real choice in a side's budget this month (§19.4)? Only if one of its
-// nations has Industry to spend AND a tech it could research. Otherwise the only
-// sensible use of Industry is munitions, so there's nothing to ask the player.
+// nations has Industry to spend AND a tech it could research or a unit it could buy.
+// Otherwise the only sensible use of Industry is munitions, so there's nothing to ask.
 export function budgetChoice(state, data, sideId) {
-  return budgetNations(state, data, sideId)
-    .some((n) => industry(state, data, n) > 0 && researchOptions(state, data, n).length > 0);
+  return budgetNations(state, data, sideId).some((n) => industry(state, data, n) > 0 &&
+    (researchOptions(state, data, n).length > 0 || buyOptions(state, data, n).length > 0));
 }
 
 // The War Office phase (§19.4): every side with an automatic budget spends it now.
@@ -199,6 +330,7 @@ export function budgetChoice(state, data, sideId) {
 // sides) only when there's a real choice to make; otherwise it's spent automatically.
 export function warOfficePhase(state, data) {
   if (!hasEconomy(data)) return;
+  deliverUnits(state, data);             // last month's new units arrive (§19.9)
   const waiting = [];
   for (const side of data.nations.sides) {
     const nations = budgetNations(state, data, side.id);

@@ -172,7 +172,9 @@ export function aiAttack(state, data, side, record = null) {
     for (const nation of data.nations.nations.filter((n) => n.side === side).map((n) => n.id)) {
       const res = state.resources[nation];
       if (!res || res.op < 1) continue;
-      if ((spent[nation] || 0) > res.rp + skill.stopLoss) continue;
+      // stop at this month's Manpower + 2: the full Manpower, before any went to a
+      // new unit (RULES.md §19.9), as tools/wfsim.py counts it
+      if ((spent[nation] || 0) > res.rp + (res.unitMP || 0) + skill.stopLoss) continue;
       // A once-only commander shift (the Nivelle Method): the computer follows history
       // and uses it in the card's last month (April 1917), as tools/wfsim.py does.
       const shift = onceShift(state, data, nation);
