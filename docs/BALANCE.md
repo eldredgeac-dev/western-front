@@ -484,3 +484,7 @@ even-game range holds. Entente infantry purchases still cost the computer Entent
 points (40 against 46), mostly in 1918, but that's near the noise of 200 wars (in the
 simulator the same test gives 46 / 40 / 14 against 44 / 42 / 14). So the computer
 buys infantry as the rule says.
+
+Re-run in the simulator (unchanged by this fix): `python3 tools/matchups.py 200` and
+`python3 tools/levels.py` give exactly the V2a tables above (Standard vs Standard
+43 / 47 / 10, Expert vs Expert 48 / 38 / 14; every difficulty level the same).
