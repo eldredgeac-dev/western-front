@@ -1271,8 +1271,8 @@ test('computer: moves units up to fill threatened, empty front boxes (reserves g
   s.phase = phaseIndex('entente-move'); s.controllers = { germany: 'human', entente: 'ai' };
   s.units = s.units.filter((u) => u.id !== 'fra-03');                        // the Somme E1 is now empty
   aiMove(s, bundle(), 'entente');
-  // the front is ranked once (as tools/wfsim.py), so more than one reserve goes to the
-  // most threatened territory, up to the stacking limit
+  // the front is ranked once at the start of each pass (as tools/wfsim.py), so more than
+  // one reserve goes to the most threatened territory, up to the stacking limit
   const n = unitsIn(s, 'l06-e1').length;
   check(n >= 2 && n <= data.unitTypes.stackLimit, `reserves gathered in the empty front box: ${n}`);
   check(frontBoxes(s, bundle(), 'entente').includes('l06-e1'), 'it is a front box');
@@ -2144,6 +2144,35 @@ test('computer: merges damaged pieces and moves up to 2 territories by road', ()
   unit(s, 'ger-01').steps = 2; unit(s, 'ger-02').steps = 1; unit(s, 'ger-02').box = unit(s, 'ger-01').box;
   aiMove(s, bundle(), 'germany');
   check(!unit(s, 'ger-02') && unit(s, 'ger-01').steps === 3, 'two damaged pieces became one');
+});
+
+// The move phase copies tools/wfsim.py's ai_move (DECISIONS.md 137): two passes of one
+// step each, a rail move tried before a step along the way, one real order per piece.
+function oneReserve(railLeft) {
+  const s = atWar('1915-04', 'germany');
+  s.phase = phaseIndex('entente-move'); s.controllers = { germany: 'human', entente: 'ai' };
+  // the whole Entente front stays held, except the Somme E1; one reserve, two territories back
+  s.units = s.units.filter((u) => u.nation === 'ger' || (u.box.endsWith('-e1') && u.id !== 'fra-03') || u.id === 'fra-13');
+  place(s, 'fra-13', 'l06-e3');
+  s.resources.fra.rail = railLeft;
+  return s;
+}
+test('computer: a reserve two territories back steps up in two passes, as ONE road move', () => {
+  const s = oneReserve(0);
+  const seen = [];
+  aiMove(s, bundle(), 'entente', (a) => seen.push(a));
+  const u = unit(s, 'fra-13');
+  check(u.box === 'l06-e1' && u.moved && !u.railed, `the reserve reached the empty front box: ${u.box}`);
+  check(seen.length === 1 && seen[0].kind === 'move' && seen[0].from === 'l06-e3' && seen[0].to === 'l06-e1', JSON.stringify(seen));
+});
+
+test('computer: a reserve that is not next door goes by rail first, if it has a rail move', () => {
+  const s = oneReserve(1);
+  const seen = [];
+  aiMove(s, bundle(), 'entente', (a) => seen.push(a));
+  const u = unit(s, 'fra-13');
+  check(u.box === 'l06-e1' && u.railed && s.resources.fra.rail === 0, `went by rail: ${u.box}`);
+  check(seen.length === 1 && seen[0].kind === 'rail', JSON.stringify(seen));
 });
 
 // ---------------------------------------------------------------- pieces (STYLE.md §5)

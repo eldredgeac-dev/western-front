@@ -1,6 +1,6 @@
 {
   "_about": "The guided first turn (js/ui/tutorial.js, js/engine/tutorial.js). The game starts as the Entente on Regular with this seed; Auto-allocate is on so the budget page doesn't interrupt. Each step has text (with {target}, {front}, {support}, {side}, {reserve} replaced by territory names) and 'waitFor': what the player must do before the next step: 'next' (a button), 'move' (a queued move of the 'unit' role to the 'to' role), 'phase' (that phase reached), 'attack' (a queued attack on the target with 'munitions'), 'played' (the turn has been played back). 'arrow' draws a coach arrow. See docs/DATA.md.",
-  "seed": 4,
+  "seed": 1,
   "level": "regular",
   "side": "entente",
   "steps": [

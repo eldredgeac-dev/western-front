@@ -3,7 +3,8 @@
 // balance-tested, with its weights in data/ai.json.
 //   1. Repair: replacements already go to the weakest units in the most threatened
 //      boxes (systems/replacements.js).
-//   2. Defend (move phase): fill the most threatened front boxes (ranked once), by road, then rail.
+//   2. Defend (move phase): fill the most threatened front boxes, in two passes as
+//      tools/wfsim.py does: a step next door, else rail, else a step along the way.
 //   3. Attack (attack phase): score every possible attack and make the best ones while
 //      the score is above 0, at 2:1 or better, until expected losses pass RP + 2.
 //   Questions (U-boats, the Hindenburg Line) are answered in events.js.
@@ -12,7 +13,7 @@
 import { currentMonth, copyState } from './state.js';
 import { unitsIn, stackRoom, sideOfNation, nationOf, unitType } from './units.js';
 import { indexBoxes } from './boxes.js';
-import { moveUnit, railMove, railTargets, moveTargets, mergeUnits, mergeReason } from './moves.js';
+import { moveUnit, railMove, railTargets, mergeUnits, mergeReason } from './moves.js';
 import { threat } from './systems/replacements.js';
 import { eligibleAttackers, oddsPreview, resolveAttack, barrageMax } from './combat.js';
 import { next as rngNext } from './rng.js';
@@ -77,37 +78,76 @@ function aiMerge(state, data, side, record) {
 const unitsAt = (state, ids) => Object.fromEntries(ids.map((id) => [id, state.units.find((u) => u.id === id).box]));
 
 // ---------------------------------------------------------------- 2. defend
+// The move phase copies tools/wfsim.py's ai_move exactly (DECISIONS.md 137), because a
+// different move made the game's computer fight about half as many battles as the
+// simulator's, and fewer still the more pieces it had (DECISIONS.md 101, 136):
+//   - two passes; at the start of each, rank the front by threat (most threatened first)
+//   - each piece, in each pass: stay if it's in a front box alone or a threatened one;
+//     otherwise pick the first box on the list with room and threat above
+//     fillThreatAbove, and step 1 territory into it if it's next door, else go by rail
+//     (if it hasn't stepped yet and the nation has a rail move left), else step 1
+//     territory along the way.
+// The passes are worked out on a scratch copy of the board. Then each piece gets ONE
+// real order from where it started: a road move (its two steps make one move of up to 2
+// territories, RULES.md §8) or a rail move.
+
+// Work out the two passes on `plan` (a copy of the state). Returns, in the order the
+// pieces last moved, { id, from, to, rail }.
+function planMoves(plan, data, side) {
+  const cfg = data.ai.move;
+  const boxes = boxesOf(data);
+  const front = new Set(frontBoxes(plan, data, side));
+  const ids = plan.units.filter((u) => sideOfNation(data, u.nation) === side &&
+    !(nationOf(data, u.nation).traits || []).some((t) => t.kind === 'cannot-attack')).map((u) => u.id);
+  const moves = new Map();                               // unit id → { id, from, to, rail }
+  const stepped = new Set();                             // pieces that took a road step
+  const note = (u, from, rail) => {
+    const m = moves.get(u.id) || { id: u.id, from, rail };
+    moves.delete(u.id);                                  // re-add so the order is "last moved"
+    moves.set(u.id, { ...m, to: u.box, rail });
+  };
+  for (let pass = 0; pass < 2; pass++) {
+    const ranked = [...front].sort((a, b) => threat(plan, data, b) - threat(plan, data, a));
+    for (const id of ids) {
+      const u = plan.units.find((x) => x.id === id);
+      if (!u || u.moved || u.railed) continue;           // moved before the phase, or by rail
+      const here = u.box;
+      if (front.has(here) && (unitsIn(plan, here).length <= 1 || threat(plan, data, here) > cfg.keepThreatAbove)) continue;
+      const target = ranked.find((b) => b !== here && stackRoom(plan, data, b) > 0 && threat(plan, data, b) > cfg.fillThreatAbove);
+      if (!target) continue;
+      if (boxes[here].neighbours.includes(target)) {     // next door: step in
+        u.box = target; stepped.add(id); note(u, here, false); continue;
+      }
+      if (!stepped.has(id) && railTargets(plan, data, id).includes(target)) {
+        plan.resources[u.nation].rail -= 1;               // the rail move itself is made later
+        u.box = target; u.railed = true; note(u, here, true); continue;
+      }
+      const path = pathTowards(plan, data, here, target, side);
+      if (path && path.length && stackRoom(plan, data, path[0]) > 0) {
+        u.box = path[0]; stepped.add(id); note(u, here, false);
+      }
+    }
+  }
+  return [...moves.values()].filter((m) => m.to !== m.from);
+}
+
 // `record(action, state)` is optional: called after each move so the screen can play
 // the computer's turn back (js/engine/orders.js describes actions). It only watches;
 // it never changes what the computer decides.
 export function aiMove(state, data, side, record = null) {
-  const cfg = data.ai.move;
-  const boxes = boxesOf(data);
-  const front = new Set(frontBoxes(state, data, side));
-  const mine = state.units.filter((u) => sideOfNation(data, u.nation) === side &&
-    !(nationOf(data, u.nation).traits || []).some((t) => t.kind === 'cannot-attack'));
   aiMerge(state, data, side, record);
-  // Rank the front by threat ONCE, at the start of the move phase, as tools/wfsim.py
-  // does (DECISIONS.md 127–128). Reserves then go down this list, so they gather in the
-  // most threatened territories (up to 3 pieces) instead of spreading one per territory.
-  // (Each territory's threat is still checked live before a piece goes there.)
-  const ranked = [...front].sort((a, b) => threat(state, data, b) - threat(state, data, a));
-  for (const unitRef of mine) {
-    const u = state.units.find((x) => x.id === unitRef.id);
-    if (!u || u.moved) continue;
-    const here = u.box;
-    // a unit in a front box stays unless it has company and the box is quiet
-    if (front.has(here) && (unitsIn(state, here).length <= 1 || threat(state, data, here) > cfg.keepThreatAbove)) continue;
-    const target = ranked.find((b) => b !== here && stackRoom(state, data, b) > 0 && threat(state, data, b) > cfg.fillThreatAbove);
-    if (!target) continue;
-    const note = (kind, to) => { if (record) record({ kind, side, unit: u.id, from: here, to }, state); };
-    const road = moveTargets(state, data, u.id);       // up to 2 territories (RULES.md §8)
-    if (road.includes(target)) { if (apply(state, (s) => moveUnit(s, data, u.id, target))) note('move', target); continue; }
-    if (railTargets(state, data, u.id).includes(target)) { if (apply(state, (s) => railMove(s, data, u.id, target))) note('rail', target); continue; }
-    // otherwise as far along the way as a road move goes
-    const path = pathTowards(state, data, here, target, side) || [];
-    const step = [...path].reverse().find((b) => road.includes(b));
-    if (step && apply(state, (s) => moveUnit(s, data, u.id, step))) note('move', step);
+  let todo = planMoves(copyState(state), data, side);
+  // Give the real orders. A box can still be full for a moment (a piece that left it in
+  // the plan hasn't left yet), so anything that fails is tried again after the rest.
+  for (let round = 0; round < 3 && todo.length; round++) {
+    const left = [];
+    for (const m of todo) {
+      const order = m.rail ? (s) => railMove(s, data, m.id, m.to) : (s) => moveUnit(s, data, m.id, m.to);
+      if (apply(state, order)) { if (record) record({ kind: m.rail ? 'rail' : 'move', side, unit: m.id, from: m.from, to: m.to }, state); }
+      else left.push(m);
+    }
+    if (left.length === todo.length) break;
+    todo = left;
   }
 }
 
