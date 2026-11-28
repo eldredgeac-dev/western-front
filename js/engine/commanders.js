@@ -17,7 +17,7 @@
 // some months of the year ('months': [3, 4 …]) or a span ('from', 'to': 'YYYY-MM').
 // The other engine files ask this one:
 //   cardValue()      — the sum of an effect's values (OP, rail, Manpower, Industry …)
-//   cardLimit()      — the smallest limit (Pétain's OP max 1, Falkenhayn's rail max 2)
+//   cardLimit()      — the smallest limit (Pétain's 1 attack a month, Falkenhayn's rail max 2)
 //   cardEffects()    — the effects of a kind that are on now
 // Every exported function that takes a state and returns one returns a NEW state,
 // except those turn.js and the other engine files call on a copy (they say so).
@@ -78,7 +78,7 @@ export function cardEffects(state, data, kind, filter = () => true, month = curr
   return out;
 }
 
-// The sum of a kind's values for a nation (e.g. extra OP this month).
+// The sum of a kind's values for a nation (e.g. extra attacks this month).
 export function cardValue(state, data, kind, nationId, month) {
   return cardEffects(state, data, kind, (e) => e.nation === nationId, month).reduce((s, e) => s + e.value, 0);
 }
@@ -200,17 +200,17 @@ export function commandersPhase(state, data) {
   applyCardResources(state, data);
 }
 
-// This month's OP, Manpower (RP) and rail moves from the cards in command (changes
-// `state`). Industry is added in systems/economy.js (industryParts). Limits (Pétain's
-// 1 OP, Falkenhayn's 2 rail moves) come after the bonuses.
+// This month's attack limit, Manpower (RP) and rail moves from the cards in command
+// (changes `state`). Industry is added in systems/economy.js (industryParts). Limits
+// (Pétain's 1 attack a month, Falkenhayn's 2 rail moves) come after the bonuses.
 export function applyCardResources(state, data) {
   const month = currentMonth(state);
   for (const [id, r] of Object.entries(state.resources || {})) {
-    r.op += cardValue(state, data, 'op', id, month);
+    r.attacks += cardValue(state, data, 'attacks', id, month);
     r.rp = Math.max(0, r.rp + cardValue(state, data, 'rp', id, month));
     r.rail += cardValue(state, data, 'rail', id, month);
-    const opMax = cardLimit(state, data, 'op-max', id, month);
-    if (opMax !== null) r.op = Math.min(r.op, opMax);
+    const attacksMax = cardLimit(state, data, 'attacks-max', id, month);
+    if (attacksMax !== null) r.attacks = Math.min(r.attacks, attacksMax);
     const railMax = cardLimit(state, data, 'rail-max', id, month);
     if (railMax !== null) r.rail = Math.min(r.rail, railMax);
     if (!data.economy) r.munitions += cardValue(state, data, 'industry', id, month);
@@ -255,7 +255,7 @@ export function sackReason(state, data, key) {
 }
 
 // Sack a commander and appoint a successor (−5 Will). Returns a NEW state. The new
-// card's Will flaws and combat rules work at once; its OP, Manpower, Industry and rail
+// card's Will flaws and combat rules work at once; its attack limit, Manpower, Industry and rail
 // change from next month (this month's were already handed out).
 export function sackCommander(state, data, key, newCardId) {
   const why = sackReason(state, data, key);
@@ -281,7 +281,7 @@ export function onceShift(state, data, nationId) {
 
 // Combat rules from the cards for an attack by these nations (combat.js planAttack):
 //   reasons  — why the attack isn't allowed (Prickly ally, No amalgamation)
-//   opCost   — the coalition cost if a card changes it (Foch), else null
+//   ipCost   — the coalition attack's IP cost if a card changes it (Foch), else null
 export function cardCombatRules(state, data, side, nations, month = currentMonth(state)) {
   const reasons = [];
   const nameOf = (id) => { const n = data.nations.nations.find((x) => x.id === id); return n ? n.adjective || n.name : id; };
@@ -293,8 +293,9 @@ export function cardCombatRules(state, data, side, nations, month = currentMonth
       if (nations.includes(e.nation)) reasons.push(`${nameOf(e.nation)} units can't join coalition attacks yet (${e.part}).`);
     }
   }
-  const cost = cardEffects(state, data, 'coalition-op-cost', (e) => e.side === side, month);
-  return { reasons, opCost: cost.length ? Math.min(...cost.map((e) => e.value)) : null };
+  // Foch: a coalition attack costs this many IP instead of the usual 2
+  const cost = cardEffects(state, data, 'coalition-ip-cost', (e) => e.side === side, month);
+  return { reasons, ipCost: cost.length ? Math.min(...cost.map((e) => e.value)) : null };
 }
 
 // Will from the cards at the end of the month (systems/will.js calls this before

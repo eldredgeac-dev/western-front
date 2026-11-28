@@ -1,7 +1,7 @@
 // ledger.js — the War Office's Nations screen (docs/STYLE.md §6): a ledger page with
 // ruled lines and Courier figures. At the top the Armistice Score, who's winning and
 // why, and the countdowns. Then one page per nation (swipe sideways): Will (an ink
-// gauge, its trend and a small chart), Manpower, Industry and the stockpile, OP and
+// gauge, its trend and a small chart), Manpower, Industry and the stockpile, attacks and
 // rail moves, units and strength, VP cities, the Butcher's Bill, the commander, and
 // everything in effect with a one-line explanation. Then the strength chart, the
 // cities, the industrial cities and what's happening this month.
@@ -27,7 +27,7 @@ function svgEl(tag, attrs = {}, parent = null) {
 }
 const thousands = (n) => n.toLocaleString('en-GB');
 const signed = (n) => (n > 0 ? `+${n}` : n < 0 ? `−${-n}` : '±0');
-const RESOURCE_NAMES = { op: 'Offensive Points (OP)', munitions: 'Munitions', rp: 'Replacements (RP)', rail: 'Rail moves' };
+const RESOURCE_NAMES = { attacks: 'Attacks this month', munitions: 'Munitions', rp: 'Replacements (RP)', rail: 'Rail moves' };
 
 // The Will gauge: an ink bar that drains (STYLE.md §6), with the number and trend.
 function willCell(n) {
@@ -86,7 +86,7 @@ function unitsCell(u, monthName) {
 }
 
 // One nation's page: a ruled table of its figures (Will with its gauge and chart,
-// the economy, OP and rail, units, cities, casualties, commander), then everything
+// the economy, attacks and rail, units, cities, casualties, commander), then everything
 // affecting it now, each with a one-line explanation.
 function nationPage(n, l, monthName, nameOf, commanders) {
   const page = el('section', 'nation-page');
@@ -116,10 +116,10 @@ function nationPage(n, l, monthName, nameOf, commanders) {
       row('Industry (IP)', figureWithTrend(n.economy.industry, n.economy.industryChange));
       const td = el('td', 'ledger-num');
       td.appendChild(shellIcons(n.economy.stock, n.economy.stockCap));
-      td.appendChild(el('span', 'ledger-sub', `${n.economy.stock} of ${n.economy.stockCap}`));
+      td.appendChild(el('span', 'ledger-sub', `${n.economy.stock} IP of ${n.economy.stockCap}: 1 IP per attack, +1 per munition of barrage`));
       row('Munitions stockpile', td);
     }
-    for (const key of n.economy ? ['op', 'rail'] : ['op', 'munitions', 'rp', 'rail']) {
+    for (const key of n.economy ? ['attacks', 'rail'] : ['attacks', 'munitions', 'rp', 'rail']) {
       const r = n.resources.find((x) => x.key === key);
       row(RESOURCE_NAMES[key], `${r.left} left of ${r.of}`);
     }

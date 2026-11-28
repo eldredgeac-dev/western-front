@@ -529,7 +529,7 @@ function orderData() {
 }
 
 // The queued orders, checked (js/engine/orders.js): { checks, state }, where `state`
-// is the board as it will be after the queued moves (and with the OP and munitions
+// is the board as it will be after the queued moves (and with the attacks and munitions
 // for the queued attacks set aside).
 function planned() {
   return queueCheck(state, orderData());
@@ -743,7 +743,7 @@ function showAttackArrow() {
 
 // Everything the order slip shows, worked out by the combat engine.
 function attackSlip() {
-  const pv = attackState();            // after the queued orders (OP and munitions set aside), in the attack phase
+  const pv = attackState();            // after the queued orders (attacks and munitions set aside), in the attack phase
   const box = data.boxesById[attack.target];
   const order = { target: attack.target, units: attack.units, munitions: attack.munitions, cardShift: Boolean(attack.cardShift) };
   const defenders = unitsIn(state, attack.target);
@@ -798,11 +798,21 @@ function attackSlip() {
       text: `${card.name}'s once-only bonus.${flaw}` };
   }
   if (payer) {
+    // V2c: the attack's own IP comes out of the stockpile first, then the barrage
+    // (RULES.md §9.1). `left` is what the payer has after the orders already queued.
     const left = pv.resources[payer.id];
-    slip.cost = `${plan.opCost} OP from ${payer.name} (${left.op} left)`;
-    slip.munitionsMax = Math.min(barrageMax(data.engine, currentMonth(state), state, payer.side), left.munitions);
+    slip.cost = attackCostText(plan, payer, left);
+    slip.munitionsMax = Math.max(0, Math.min(barrageMax(data.engine, currentMonth(state), state, payer.side), left.munitions - plan.ipCost));
   }
   return slip;
+}
+
+// "1 IP from France's stockpile (4 in stock) + barrage 2 · attack 1 of 3 left this month"
+function attackCostText(plan, payer, left) {
+  const barrage = plan.munitions ? ` + ${plan.munitions} for the barrage` : '';
+  const attacks = left.attacks === 1 ? 'the last attack' : `${left.attacks} attacks`;
+  return `${plan.ipCost} IP for the attack${barrage}, from ${payer.name}'s stockpile (${left.munitions} in stock). ` +
+    `${payer.name} has ${attacks} left this month.`;
 }
 
 function toggleAttacker(unitId) {
@@ -845,7 +855,7 @@ function ordersInfo() {
   const phase = phaseOf(state, orderData());
   const list = orders.map((o, i) => ({ index: i, text: orderText(o, checks[i]), ok: checks[i].ok, reason: checks[i].reason, selected: i === selectedOrder }));
   const left = phase ? data.engine.nations.nations.filter((n) => n.side === phase.side && pv.resources[n.id] && (state.will[n.id] !== undefined))
-    .map((n) => `${n.name} ${pv.resources[n.id].op} OP, ${pv.resources[n.id].munitions} munitions`) : [];
+    .map((n) => `${n.name} ${pv.resources[n.id].attacks} attack${pv.resources[n.id].attacks === 1 ? '' : 's'}, ${pv.resources[n.id].munitions} IP of munitions`) : [];
   return { list, left: attackOrdersNow() ? left.join(' \u00b7 ') : '' };
 }
 // One order in plain words.

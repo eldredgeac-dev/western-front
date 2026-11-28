@@ -488,3 +488,96 @@ buys infantry as the rule says.
 Re-run in the simulator (unchanged by this fix): `python3 tools/matchups.py 200` and
 `python3 tools/levels.py` give exactly the V2a tables above (Standard vs Standard
 43 / 47 / 10, Expert vs Expert 48 / 38 / 14; every difficulty level the same).
+
+## V2c: attacks cost Industry (RULES.md Version 1.9, game Version 11.4, 28 November 2026)
+**Offensive Points are gone.** An attack costs **1 IP** from the paying nation's munitions
+stockpile (2 for a coalition attack; Foch makes it 1), on top of its barrage. The stockpile
+holds **6** (it was 3) and the computer tops it up to 6. Each nation makes **at most 3
+attacks a month**. Commanders' OP effects became attack-limit effects: Joffre +1 attack a
+month in March–October, Haig +1 from 1916, Pétain at most 1. **Heavier barrages:** the
+Entente's maximum barrage is 1 more from January 1918 (4 once it has the creeping barrage);
+Germany's stays 3. In `tools/wfsim.py` these are now the defaults (`attack_ip=1,
+attack_limit=3, stock_cap=6, mun_target=6, heavy_barrage_e=191801`); `attack_ip=0
+stock_cap=3 mun_target=3 heavy_barrage_e=0` plays Version 1.8 again (it reproduces the V2a
+table: 43 / 47 / 10).
+
+**Why:** France and Britain were throwing away 40–70 IP a year by 1917 (V2a table above),
+while their attacks were capped by OP. Now the factories pay for the attacks, so spare
+shells mean more or heavier attacks. The stockpile has to grow to 6, or a nation could
+never save for a big barrage; the 1 IP attack cost is what keeps a bigger stockpile from
+making the careless player too strong (on its own, stockpile 6 lifted the beginner Entente
+to 71%; with the attack cost, over 600 games each the beginner Entente wins 48% and the
+careful one 46%).
+
+**Matchups** (`python3 tools/matchups.py 200`; Germany / Entente / draw):
+
+| Matchup | Version 1.8 (V2a) | **V2c** |
+|---|---|---|
+| Standard vs Standard | 43 / 47 / 10 | **44 / 39 / 18** |
+| Expert vs Expert | 48 / 38 / 14 | **38 / 48 / 14** |
+| Turtle Germany vs Standard | 0 / 100 / 0 | 0 / 100 / 0 |
+| Standard vs Turtle Entente | 100 / 0 / 0 | 100 / 0 / 0 |
+| Beginner Germany vs Standard | 3 / 93 / 4 | 5 / 90 / 6 |
+| Standard vs Beginner Entente | 49 / 44 / 7 | 38 / 55 / 8 |
+| Reckless Germany vs Standard | 0 / 100 / 0 | 0 / 100 / 0 |
+| Standard vs Reckless Entente | 60 / 39 / 0 | 66 / 32 / 2 |
+
+`tools/waste.py 200` plays the same matchup on another 200 seeds: **42 / 44 / 14**. The
+difference from 44 / 39 / 18 is the noise of 200 games (about ±3.5 points).
+
+**Difficulty** (`python3 tools/levels.py`, 80 games; player win %, V2a → V2c):
+
+| Level | Careful as GER | Careful as ENT | Beginner as GER | Beginner as ENT |
+|---|---|---|---|---|
+| Recruit | 66 → 80 | 86 → 94 | 10 → 18 | 78 → 79 |
+| Regular | 41 → 48 | 49 → 38 | 4 → 4 | 38 → 56 |
+| Veteran | 32 → 24 | 35 → 24 | 0 → 1 | 34 → 52 |
+| Field Marshal | 11 → 4 | 11 → 14 | 0 → 0 | 16 → 12 |
+
+Every column still steps down level by level. The beginner Entente's 56% and 52% are 80
+games each; over 600 games of Standard vs Beginner it wins 48% against the careful
+Entente's 46% (DECISIONS.md 147), so it's luck, not a better way to play. Recruit got
+easier (80–94% for a careful player).
+
+**IP thrown away per year** (`python3 tools/waste.py 200`, stockpile full and nothing left
+to research or buy):
+
+| | 1915 | 1916 | 1917 | 1918 |
+|---|---|---|---|---|
+| Germany | 1.8 | 10.0 | 7.8 | 0.9 |
+| France | 0.1 | 14.8 | 54.4 | 32.9 |
+| Britain | 0.0 | 1.4 | 15.0 | 31.3 |
+| USA | 0.0 | 0.0 | 3.0 | 10.5 |
+
+**Attacks a year** (same run): Germany 11.1 / 6.8 / 10.8 / 9.9, France 7.2 / 5.9 / 6.1 /
+3.6, Britain 2.0 / 1.8 / 3.6 / 3.0 (1915 / 16 / 17 / 18). France hits its limit about 3.5
+months a year in 1917–18 (under Pétain it may make only 1 a month).
+
+Healthy ranges: equal skill 35–55% for each side with draws under 25%: yes (Standard 44 /
+39 / 18, Expert 38 / 48 / 14). Turtles and reckless Germany win under 20%: yes (0%). The
+reckless Entente still wins 32% against a careful Germany (it was 39% before this change,
+already over the 20% target).
+
+### The game's own engine (V2c)
+`node tools/js-par.mjs 200` (Standard vs Standard, everything as RULES.md says):
+
+| | Germany | Entente | Draw | Mutinies | Attacks a war | Captures |
+|---|---|---|---|---|---|---|
+| Version 11.3 (OP) | 48% | 40% | 13% | 69% | 77 | 54.8 |
+| **Version 11.4 (V2c)** | **36%** | **52%** | **13%** | 77% | 82 | 59.7 |
+
+Inside every healthy range (each side 35–55%, draws under 25%), but **Germany is near the
+bottom of its range** and the engine leans about 8 points further towards the Entente
+than the simulator (44 / 39 / 18). Attacks a year in the game's engine (the simulator in
+brackets):
+
+| | 1915 | 1916 | 1917 | 1918 |
+|---|---|---|---|---|
+| Germany | 12.4 (11.1) | 8.6 (6.8) | 10.6 (10.8) | 9.1 (9.9) |
+| France | 8.8 (7.2) | 9.4 (5.9) | 5.9 (6.1) | 2.6 (3.6) |
+| Britain | 1.7 (2.0) | 4.4 (1.8) | 4.3 (3.6) | 3.0 (3.0) |
+
+The gap is in **1916**: the game's computer Entente attacks about 14 times, the
+simulator's about 8. That's the same gap as after the move-phase fix (Version 11.2: 12.7
+against 9.0), a little bigger now that spare shells pay for attacks. No rule or number
+was changed for it; see DECISIONS.md 152.

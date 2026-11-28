@@ -4,7 +4,7 @@
 
 import { resourcesFor, applyDifficulty } from './resources.js';
 import { questionTelegram } from './telegrams.js';
-import { historicalCommanders } from './commanders.js';
+import { historicalCommanders, applyCardResources } from './commanders.js';
 
 // Bump this whenever the shape of the state changes, so old saves can be
 // recognised and upgraded (Milestone 8).
@@ -15,7 +15,8 @@ import { historicalCommanders } from './commanders.js';
 //   6: event telegrams (js/engine/telegrams.js) and how many the player has read
 //   7: commander cards (js/engine/commanders.js) and the new Commanders phase
 //   8: buying units with Industry (RULES.md §19.9): production, purchased, ordered
-export const STATE_VERSION = 8;
+//   9: attacks cost Industry (V2c): resources.op becomes resources.attacks (attacks left)
+export const STATE_VERSION = 9;
 
 // Build a brand-new game from a scenario (data/scenarios/*.json).
 //   seed — any whole number; it drives every dice roll (js/engine/rng.js)
@@ -211,8 +212,24 @@ export function migrateState(saved, scenario, data) {
     state.purchased = {};
     state.ordered = [];
   }
+  if (version < 9) attacksForOldSave(state, data);
   state.version = STATE_VERSION;
   return state;
+}
+
+// Version 9 (V2c): attacks cost Industry instead of Offensive Points. A game saved
+// partway through a month gets this month's attack limit (with its commander cards),
+// less the attacks each nation has already made this month.
+function attacksForOldSave(state, data) {
+  if (!data.nations || !state.resources) return;
+  const month = currentMonth(state);
+  const limits = { ...state, resources: resourcesFor(data, month) };
+  applyCardResources(limits, data);
+  for (const [id, r] of Object.entries(state.resources)) {
+    const made = (state.attacks || []).filter((a) => a.month === month && (a.nations || [])[0] === id).length;
+    r.attacks = Math.max(0, ((limits.resources[id] || {}).attacks || 0) - made);
+    delete r.op;
+  }
 }
 
 // Check a state makes sense before playing it. Returns a list of problems in plain

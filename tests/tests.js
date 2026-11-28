@@ -450,21 +450,25 @@ test('newGame: starting Will and December 1914 resources match RULES.md §6 and 
   check(s.will.ger === 108 && s.will.fra === 75 && s.will.gbr === 85, JSON.stringify(s.will));
   check(s.will.usa === undefined, 'the USA has no Will until it enters the war');
   const r = s.resources;
-  check(r.ger.op === 2 && r.ger.munitions === 3 && r.ger.rp === 3 && r.ger.rail === 3, 'GER ' + JSON.stringify(r.ger));
-  check(r.fra.op === 2 && r.fra.munitions === 2 && r.fra.rp === 3 && r.fra.rail === 2, 'FRA ' + JSON.stringify(r.fra));
-  check(r.gbr.op === 1 && r.gbr.munitions === 1 && r.gbr.rp === 2 && r.gbr.rail === 1, 'GBR ' + JSON.stringify(r.gbr));
+  // V2c: no Offensive Points; every nation may make up to 3 attacks a month (§9.1)
+  check(r.ger.attacks === 3 && r.ger.munitions === 3 && r.ger.rp === 3 && r.ger.rail === 3, 'GER ' + JSON.stringify(r.ger));
+  check(r.fra.attacks === 3 && r.fra.munitions === 2 && r.fra.rp === 3 && r.fra.rail === 2, 'FRA ' + JSON.stringify(r.fra));
+  check(r.gbr.attacks === 3 && r.gbr.munitions === 1 && r.gbr.rp === 2 && r.gbr.rail === 1, 'GBR ' + JSON.stringify(r.gbr));
+  check(r.bel.attacks === 0 && r.ger.op === undefined, 'Belgium makes no attacks of its own; no OP anywhere');
 });
 
 test('resources: follow the RULES.md §6 table through the war', () => {
   const r = (m) => resourcesFor(bundle(), m);
-  check(r('1918-01').ger.op === 4 && r('1917-01').ger.rp === 2 && r('1918-08').ger.rp === 1, 'GER');
+  check(r('1917-01').ger.rp === 2 && r('1918-08').ger.rp === 1, 'GER');
   check(r('1915-06').fra.munitions === 2 && r('1916-06').fra.munitions === 3 && r('1917-06').fra.munitions === 4 &&
     r('1918-06').fra.munitions === 5, 'FRA munitions');
   check(r('1916-06').fra.rp === 2 && r('1918-06').fra.rp === 1, 'FRA RP');
   check(r('1915-06').gbr.munitions === 1 && r('1916-06').gbr.munitions === 3 && r('1917-06').gbr.munitions === 4, 'GBR munitions');
-  check(r('1916-06').gbr.op === 2 && r('1918-06').gbr.op === 3 && r('1916-06').gbr.rp === 3, 'GBR OP and RP');
-  check(r('1918-08').usa.op === 2 && r('1918-07').usa.op === 1, 'USA OP');
-  check(r('1916-06').bel.op === 0, 'BEL');
+  check(r('1916-06').gbr.rp === 3, 'GBR RP');
+  // the attack limit is the same every month (no OP schedules any more, V2c)
+  for (const m of ['1915-01', '1916-06', '1918-01', '1918-08']) {
+    check(['ger', 'fra', 'gbr', 'usa'].every((n) => r(m)[n].attacks === 3), `3 attacks a month in ${m}`);
+  }
 });
 
 test('selection: a road move reaches friendly boxes up to 2 away (RULES.md §8)', () => {
@@ -727,16 +731,26 @@ test('combat: the 75s stop at trench 2 and in 1917; howitzers end after 1915; ex
   check(shiftOf(plan, 'Exhaustion') === undefined, 'not before August 1918');
 });
 
-test('combat: barrage +1 per munition, at most 2 (3 from June 1916)', () => {
+test('combat: barrage +1 per munition, at most 2 (3 from June 1916; the Entente 4 from 1918)', () => {
   let s = atWar('1916-05');
+  s.resources.ger.munitions = 6;
   let plan = planAttack(s, bundle(), { target: 'l06-e1', units: ['ger-06'], munitions: 2 });
   check(plan.ok && shiftOf(plan, 'Barrage') === 2, 'barrage of 2');
   plan = planAttack(s, bundle(), { target: 'l06-e1', units: ['ger-06'], munitions: 3 });
   check(!plan.ok, '3 munitions refused in May 1916');
   check(barrageMax(bundle(), '1916-05') === 2 && barrageMax(bundle(), '1916-06') === 3, 'limits');
   s = atWar('1916-06');
+  s.resources.ger.munitions = 6;
   plan = planAttack(s, bundle(), { target: 'l06-e1', units: ['ger-06'], munitions: 3 });
   check(plan.ok && shiftOf(plan, 'Barrage') === 3, 'creeping barrage of 3 in June 1916');
+  // V2c heavier barrages: the Entente's maximum is 1 more from January 1918; Germany's isn't
+  check(barrageMax(bundle(), '1917-12', null, 'entente') === 3 && barrageMax(bundle(), '1918-01', null, 'entente') === 4, 'Entente 4 from 1918');
+  check(barrageMax(bundle(), '1918-01', null, 'germany') === 3 && barrageMax(bundle(), '1918-01') === 3, 'Germany still 3');
+  s = atWar('1918-01', 'entente');
+  s.resources.fra.munitions = 6;
+  plan = planAttack(s, bundle(), { target: 'l06-g1', units: ['fra-03'], munitions: 4 });
+  check(plan.ok && shiftOf(plan, 'Barrage') === 4, 'an Entente barrage of 4 in 1918: ' + plan.reasons);
+  check(!planAttack(s, bundle(), { target: 'l06-g1', units: ['fra-03'], munitions: 5 }).ok, '5 refused');
 });
 
 test('combat: unit quality — Green majority −1, any Elite +1, stormtroopers cancel a trench level', () => {
@@ -770,16 +784,25 @@ test('combat: tanks +1, +2 on open ground, nothing in forest or mountains', () =
   check(shiftOf(plan, 'Tanks') === 1, 'elsewhere +1');
 });
 
-test('combat: costs 1 OP, 2 for a coalition; refused without OP', () => {
+test('combat: costs 1 IP from the stockpile, 2 for a coalition, on top of the barrage; at most 3 a month', () => {
   const s = atWar('1916-04', 'entente');
   place(s, 'fra-02', 'l03-e1');
+  s.resources.gbr.munitions = 3;
   let plan = planAttack(s, bundle(), { target: 'l03-g1', units: ['gbr-02'] });
-  check(plan.ok && plan.opCost === 1 && plan.payer === 'gbr', 'single nation 1 OP');
+  check(plan.ok && plan.ipCost === 1 && plan.payer === 'gbr', 'single nation 1 IP');
   plan = planAttack(s, bundle(), { target: 'l03-g1', units: ['gbr-02', 'fra-02'] });
-  check(plan.opCost === 2 && plan.nations.length === 2, 'coalition 2 OP');
-  s.resources.gbr.op = 0;
+  check(plan.ipCost === 2 && plan.nations.length === 2, 'coalition 2 IP');
+  // the attack's own IP comes first: 3 in stock pays for the attack and a barrage of 2, not 3
+  check(planAttack(s, bundle(), { target: 'l03-g1', units: ['gbr-02'], munitions: 2 }).ok, '1 + 2 = 3 fits');
+  plan = planAttack(s, bundle(), { target: 'l03-g1', units: ['gbr-02'], munitions: 3 });
+  check(!plan.ok && plan.reasons.some((r) => /Not enough munitions/.test(r)), '1 + 3 refused: ' + plan.reasons);
+  const out = resolveAttack(s, bundle(), { target: 'l03-g1', units: ['gbr-02'], munitions: 2 });
+  check(out.state.resources.gbr.munitions === 0 && out.state.resources.gbr.attacks === 2, 'paid 3 IP and 1 attack');
+  s.resources.gbr.munitions = 0;
+  check(!planAttack(s, bundle(), { target: 'l03-g1', units: ['gbr-02'] }).ok, 'refused with an empty stockpile');
+  s.resources.gbr.munitions = 3; s.resources.gbr.attacks = 0;
   plan = planAttack(s, bundle(), { target: 'l03-g1', units: ['gbr-02'] });
-  check(!plan.ok, 'refused with no OP left');
+  check(!plan.ok && plan.reasons.some((r) => /No attacks left/.test(r)), 'refused with no attacks left: ' + plan.reasons);
 });
 
 test('combat: who may attack — adjacent, in supply, own phase, not after rail; Belgium never', () => {
@@ -850,13 +873,14 @@ test('combat results: a defender with nowhere to go is destroyed', () => {
   check(r.taken && !unit(s, 'ger-06') && s.pool.ger === 1, 'cut off and destroyed');
 });
 
-test('combat: an empty enemy box is taken without a roll for 1 OP; tanks alone count as empty', () => {
+test('combat: an empty enemy box is taken without a roll for 1 IP and 1 attack; tanks alone count as empty', () => {
   let s = atWar('1915-04', 'entente');
   place(s, 'ger-05', 'l05-g2');                                     // leave Arras G1 empty
   const before = s.rng;
   let out = resolveAttack(s, bundle(), { target: 'l05-g1', units: ['fra-02'] });
   check(out.result.empty && out.result.taken && out.state.boxes['l05-g1'].owner === 'entente', 'taken');
-  check(out.state.resources.fra.op === s.resources.fra.op - 1 && out.state.rng === before, '1 OP, no dice');
+  check(out.state.resources.fra.attacks === s.resources.fra.attacks - 1 && out.state.rng === before, '1 attack, no dice');
+  check(out.state.resources.fra.munitions === s.resources.fra.munitions - 1, '1 IP');
   check(unit(out.state, 'fra-02').box === 'l05-g1', 'the attacker moved in');
   s = atWar('1917-04', 'entente');
   place(s, 'ger-05', 'l05-g2');
@@ -1337,16 +1361,23 @@ test('computer: moves units up to fill threatened, empty front boxes (reserves g
   check(frontBoxes(s, bundle(), 'entente').includes('l06-e1'), 'it is a front box');
 });
 
-test('computer: only attacks at 2:1 or better, and never without OP', () => {
+test('computer: only attacks at 2:1 or better, never with no attacks left or an empty stockpile', () => {
   let s = atWar('1915-04', 'germany');
   aiAttack(s, bundle(), 'germany');
   for (const b of s.battles) check(true, b.box);
   const cols = (s.log || []).filter((l) => l.text.startsWith('Attack on')).map((l) => /at (\d:\d)/.exec(l.text)[1]);
   check(cols.every((c) => ['2:1', '3:1', '4:1'].includes(c)), 'columns: ' + cols.join());
-  s = atWar('1915-04', 'germany'); s.resources.ger.op = 0;
+  check(s.resources.ger.attacks >= 0 && s.resources.ger.munitions >= 0, 'never overspent: ' + JSON.stringify(s.resources.ger));
+  s = atWar('1915-04', 'germany'); s.resources.ger.attacks = 0;
   const before = JSON.stringify(s.battles);
   aiAttack(s, bundle(), 'germany');
-  check(JSON.stringify(s.battles) === before, 'no OP, no attack');
+  check(JSON.stringify(s.battles) === before, 'no attacks left, no attack');
+  s = atWar('1915-04', 'germany'); s.resources.ger.munitions = 0;
+  aiAttack(s, bundle(), 'germany');
+  check(JSON.stringify(s.battles) === before, 'empty stockpile, no attack');
+  s = atWar('1915-04', 'germany'); s.resources.ger.munitions = 6; s.resources.ger.attacks = 3;
+  aiAttack(s, bundle(), 'germany');
+  check((s.attacks || []).length <= 3, `at most 3 attacks a month: ${(s.attacks || []).length}`);
 });
 
 test('computer: a full computer-vs-computer war plays to a result, the same way every time', () => {
@@ -1437,17 +1468,21 @@ test('orders: stacking counts the moves already queued (RULES.md §5)', () => {
   check(why !== '', 'a 4th unit is refused');
 });
 
-test('orders: a unit can only be in one queued attack, and OP is set aside', () => {
+test('orders: a unit can only be in one queued attack, and its attack and IP are set aside', () => {
   const s = atWar('1915-05');
   const targets = ['l06-e1', 'l11-e1'];
   const units = targets.map((t) => eligibleAttackers(s, bundle(), t));
   check(units[0].length && units[1].length, 'both targets can be attacked');
   let q = addOrder(s, bundle(), { kind: 'attack', target: targets[0], units: units[0], munitions: 0 });
   check(errorOf(() => addOrder(q, bundle(), { kind: 'attack', target: targets[0], units: units[0], munitions: 0 })) !== '', 'same units twice');
-  const poor = copyOf(s); poor.resources.ger.op = 1;
+  const poor = copyOf(s); poor.resources.ger.attacks = 1;
   q = addOrder(poor, bundle(), { kind: 'attack', target: targets[0], units: units[0], munitions: 0 });
   const why = errorOf(() => addOrder(q, bundle(), { kind: 'attack', target: targets[1], units: units[1], munitions: 0 }));
-  check(/Offensive Points/.test(why), 'the 2nd attack has no OP left: ' + why);
+  check(/No attacks left/.test(why), 'the 2nd attack has no attacks left: ' + why);
+  const shells = copyOf(s); shells.resources.ger.munitions = 1;
+  const q2 = addOrder(shells, bundle(), { kind: 'attack', target: targets[0], units: units[0], munitions: 0 });
+  const why2 = errorOf(() => addOrder(q2, bundle(), { kind: 'attack', target: targets[1], units: units[1], munitions: 0 }));
+  check(/Not enough munitions/.test(why2), 'the 1st attack used the only IP: ' + why2);
   // cancelling the first makes room for the second
   q = cancelOrder(q, 0);
   q = addOrder(q, bundle(), { kind: 'attack', target: targets[1], units: units[1], munitions: 0 });
@@ -1523,12 +1558,13 @@ test('rule: the Butcher\'s Bill is 85,000 casualties a step, 1 in 5 killed, to t
 test('war office: the ledger figures come from the state', () => {
   const s = copyOf(atWar('1916-03'));
   s.lostThisTurn.fra = 2; s.lossesTotal = { fra: 10 };
-  s.resources.fra.op = 1;
+  s.resources.fra.attacks = 1;
   const l = ledger(s, withCommanders());
   const fra = l.nations.find((n) => n.id === 'fra');
   check(fra.will === s.will.fra && fra.steps === s.units.filter((u) => u.nation === 'fra').reduce((a, u) => a + u.steps, 0), 'Will and strength');
   check(fra.bill.month.casualties === 170000 && fra.bill.total.casualties === 1020000, JSON.stringify(fra.bill));
-  check(fra.resources.find((r) => r.key === 'op').left === 1 && fra.resources.find((r) => r.key === 'op').of >= 1, 'OP left of');
+  const att = fra.resources.find((r) => r.key === 'attacks');
+  check(att.left === 1 && att.of === 3, `attacks: 1 left of 3: ${JSON.stringify(att)}`);
   check(fra.commander && fra.commander.name === 'Joffre', 'Joffre commands France in March 1916');
   const entente = l.sides.find((x) => x.id === 'entente');
   check(entente.cities.some((c) => c.vp === 15), 'the Entente holds Paris');
@@ -1620,27 +1656,28 @@ test('economy §19.3: Industry never goes below 0', () => {
   check(p.base + p.bonus + p.cities === -2 && p.total === 0, JSON.stringify(p));
 });
 
-test('economy §19.4: the stockpile starts empty, holds at most 3 and carries over', () => {
+test('economy §19.4: the stockpile starts empty, holds at most 6 and carries over', () => {
   let s = newGame(data.scenario, 5, eco(), { player: 'germany', level: 'regular' });
   check(Object.values(s.resources).every((r) => r.munitions === 0), 'empty at the start');
   s.autoAllocate.germany = false;
   s = beginGame(s, eco());
-  check(!s.pendingBudget && s.resources.ger.munitions === 3, 'no research in 1914: no choice, so 3 munitions bought automatically');
+  check(!s.pendingBudget && s.resources.ger.munitions === 4, 'no research in 1914: no choice, so all 4 IP bought munitions automatically');
   check(s.resources.fra.munitions === 2 && s.resources.gbr.munitions === 1, 'the computer bought munitions with all its Industry');
   // play on to January: the stockpile is still there, and now the budget page waits,
   // because Industry can pay for new units from January 1915 (§19.9)
   for (let i = 0; i < 20 && currentMonth(s) === '1914-12'; i++) s = endPhase(s, eco());
   check(currentMonth(s) === '1915-01' && s.pendingBudget, 'January: new units can be bought, so the budget page waits');
-  check(s.resources.ger.munitions === 3, 'carried over: ' + s.resources.ger.munitions);
-  check(checkBudget(s, eco(), 'ger', { munitions: 1, research: 0 }).length > 0, 'no room for more than 3');
+  check(s.resources.ger.munitions <= 4, 'carried over (less any attacks): ' + s.resources.ger.munitions);
+  check(checkBudget(s, eco(), 'ger', { munitions: 6 - s.resources.ger.munitions, research: 0 }).length === 0, 'room up to 6');
+  check(checkBudget(s, eco(), 'ger', { munitions: 7 - s.resources.ger.munitions, research: 0 }).length > 0, 'no room for more than 6');
 });
 
 test('economy §19.4: barrages spend the stockpile; unspent Industry is lost', () => {
   const s = ecoAt('1915-04', { player: 'both' });
   s.phase = phaseIndex('entente-attack');
-  s.resources.fra.munitions = 2;
+  s.resources.fra.munitions = 3;
   const out = resolveAttack(s, eco(), { target: 'l06-g1', units: ['fra-03'], munitions: 2 });
-  check(out.state.resources.fra.munitions === 0, 'spent from the stockpile');
+  check(out.state.resources.fra.munitions === 0, 'the attack (1 IP) and its barrage (2) spent from the stockpile');
   const t = ecoAt('1916-06');
   applyBudget(t, eco(), 'ger', { munitions: 1, research: 0 });
   check(t.budget.ger.industry === 4 && t.budget.ger.unspent === 3 && t.resources.ger.munitions === 1, JSON.stringify(t.budget.ger));
@@ -1733,13 +1770,13 @@ test('economy §19.5: each tech does what RULES.md says', () => {
   check(tanksOf(s, 'ger') === 1, 'one German tank');
 });
 
-test('economy §19.7: the computer tops up munitions to 3, then ≤3 IP into the cheapest tech', () => {
+test('economy §19.7: the computer tops up munitions to 6, then ≤3 IP into the cheapest tech', () => {
   let s = ecoAt('1916-08');
-  s.resources.ger.munitions = 1;
+  s.resources.ger.munitions = 4;
   let b = autoBudget(s, eco(), 'ger', 3);
   check(b.munitions === 2 && b.research === 2 && b.tech === 'defence-in-depth', JSON.stringify(b));
   s = ecoAt('1918-02');
-  s.resources.fra.munitions = 3;
+  s.resources.fra.munitions = 6;
   b = autoBudget(s, eco(), 'fra', 3);
   check(b.munitions === 0 && b.research === 3 && b.tech === 'renault-ft', 'cheapest tech, 3 IP: ' + JSON.stringify(b));
   b = autoBudget(s, eco(), 'fra');
@@ -1839,15 +1876,15 @@ test('buying §19.9: the war limit, and where it goes when its city is lost or f
 
 test('buying §19.9: Auto-allocate and the computer save the rest towards a unit, a tank first', () => {
   let s = ecoAt('1915-06');
-  s.resources.ger.munitions = 3;
+  s.resources.ger.munitions = 6;
   let b = autoBudget(s, eco(), 'ger', 3);
   check(b.munitions === 0 && b.research === 0 && b.build === 4 && b.buildType === 'infantry', JSON.stringify(b));
   s = ecoAt('1917-03');
-  s.resources.gbr.munitions = 3;
+  s.resources.gbr.munitions = 6;
   b = autoBudget(s, eco(), 'gbr', 3);
   check(b.buildType === 'tanks' && b.build === Math.min(8, industry(s, eco(), 'gbr')), 'Britain saves for a tank: ' + JSON.stringify(b));
   s = ecoAt('1916-02');
-  s.resources.fra.munitions = 3;
+  s.resources.fra.munitions = 6;
   b = autoBudget(s, eco(), 'fra', 3);
   check(b.research === 3 && b.build === industry(s, eco(), 'fra') - 3, 'the computer: 3 IP research, the rest to a unit: ' + JSON.stringify(b));
   // a whole computer-vs-computer war: the limits hold
@@ -1865,6 +1902,52 @@ test('saves: a version 7 save gets empty purchases', () => {
   v7.version = 7; delete v7.production; delete v7.purchased; delete v7.ordered;
   const up = migrateState(v7, data.scenario, eco());
   check(up.version === STATE_VERSION && up.ordered.length === 0 && Object.keys(up.purchased).length === 0, 'upgraded');
+});
+
+test('saves: a version 8 save (Offensive Points) gets this month\'s attacks, less those already made', () => {
+  const d = cmd(true);
+  const v8 = copyOf(commandGame('1916-04', 'both', d));
+  v8.version = 8;
+  for (const r of Object.values(v8.resources)) { r.op = 2; delete r.attacks; }
+  v8.attacks = [{ side: 'entente', nations: ['gbr'], month: '1916-04', box: 'l03-g1' },
+    { side: 'entente', nations: ['gbr', 'fra'], month: '1916-04', box: 'l04-g1' },
+    { side: 'entente', nations: ['fra'], month: '1916-03', box: 'l05-g1' }];
+  const up = migrateState(v8, data.scenario, d);
+  check(up.version === STATE_VERSION && Object.values(up.resources).every((r) => r.op === undefined), 'no OP left in the save');
+  // Britain under Haig: 3 + 1 = 4 a month, 2 made this month (it paid for both); France: 3 + Joffre 1, none made
+  check(up.resources.gbr.attacks === 2 && up.resources.fra.attacks === 4 && up.resources.ger.attacks === 3, JSON.stringify(up.resources));
+});
+
+test('V2c: a coalition attack uses up one attack of the nation that pays (the one with the most steps)', () => {
+  const s = atWar('1916-04', 'entente');
+  const order = coalition(s, 'gbr-01', 'fra-01');
+  s.resources.fra.munitions = 4; s.resources.gbr.munitions = 4;
+  const plan = planAttack(s, bundle(), order);
+  check(plan.ok && plan.ipCost === 2, plan.reasons.join(' '));
+  const out = resolveAttack(s, bundle(), order);
+  const other = plan.payer === 'fra' ? 'gbr' : 'fra';
+  check(out.state.resources[plan.payer].attacks === 2 && out.state.resources[plan.payer].munitions === 2, 'the payer: 1 attack and 2 IP');
+  check(out.state.resources[other].attacks === 3 && out.state.resources[other].munitions === 4, 'the other nation pays nothing');
+});
+
+test('V2c: the data matches RULES.md (3 attacks a month, 1 IP, 2 for a coalition, stockpile 6, Entente barrage +1 from 1918)', () => {
+  const c = data.combat;
+  check(c.attackLimit === 3 && c.attackCost.single === 1 && c.attackCost.coalition === 2 && c.attackCost.emptyBox === 1, JSON.stringify(c.attackCost));
+  check(data.economy.stockCap === 6, 'stockpile 6');
+  check(c.barrageBonus.length === 1 && c.barrageBonus[0].side === 'entente' && c.barrageBonus[0].from === '1918-01' && c.barrageBonus[0].extra === 1, 'heavy barrages');
+  check(data.nations.nations.every((n) => !(n.resources || {}).op), 'no OP schedules');
+});
+
+test('V2c: under Pétain the computer makes at most 1 French attack a month', () => {
+  const d = cmd(true);
+  let g = beginGame(newGame(data.scenario, 11, d, { player: 'none' }), d);
+  for (let i = 0; i < 2000 && !g.over && currentMonth(g) < '1918-06'; i++) g = endPhase(g, d);
+  const french = {};
+  for (const a of g.attacks || []) if (a.month >= '1917-06' && a.nations[0] === 'fra') french[a.month] = (french[a.month] || 0) + 1;
+  check(Object.values(french).every((n) => n <= 1), JSON.stringify(french));
+  const all = {};
+  for (const a of g.attacks || []) { const k = `${a.month} ${a.nations[0]}`; all[k] = (all[k] || 0) + 1; }
+  check(Object.values(all).every((n) => n <= 4), 'never more than 4 attacks a month by one nation: ' + JSON.stringify(all));
 });
 
 test('economy §19.4: the War Office phase — the computer spends; a player\'s budget waits only for a real choice', () => {
@@ -1916,12 +1999,12 @@ test('economy: German starting Will is 108 (RULES.md §11)', () => {
   check(data.nations.nations.find((n) => n.id === 'ger').startWill === 108, '108');
 });
 
-test('saves: a version 4 save gets the war economy (stockpile at most 3)', () => {
+test('saves: a version 4 save gets the war economy (stockpile at most 6)', () => {
   const v4 = copyOf(started());
   v4.version = 4; delete v4.research; delete v4.techs; delete v4.budget; delete v4.autoAllocate;
-  v4.resources.ger.munitions = 5;
+  v4.resources.ger.munitions = 8;
   const up = migrateState(v4, data.scenario, eco());
-  check(up.version === STATE_VERSION && up.resources.ger.munitions === 3 && up.techs.length === 0 && up.autoAllocate.germany,
+  check(up.version === STATE_VERSION && up.resources.ger.munitions === 6 && up.techs.length === 0 && up.autoAllocate.germany,
     JSON.stringify(up.resources.ger));
   check(checkState(up, eco()).length === 0, checkState(up, eco()).join());
 });
@@ -1942,7 +2025,8 @@ test('economy: the same seed gives the same war (computer vs computer, a year)',
 
 // ---------------------------------------------------------------- bug check: a turn-1 attack, start to finish
 // Entente, December 1914: three French units stacked in the Somme front line attack
-// l06-g1 with a 2-munition barrage. Every seed is tried in order until one takes the box
+// l06-g1 with a 2-munition barrage (France is given 3 IP: 1 for the attack, 2 for the
+// barrage; Auto-allocate only buys 2 in December 1914). Every seed is tried in order until one takes the box
 // and one is repulsed, so both outcomes are checked with fixed seeds.
 function turnOneAttack(seed) {
   let s = newGame(data.scenario, seed, eco(), { player: 'entente', level: 'regular' });
@@ -1951,6 +2035,7 @@ function turnOneAttack(seed) {
   const t = copyOf(s);
   const french = t.units.filter((u) => u.nation === 'fra' && ['l07-e1', 'l06-e2'].includes(u.box)).slice(0, 2);
   for (const u of french) u.box = 'l06-e1';                 // stack three in the Somme front line
+  t.resources.fra.munitions = 3;                            // 1 IP for the attack + a barrage of 2
   return t;
 }
 function attackOutcome(seed) {
@@ -1974,7 +2059,8 @@ test('bug check: a stacked turn-1 attack resolves fully (taken)', () => {
     'up to 2 attackers advanced: ' + JSON.stringify(r.advanced));
   for (const m of r.retreats) check(after.units.find((u) => u.id === m.unit).box === m.to && after.boxes[m.to].owner === 'germany', 'defender fell back to ' + m.to);
   check(!after.units.some((u) => u.nation === 'ger' && u.box === 'l06-g1'), 'no German left in the box');
-  check(after.resources.fra.op === before.resources.fra.op - 1 && after.resources.fra.munitions === before.resources.fra.munitions - 2, 'OP and munitions spent');
+  check(after.resources.fra.attacks === before.resources.fra.attacks - 1 && after.resources.fra.munitions === before.resources.fra.munitions - 3,
+    'one attack used; 1 IP for it and 2 for the barrage spent');
   check(r.ownerBefore === 'germany' && r.ownerAfter === 'entente', 'owners recorded for the report');
 });
 
@@ -2054,7 +2140,8 @@ test('explain: the battle report says what happened (repulsed)', () => {
 test('explain: the phase guide says what to do, with what\'s left', () => {
   const s = turnOneAttack(4);
   const g = phaseGuide(s, eco());
-  check(g.startsWith('Entente attack') && g.includes('OP: France 2 · Britain 1') && g.includes('Munitions: France 2'), g);
+  check(g.startsWith('Entente attack') && g.includes('Attacks left: France 3 · Britain 3') && g.includes('Munitions stockpile: France 3 · Britain 1 IP'), g);
+  check(!/\bOP\b|Offensive/.test(g), 'no Offensive Points: ' + g);
   const m = copyOf(s); m.phase = phaseIndex('entente-move');
   check(phaseGuide(m, eco()).includes('left: France 2 · Britain 1'), phaseGuide(m, eco()));
   check(attackableBoxes(s, eco(), 'entente').includes('l06-g1'), 'l06-g1 can be attacked');
@@ -2064,9 +2151,9 @@ test('explain: the phase guide says what to do, with what\'s left', () => {
 
 test('explain: the one-line phase summary for the guide strip', () => {
   const s = turnOneAttack(4);
-  check(phaseSummary(s, eco()) === 'Entente attack · OP: FRA 2 · GBR 1', phaseSummary(s, eco()));
+  check(phaseSummary(s, eco()) === 'Entente attack · IP: FRA 3 · GBR 1 · attacks: FRA 3 · GBR 3', phaseSummary(s, eco()));
   const m = copyOf(s); m.phase = phaseIndex('entente-move');
-  check(phaseSummary(m, eco()) === 'Entente turn · OP: FRA 2 · GBR 1 · rail: FRA 2 · GBR 1', phaseSummary(m, eco()));
+  check(phaseSummary(m, eco()) === 'Entente turn · IP: FRA 3 · GBR 1 · rail: FRA 2 · GBR 1', phaseSummary(m, eco()));
   check(phaseGuide(m, eco()).includes('red = attack it') && phaseGuide(m, eco()).includes('Moves happen first, then attacks'), phaseGuide(m, eco()));
   const ai = copyOf(s); ai.controllers.entente = 'ai';
   check(phaseSummary(ai, eco()) === '', 'nothing in the computer\'s phase');
@@ -2090,9 +2177,12 @@ test('tutorial: the guided first turn picks a good attack and its steps work (wi
   const board = attackBoard(s, game10());
   const units = eligibleAttackers(board, game10(), p.target);
   check(units.length === 3 && !units.includes(p.reserve.unit), 'three attackers; the railed reserve can\'t attack');
-  const odds = oddsPreview(board, game10(), { target: p.target, units, munitions: 2 });
-  check(odds.plan.columnLabel === '3:1' && Math.round(odds.pTake * 100) === 58, odds.plan.columnLabel);
-  const out = commitQueued(queueOrder(s, game10(), { kind: 'attack', target: p.target, units, munitions: 2 }), game10());
+  // France has 2 IP in its stockpile: 1 for the attack, 1 for the barrage (RULES.md §9.1)
+  check(board.resources.fra.munitions === 2, 'France holds 2 IP: ' + board.resources.fra.munitions);
+  check(!oddsPreview(board, game10(), { target: p.target, units, munitions: 2 }).plan.ok, 'a barrage of 2 is too dear');
+  const odds = oddsPreview(board, game10(), { target: p.target, units, munitions: tut.steps.find((x) => x.id === 'attack').waitFor.munitions });
+  check(odds.plan.ok && odds.plan.columnLabel === '2:1' && Math.round(odds.pTake * 100) === 42, odds.plan.columnLabel + ' ' + odds.pTake);
+  const out = commitQueued(queueOrder(s, game10(), { kind: 'attack', target: p.target, units, munitions: 1 }), game10());
   check(out.state.boxes[p.target].owner === 'entente', 'with this seed, the attack succeeds');
   check(phaseOf(out.state, game10()).id === 'entente-attack', 'one COMMIT: moves, then the attack phase\'s attacks');
   // every placeholder in the steps is a role in the plan
@@ -2288,18 +2378,18 @@ test('commanders: the opening cards, and the Old Contemptibles are Elite', () =>
 });
 
 test('commanders: every effect in data/commanders.json is one the engine knows', () => {
-  const known = ['op', 'will-if-no-attack', 'industry', 'once-attack-shift', 'mutiny-if-once-attack-fails', 'steps-per-will',
-    'mutiny-length', 'mutiny-end-will', 'op-max', 'coalition-op-cost', 'rail', 'elite-units', 'no-coalition-with', 'rp',
+  const known = ['attacks', 'will-if-no-attack', 'industry', 'once-attack-shift', 'mutiny-if-once-attack-fails', 'steps-per-will',
+    'mutiny-length', 'mutiny-end-will', 'attacks-max', 'coalition-ip-cost', 'rail', 'elite-units', 'no-coalition-with', 'rp',
     'extra-will-per-steps', 'rail-max', 'green-turns', 'no-coalition'];
   for (const c of data.commanders.cards) {
     for (const part of [c.strength, c.flaw]) for (const e of (part && part.effects) || []) check(known.includes(e.kind), `${c.id}: ${e.kind}`);
   }
 });
 
-test('Joffre: +1 OP every March–October, not in winter', () => {
-  check(withCards(commandGame('1915-03')).fra.op === 3, 'March');
-  check(withCards(commandGame('1915-10')).fra.op === 3, 'October');
-  check(withCards(commandGame('1915-01')).fra.op === 2, 'January');
+test('Joffre: +1 attack a month every March–October, not in winter', () => {
+  check(withCards(commandGame('1915-03')).fra.attacks === 4, 'March');
+  check(withCards(commandGame('1915-10')).fra.attacks === 4, 'October');
+  check(withCards(commandGame('1915-01')).fra.attacks === 3, 'January');
 });
 
 test('Joffre: −2 Will in a March–October month with no French attack', () => {
@@ -2326,8 +2416,9 @@ test('Sir John French: British units can\'t join French attacks (Prickly ally); 
   check(!planAttack(s, cmd(), order).reasons.some((r) => r.includes('Prickly')), 'Haig lets them');
 });
 
-test('Haig: +1 OP from 1916, −1 Manpower in January–April 1918', () => {
-  check(withCards(commandGame('1916-02')).gbr.op === 3, 'GBR 2 + 1 in 1916');
+test('Haig: +1 attack a month from 1916, −1 Manpower in January–April 1918', () => {
+  check(withCards(commandGame('1916-02')).gbr.attacks === 4, 'GBR 3 + 1 in 1916');
+  check(withCards(commandGame('1915-11')).gbr.attacks === 3, 'Sir John French: 3');
   const s = commandGame('1918-02');
   check(withCards(s).gbr.rp === 2 && manpower(s, cmd(), 'gbr') === 2, 'GBR 3 − 1 in Feb 1918');
   check(withCards(commandGame('1918-05')).gbr.rp === 3, 'back to 3 in May 1918');
@@ -2362,7 +2453,7 @@ test('Nivelle: +1 Industry; his +2 columns once, chosen on one attack', () => {
   check(s.commanders.fra.card === 'nivelle', s.commanders.fra.card);
   check(industryParts(s, d, 'fra').commander === 1, JSON.stringify(industryParts(s, d, 'fra')));
   s.phase = phaseIndex('entente-attack');
-  s.resources.fra.op = 4; s.resources.fra.munitions = 0;
+  s.resources.fra.attacks = 4; s.resources.fra.munitions = 2;    // 1 IP per attack, no barrage
   const target = 'l09-g1';
   const from = data.map.boxes.find((b) => b.id === target).neighbours.find((n) => s.boxes[n].owner === 'entente');
   for (const u of unitsIn(s, from)) u.box = 'l09-e3';
@@ -2402,10 +2493,10 @@ test('Nivelle: if his +2 attack fails, the French mutinies start at once (and on
   check(!(plain.state.mutinies || {}).fra, 'no mutiny without the Nivelle Method');
 });
 
-test('Pétain: OP max 1; 1 Will per 3 French steps; mutinies last 2 turns, then +15', () => {
+test('Pétain: at most 1 attack a month; 1 Will per 3 French steps; mutinies last 2 turns, then +15', () => {
   const s = commandGame('1917-06');
   check(s.commanders.fra.card === 'petain', s.commanders.fra.card);
-  check(withCards(s).fra.op === 1, 'OP max 1');
+  check(withCards(s).fra.attacks === 1, 'at most 1 attack a month');
   const t = commandGame('1917-06');
   t.phase = phaseIndex('will');
   const will = t.will.fra;
@@ -2431,17 +2522,17 @@ test('Pétain: OP max 1; 1 Will per 3 French steps; mutinies last 2 turns, then 
   check(j.cannotAttack.fra, 'Joffre: still mutinying after 2 turns');
 });
 
-test('Foch: from April 1918, coalition attacks cost 1 OP; France and Britain +1 rail move', () => {
+test('Foch: from April 1918, coalition attacks cost 1 IP, not 2; France and Britain +1 rail move', () => {
   const s = commandGame('1918-04');
   check(s.commanders.entente && s.commanders.entente.card === 'foch', 'Foch arrives');
   const r = withCards(s);
   check(r.fra.rail === 3 && r.gbr.rail === 2, `rail ${r.fra.rail} / ${r.gbr.rail}`);
   s.phase = phaseIndex('entente-attack');
   const plan = planAttack(s, cmd(), coalition(s, 'gbr-01', 'fra-01'));
-  check(plan.opCost === 1, `coalition costs ${plan.opCost}`);
+  check(plan.ipCost === 1, `coalition costs ${plan.ipCost}`);
   const before = commandGame('1918-03');
   before.phase = phaseIndex('entente-attack');
-  check(planAttack(before, cmd(), coalition(before, 'gbr-01', 'fra-01')).opCost === 2, 'March 1918: 2 OP');
+  check(planAttack(before, cmd(), coalition(before, 'gbr-01', 'fra-01')).ipCost === 2, 'March 1918: 2 IP');
 });
 
 test('Pershing: US units are Green for 2 turns; no US coalition attacks until September 1918', () => {
@@ -2474,7 +2565,7 @@ test('choices: "Replace Sir John French with Haig?" waits for the player; accept
   const next = answerCommander(s, d, 'gbr', 'haig');
   check(next.commanders.gbr.card === 'haig' && next.commanders.gbr.since === next.turn, 'Haig appointed');
   check(!next.pendingCommander && phaseOf(next, d).id === 'germany-move', phaseOf(next, d).id);
-  check(next.resources.gbr.op === 1, `Haig's +1 OP only from 1916: ${next.resources.gbr.op}`);
+  check(next.resources.gbr.attacks === 3, `Haig's extra attack only from 1916: ${next.resources.gbr.attacks}`);
   check(s.commanders.gbr.card === 'french', 'the old state is unchanged');
 });
 

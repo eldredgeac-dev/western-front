@@ -5,6 +5,7 @@
 
 import { currentMonth, addMonths } from './state.js';
 import { resourcesFor, applyDifficulty } from './resources.js';
+import { applyCardResources } from './commanders.js';
 import { armisticeScore, capturedVp } from './systems/will.js';
 import { eventDue, monthName } from './events.js';
 import { hasEconomy, manpower, industry, cityEffects, researchProgress, expectedMonth, production, purchased, buyOptions } from './systems/economy.js';
@@ -206,7 +207,9 @@ function eventCountdowns(state, data, month) {
 // Everything the War Office ledger shows, worked out from the state and the data.
 export function ledger(state, data) {
   const month = currentMonth(state);
+  // this month's full allowance, with the commander cards (Haig's extra attack, Pétain's limit …)
   const full = applyDifficulty(resourcesFor(data, month), data, state.resourceMult);
+  if (data.commanders) applyCardResources({ ...state, resources: full }, data);
   const last = (state.history || [])[state.history.length - 1] || null;
 
   // one column per nation that's in the war
@@ -219,7 +222,7 @@ export function ledger(state, data) {
       will: state.will[n.id],
       willStart: n.startWill + ((state.willBonus || {})[n.side] || 0),
       willChange: last && last.will[n.id] !== undefined ? state.will[n.id] - last.will[n.id] : null,
-      resources: ['op', 'munitions', 'rp', 'rail'].map((k) => ({ key: k, left: (state.resources[n.id] || {})[k] || 0,
+      resources: ['attacks', 'munitions', 'rp', 'rail'].map((k) => ({ key: k, left: (state.resources[n.id] || {})[k] || 0,
         of: k === 'munitions' && hasEconomy(data) ? data.economy.stockCap : (full[n.id] || {})[k] || 0 })),
       units: state.units.filter((u) => u.nation === n.id).length,
       steps: stepsOf(state, n.id),

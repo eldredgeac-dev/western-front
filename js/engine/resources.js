@@ -1,5 +1,6 @@
-// resources.js — each nation's Offensive Points, munitions, replacements and rail
-// moves for a month (RULES.md §6, §8). The numbers live in data/nations.json.
+// resources.js — each nation's attacks allowed, munitions, replacements and rail
+// moves for a month (RULES.md §6, §8). The numbers live in data/nations.json (and the
+// monthly attack limit in data/combat-table.json, V2c).
 // Unused points are lost: they are worked out fresh at the start of every turn.
 
 // The value of a schedule [{from: 'YYYY-MM', value}, …] in a given month: the
@@ -10,13 +11,21 @@ export function scheduleValue(schedule, month) {
   return value;
 }
 
-// { nationId: { op, munitions, rp, rail } } for a month.
+// The most attacks a nation may make in a month (RULES.md §9.1): its own
+// attackLimit if it has one, otherwise the limit in data/combat-table.json.
+export function attackLimit(data, nation) {
+  if (nation.attackLimit !== undefined) return nation.attackLimit;
+  return (data.combat && data.combat.attackLimit) || 0;
+}
+
+// { nationId: { attacks, munitions, rp, rail } } for a month. `attacks` is how many
+// attacks the nation may still make this month.
 export function resourcesFor(data, month) {
   const out = {};
   for (const n of data.nations.nations) {
     const r = n.resources || {};
     out[n.id] = {
-      op: scheduleValue(r.op || [], month),
+      attacks: attackLimit(data, n),
       munitions: scheduleValue(r.munitions || [], month),
       rp: scheduleValue(r.rp || [], month),
       rail: n.railMoves || 0,

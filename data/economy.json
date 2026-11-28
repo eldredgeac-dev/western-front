@@ -1,6 +1,6 @@
 {
   "_about": "The war economy (RULES.md §19) [balanced]. Each month every nation gets Manpower (= its 'rp' schedule in nations.json, spent on replacements) and Industry (= its 'munitions' schedule in nations.json × the difficulty multiplier, + 'industryBonus', + the industrial city effects, + research effects). Industry buys munitions for the stockpile (1 IP each, up to 'stockCap') or goes into research. 'cities': when the box is owned by the side that is NOT its 'holder', each nation in 'effects' gains or loses that much Industry. 'techs': 'historical' is the month the tech arrives free (null = it never happened, research only); 'earliest' is the first month it can be researched; 'effect' says what it does (see docs/DATA.md); 'replaces' names the event or reinforcement it replaces so it can't happen twice. See docs/DATA.md.",
-  "stockCap": 3,
+  "stockCap": 6,
   "munitionCost": 1,
   "aiResearchCap": 3,
   "autoAllocateDefault": true,

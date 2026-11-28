@@ -24,7 +24,7 @@
 import { copyState, currentMonth } from './state.js';
 import { findUnit, sideOfUnit } from './units.js';
 import { moveUnit, railMove, moveTargets, addLog } from './moves.js';
-import { planAttack, oddsPreview, resolveAttack } from './combat.js';
+import { planAttack, oddsPreview, resolveAttack, spendForAttack } from './combat.js';
 
 // The attack phase that goes with the phase we're in (its index in data/phases.json),
 // or -1 if this isn't a move phase with one.
@@ -79,7 +79,7 @@ function doMove(state, data, order) {
 
 // Check the queued orders in turn, as if each earlier one had been carried out.
 // Moves are played on a copy (they're certain); attacks can't be (they need dice), so
-// each attack instead "uses up" its OP and munitions and its units, so later attacks
+// each attack instead "uses up" its attack, its IP and munitions and its units, so later attacks
 // see what's left.
 // Returns { checks: [{ ok, reason, odds }], state } — `state` is the board after the
 // queued moves, with the resources the queued attacks will use already taken off.
@@ -102,8 +102,7 @@ export function queueCheck(state, data, orders = state.orders || []) {
     if (!plan.ok) { checks.push({ ok: false, reason: plan.reasons.join(' '), plan }); continue; }
     const odds = oddsPreview(s, data, order);
     checks.push({ ok: true, odds, plan });
-    s.resources[plan.payer].op -= plan.opCost;
-    s.resources[plan.payer].munitions -= plan.munitions;
+    spendForAttack(s, plan);
     for (const id of plan.attackers) findUnit(s, id).attacked = true;
     if (plan.cardShift) s.commanders[plan.cardShift.key].shiftUsed = true;   // once only (§15)
   }

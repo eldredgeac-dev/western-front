@@ -68,7 +68,8 @@ const boxesOf = (data) => indexBoxes(data.map);
 
 // The most munitions one attack may use this month (RULES.md §9.1). With `state`
 // and the attacking `side`, research counts too: the creeping barrage researched
-// early gives the Entente 3 before June 1916 (§19.5).
+// early gives the Entente 3 before June 1916 (§19.5). With the `side`, the heavier
+// barrages count too (data/combat-table.json barrageBonus: the Entente +1 from 1918).
 export function barrageMax(data, month, state = null, side = null) {
   let max = scheduleValue(data.combat.barrage.map((b) => ({ from: b.from, value: b.max })), month);
   if (state && side && data.economy) {
@@ -76,6 +77,7 @@ export function barrageMax(data, month, state = null, side = null) {
       if (t.effect.kind === 'barrage-max' && t.effect.side === side && techResearched(state, t.id)) max = Math.max(max, t.effect.max);
     }
   }
+  for (const b of data.combat.barrageBonus || []) if (side && b.side === side && b.from <= month) max += b.extra;
   return max;
 }
 
@@ -129,27 +131,32 @@ export function planAttack(state, data, order) {
   const nations = [...new Set(attackers.map((u) => u.nation))];
   const payer = attackers.length ? leadNation(attackers) : null;
   // commander cards (RULES.md §15): who may attack together, and Foch's coalition cost
-  const cards = side ? cardCombatRules(state, data, side, nations, month) : { reasons: [], opCost: null };
+  const cards = side ? cardCombatRules(state, data, side, nations, month) : { reasons: [], ipCost: null };
   reasons.push(...cards.reasons);
-  const coalitionCost = cards.opCost !== null ? cards.opCost : table.opCost.coalition;
-  const opCost = empty ? table.opCost.emptyBox : nations.length > 1 ? coalitionCost : table.opCost.single;
+  // The attack's own Industry (RULES.md §9.1, V2c): 1 IP from the stockpile, 2 for a
+  // coalition attack, on top of any barrage. It uses up 1 of the month's attacks.
+  const cost = table.attackCost;
+  const coalitionCost = cards.ipCost !== null ? cards.ipCost : cost.coalition;
+  const ipCost = empty ? cost.emptyBox : nations.length > 1 ? coalitionCost : cost.single;
   // (an empty territory needs no dice, so the shift isn't spent on it)
   const shift = order.cardShift && payer && !empty ? onceShift(state, data, payer) : null;
   if (order.cardShift && !empty && !shift) reasons.push('That commander’s once-only attack bonus isn’t available.');
   const munitions = empty ? 0 : (order.munitions || 0);
-  if (payer && state.resources[payer] && state.resources[payer].op < opCost) {
-    reasons.push(`Not enough Offensive Points (needs ${opCost}).`);
+  const res = payer ? state.resources[payer] : null;
+  if (payer && (!res || res.attacks < 1)) {
+    reasons.push(`No attacks left this month for ${nationOf(data, payer).name}.`);
   }
   const maxBarrage = barrageMax(data, month, state, side);
   if (munitions > maxBarrage) reasons.push(`At most ${maxBarrage} munitions per attack this month.`);
-  if (payer && munitions > (state.resources[payer] ? state.resources[payer].munitions : 0)) {
-    reasons.push('Not enough munitions.');
+  if (payer && ipCost + munitions > (res ? res.munitions : 0)) {
+    reasons.push(munitions ? `Not enough munitions (needs ${ipCost} IP for the attack + ${munitions} for the barrage).`
+      : `Not enough munitions (the attack needs ${ipCost} IP).`);
   }
 
   const attackSteps = attackers.reduce((s, u) => s + u.steps, 0);
   const defendSteps = defenders.reduce((s, u) => s + u.steps, 0);
   const plan = {
-    ok: false, reasons, order, side, payer, nations, opCost, munitions, empty,
+    ok: false, reasons, order, side, payer, nations, ipCost, munitions, empty,
     attackers: attackers.map((u) => u.id), defenders: defenders.map((u) => u.id),
     attackSteps, defendSteps, shifts: [], ratioColumn: null, finalColumn: null, columnLabel: null,
     cardShift: shift,
@@ -412,14 +419,21 @@ function cardFlawMutiny(data, cardId) {
   return Boolean(card && card.flaw && (card.flaw.effects || []).some((e) => e.kind === 'mutiny-if-once-attack-fails'));
 }
 
+// Pay for an attack (changes `state`): one of the month's attacks, and its IP and
+// barrage from the paying nation's munitions stockpile (RULES.md §9.1).
+export function spendForAttack(state, plan) {
+  const r = state.resources[plan.payer];
+  r.attacks -= 1;
+  r.munitions -= plan.ipCost + plan.munitions;
+}
+
 // Carry out an attack: check it, pay for it, roll the dice and apply the result.
 // Returns { state, result }. Throws an Error with the reasons if it isn't allowed.
 export function resolveAttack(state, data, order) {
   const plan = planAttack(state, data, order);
   if (!plan.ok) throw new Error(plan.reasons.join(' '));
   const next = copyState(state);
-  next.resources[plan.payer].op -= plan.opCost;
-  next.resources[plan.payer].munitions -= plan.munitions;
+  spendForAttack(next, plan);
   for (const id of plan.attackers) findUnit(next, id).attacked = true;
   if (!next.attackedBoxes.includes(order.target)) next.attackedBoxes.push(order.target);
   for (const i of plan.eventShiftsUsed || []) next.eventShifts[i].uses -= 1;

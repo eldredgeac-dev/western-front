@@ -148,7 +148,7 @@ export function commanderSection(cards, sack, { monthName, onSack }) {
     for (const o of sack.options) {
       const b = el('button', 'btn card-button card-sack', `Sack ${cards[0].facts.name}: appoint ${o.name}`);
       b.type = 'button';
-      b.appendChild(el('span', 'card-keep-text', `${sack.cost} Will now. ${o.name} takes command at once; the new card's OP, Manpower, Industry and rail count from next month.`));
+      b.appendChild(el('span', 'card-keep-text', `${sack.cost} Will now. ${o.name} takes command at once; the new card's attack limit, Manpower, Industry and rail count from next month.`));
       // a sack costs Will, so it takes two taps: the first asks to confirm
       b.addEventListener('click', () => {
         if (b.dataset.armed) { onSack(o.id); return; }

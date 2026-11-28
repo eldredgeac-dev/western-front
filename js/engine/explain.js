@@ -102,7 +102,8 @@ export function attackAdvice(state, data, order) {
   const month = currentMonth(state);
   const negatives = plan.shifts.filter((s) => s.value < 0).sort((a, b) => a.value - b.value);
   const payer = plan.payer ? state.resources[plan.payer] : null;
-  const maxBarrage = Math.min(barrageMax(data, month, state, plan.side), payer ? payer.munitions : 0);
+  // the attack's own IP comes out of the stockpile first (RULES.md §9.1)
+  const maxBarrage = Math.max(0, Math.min(barrageMax(data, month, state, plan.side), payer ? payer.munitions - (plan.ipCost || 0) : 0));
   for (const s of negatives) {
     const v = `${s.label} \u2212${-s.value}`;
     if (s.label.startsWith('Winter')) out.fixes.push(`${v}: winter ends in ${springAfter(data, month)}.`);
@@ -173,21 +174,21 @@ export function phaseGuide(state, data) {
   const left = (key) => nations.map((n) => `${n.name} ${(state.resources[n.id] || {})[key] || 0}`).join(' · ');
   if (phase.kind === 'move' && phase.attackPhase) {
     return `${side.name} turn: tap a unit, then a territory: brass = road (up to 2), blue = rail (left: ${left('rail')}), ` +
-      `red = attack it (OP: ${left('op')}; munitions: ${left('munitions')}). Moves happen first, then attacks. ` +
+      `red = attack it (attacks left: ${left('attacks')}; munitions stockpile: ${left('munitions')} IP, 1 per attack + the barrage). Moves happen first, then attacks. ` +
       'Up to 3 units in one territory attack together. Then COMMIT.';
   }
   if (phase.kind === 'move') {
     return `${side.name} move: tap a unit, then a territory: brass = road (up to 2), blue = rail (left: ${left('rail')}). ` +
       'Stack up to 3 in one front territory to attack. Then COMMIT.';
   }
-  return `${side.name} attack: tap a territory outlined in red. OP: ${left('op')}. Munitions: ${left('munitions')}. Then COMMIT.`;
+  return `${side.name} attack: tap a territory outlined in red. Attacks left: ${left('attacks')}. Munitions stockpile: ${left('munitions')} IP (1 per attack + the barrage). Then COMMIT.`;
 }
 
 // The phase guide in one short line, for the slim strip under the top bar (the full
 // sentence from phaseGuide() opens when the strip is tapped). Empty when there's
 // nothing for a player to do.
 //   "Entente move · rail left: FRA 2 · GBR 1"
-//   "Entente attack · OP: FRA 2 · GBR 1"
+//   "Entente attack · attacks: FRA 3 · GBR 3"
 export function phaseSummary(state, data) {
   if (state.over) return 'The war is over.';
   if (state.pendingBudget) return 'War Office: sign the budget';
@@ -198,8 +199,8 @@ export function phaseSummary(state, data) {
   const nations = data.nations.nations.filter((n) => n.side === phase.side && state.will[n.id] !== undefined &&
     !(n.traits || []).some((t) => t.kind === 'cannot-attack'));
   const left = (key) => nations.map((n) => `${n.short} ${(state.resources[n.id] || {})[key] || 0}`).join(' · ');
-  if (phase.kind === 'move' && phase.attackPhase) return `${side.name} turn · OP: ${left('op')} · rail: ${left('rail')}`;
-  return phase.kind === 'move' ? `${side.name} move · rail left: ${left('rail')}` : `${side.name} attack · OP: ${left('op')}`;
+  if (phase.kind === 'move' && phase.attackPhase) return `${side.name} turn · IP: ${left('munitions')} · rail: ${left('rail')}`;
+  return phase.kind === 'move' ? `${side.name} move · rail left: ${left('rail')}` : `${side.name} attack · IP: ${left('munitions')} · attacks: ${left('attacks')}`;
 }
 
 // The territories a side can attack right now (after its queued orders).

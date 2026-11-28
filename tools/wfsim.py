@@ -1,5 +1,5 @@
 """Monte Carlo simulator of docs/RULES.md (Western Front 1914-18, V1).
-Abstracted but follows the rules: grid map, OP/munitions/RP, 2d6 odds table,
+Abstracted but follows the rules: grid map, attacks paid in munitions (V2c)/RP, 2d6 odds table,
 trenches, supply, rail, events, reinforcements, National Will, victory.
 Both sides are played by an AI with a skill level (novice/standard/expert).
 """
@@ -70,8 +70,8 @@ DEFAULT = dict(
   split=True,                                              # separate Manpower and Industry (not one shared budget)
   blockade_pp=0,                                           # §19.3 the blockade does NOT cut German Industry
   industry=True,                                           # §19.3 industrial cities
-  stock_cap=3,                                             # §19.4 munitions stockpile, max 3
-  mun_target=3,                                            # §19.7 the computer tops the stockpile up to 3
+  stock_cap=6,                                             # §19.4 munitions stockpile, max 6 (3 before V2c)
+  mun_target=6,                                            # §19.7 the computer tops the stockpile up to 6
   res_cap=3,                                               # §19.7 ...then up to 3 IP a month into research
   pp_extra={'GER':(1,1), 'FRA':(0,1), 'GBR':(0,0), 'USA':(0,0)},  # §19.2 war-economy bonus (1915, 1916+)
   # §19.9 buying units with Industry (Version 1.8, V2a). buy=False plays Version 1.7 exactly.
@@ -81,11 +81,12 @@ DEFAULT = dict(
   buy_cap={'GER':(4,1), 'FRA':(2,3), 'GBR':(3,3), 'USA':(0,0)},  # most units bought in the war (infantry, tanks)
   buy_delay=1,                                             # months between paying in full and arriving
   buy_from=191501,                                         # first month an order can be placed
-  # V2c (C4): attacks cost Industry instead of Offensive Points. attack_ip=0 plays
-  # Version 1.8 exactly (OP). With attack_ip=N each attack takes N munitions from the
-  # stockpile (on top of its barrage), and attack_limit caps a nation's attacks a month.
-  attack_ip=0, attack_limit=3, ger_ip_1918=0, usa_ip_late=0,
-  heavy_barrage_e=0, heavy_barrage_g=0,                    # V2c: +1 max barrage from this month (0 = never)
+  # V2c (C4, RULES.md Version 1.9 §9.1): attacks cost Industry instead of Offensive
+  # Points. Each attack takes attack_ip munitions from the stockpile (on top of its
+  # barrage), and attack_limit caps a nation's attacks a month. To play Version 1.8
+  # (OP) again: attack_ip=0 stock_cap=3 mun_target=3 heavy_barrage_e=0.
+  attack_ip=1, attack_limit=3, ger_ip_1918=0, usa_ip_late=0,
+  heavy_barrage_e=191801, heavy_barrage_g=0,               # §9.1 heavier barrages: Entente +1 max from Jan 1918 (0 = never)
 )
 # §19.9: which research lets a nation buy tanks.
 TANK_TECH = {'GBR': 'tanks', 'FRA': 'renault', 'GER': 'a7v'}
