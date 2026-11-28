@@ -103,6 +103,12 @@ function traitStatus(state, trait, month) {
   return 'active';
 }
 
+// Lane numbers as place names for players: [2] → "the Ypres sector".
+function sectorNames(data, lanes) {
+  const names = lanes.map((n) => (data.map.lanes.find((l) => l.number === n) || { name: `sector ${n}` }).name);
+  return `the ${names.join(' and ')} sector${names.length > 1 ? 's' : ''}`;
+}
+
 // The name of a lasting effect: the event whose option started it (the U-boats).
 function ongoingName(data, o) {
   const events = data.events ? data.events.events : [];
@@ -137,7 +143,7 @@ export function effectsOf(state, data, nation, month) {
   const why = (state.cannotAttack || {})[nation.id];
   if (why && !(m && m.left > 0)) list.push({ name: 'No attacks', text: `Can't attack: ${why}.`, status: 'active' });
   for (const x of state.eventShifts || []) {
-    if (x.uses > 0 && x.side === nation.side) list.push({ name: x.label, text: `${x.shift > 0 ? '+' : '−'}${Math.abs(x.shift)} column for the next attack${x.lanes ? ` in lane ${x.lanes.join(', ')}` : ''} this month.`, status: 'active' });
+    if (x.uses > 0 && x.side === nation.side) list.push({ name: x.label, text: `${x.shift > 0 ? '+' : '−'}${Math.abs(x.shift)} column for the next attack${x.lanes ? ` in ${sectorNames(data, x.lanes)}` : ''} this month.`, status: 'active' });
   }
   for (const t of nation.traits || []) list.push({ name: t.name, text: t.text, status: traitStatus(state, t, month) });
   return list;

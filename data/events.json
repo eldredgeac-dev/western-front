@@ -5,7 +5,7 @@
    "id": "gas",
    "month": "1915-04",
    "name": "First gas attack",
-   "text": "Chlorine at Ypres: Germany's first attack in lane 2 this month gets +2 columns.",
+   "text": "Chlorine at Ypres: Germany's first attack in the Ypres sector this month gets +2 columns.",
    "effects": [
     {
      "kind": "attack-shift",
@@ -21,7 +21,7 @@
    "telegram": {
     "title": "GAS AT YPRES",
     "text": "German troops have released chlorine gas against the line north of Ypres.",
-    "meaning": "Germany’s first attack in lane 2 (Ypres) this month gets +2 columns. After that one attack the surprise is gone."
+    "meaning": "Germany’s first attack in the Ypres sector this month gets +2 columns. After that one attack the surprise is gone."
    }
   },
   {
@@ -176,7 +176,7 @@
      {
       "id": "withdraw",
       "label": "Fall back",
-      "text": "Give up G1 in lanes 5–8; G2 there becomes trench 3; +2 German rail moves this turn.",
+      "text": "Give up the front line from Arras to Soissons; the line behind it becomes trench 3; +2 German rail moves this turn.",
       "effects": [
        {
         "kind": "withdraw",
@@ -199,7 +199,7 @@
       "telegram": {
        "title": "GERMANY FALLS BACK",
        "text": "Germany has withdrawn to the Hindenburg Line.",
-       "meaning": "The German front line in lanes 5–8 is given up to the Entente. The line behind it is now trench 3, and Germany has 2 extra rail moves this month."
+       "meaning": "The German front line from Arras to Soissons is given up to the Entente. The line behind it is now trench 3, and Germany has 2 extra rail moves this month."
       }
      },
      {
@@ -218,7 +218,7 @@
    "telegram": {
     "title": "THE HINDENBURG LINE",
     "text": "A new, deeply dug line of concrete and wire is ready behind the Somme and the Oise.",
-    "meaning": "Germany must choose whether to give up the front line in lanes 5–8 and fall back to it."
+    "meaning": "Germany must choose whether to give up the front line from Arras to Soissons and fall back to it."
    }
   },
   {

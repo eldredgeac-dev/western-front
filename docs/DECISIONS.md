@@ -728,6 +728,76 @@ I'll change it.
      The guided first turn moved from seed 4 to **seed 1**: Germany's computer turn now
      plays out differently, and on seed 4 the 58% attack failed (102).
 
+### Milestone 10g: the board as a map of territories (Version 11.3, no rule changes)
+138. **What you asked for:** the board should look like Axis & Allies, with territories
+     shaped like real ones again, but still easy to play on a phone. Plan agreed: this
+     milestone first (looks only), then V2c, then decide on fewer depth territories
+     (milestone B) after playing on the new board.
+139. **How the shapes are made.** `js/ui/board.js` bends the 12 × 6 layout into a
+     stretched map: each border is a gently wavy line (shared by both neighbours), the
+     corners are nudged, lanes have slightly different heights, and the front keeps its
+     real salients (Ypres east, Noyon and St-Mihiel west, numbers in `BOW`). The "random"
+     nudges come from a fixed hash of each border's name, so the board is the same every
+     time; game rolls still only use `js/engine/rng.js`. `map.js` draws on it unchanged:
+     the borders are straight-line paths, as it expects.
+140. **Owner colour 60%** (your choice from the 50 / 60 / 75% previews). STYLE.md §2, §4.5
+     and §4.12 updated; the campaign map keeps 30%.
+141. **No lane strips or column letters** (your answer). Region names run down the
+     margins instead: FLANDERS (Yser to La Bassée), ARTOIS (Loos to Arras), PICARDY (the
+     Somme, the Oise and the Aisne, which are all Picard départements), CHAMPAGNE (Reims),
+     ARGONNE, LORRAINE (Verdun to Nancy) on the French side, and ALSACE opposite Lorraine.
+     The margins are the only place a piece or a name can never stand, so the names can't
+     cover either. To make room the margins grew from 6 to 19 units and a territory's
+     usual width went from 64 to 61; on a folded phone a territory is about 59 × 68 px.
+142. **Place names instead of grid wording** (your answer). I checked every player-facing
+     text: telegrams, the order slip, the tray and details, How to Play, the Nations
+     screen, events, the log, battle reports and headlines.
+     - `boxName` now gives a territory's town ("Laventie") instead of "Armentières /
+       La Bassée E1". Battle reports, the log and the slip all use it. A test checks no
+       name contains a lane or E/G label.
+     - Details: "Lane 3 · Armentières / La Bassée" became "Sector: Armentières / La
+       Bassée"; "Line: E1 – Entente front line" became "Line: Entente front line".
+     - Gas (April 1915): "lane 2" became "the Ypres sector" (telegram, log, Nations screen).
+     - The Hindenburg Line: "lanes 5–8" became "from Arras to Soissons", which is where
+       the real 1917 withdrawal ran.
+     - How to Play's little diagram labels its columns Rear / Support / Front instead of
+       E3 … G3.
+     - RULES.md still uses lanes and E1/G1: it's the rules for the code, not a screen.
+143. **Two small layout fixes found by the new tests:** a piece is centred halfway between
+     its territory's west and east borders (not the average of the outline, which drifted
+     when the Noyon salient squeezed Compiègne), and the borders behind a salient bend
+     almost as much as the front itself, so no territory gets pinched.
+144. **Tests added:** every territory holds its whole piece; every territory is at least
+     44 px each way on a 390 px phone; every pair of neighbours shares one border that
+     lies on both outlines; the board is the same every time. 206 tests pass.
+145. **Speed** (`node tools/perf.mjs board`, 4× slowdown, old and new measured on the same
+     machine): first playable board 1727 → 1856 ms (target < 2 s), tap feedback 31 → 22 ms,
+     pan 60 fps, pinch 56 fps, AI turn 54 → 58 ms. Every target is still met, so the
+     borders weren't simplified. The margin on first load is thin (about 0.15 s); if a
+     later change pushes it over, cut each border from 10 segments to 6 in `wavyLine`.
+146. **The square board is gone** (your answer); the Map button still switches to the
+     campaign map. Version 11.3.
+
+### V2c: design approved, simulator only (switched off)
+147. **The approved V2c design** (to build in its own session after this merges): an
+     attack costs **1 IP from the munitions stockpile** (2 for a coalition attack; Foch
+     makes it 1); barrages still use the stockpile; the stockpile holds **6**; each nation
+     makes **at most 3 attacks a month**; the Entente's maximum barrage is **+1 from January
+     1918**. Commanders' OP effects become attack-limit effects: Joffre +1 attack a month
+     in March–October, Haig +1 attack a month from 1916, Pétain at most 1 attack a month,
+     Foch's coalition attacks cost no extra IP. The nations' OP schedules go away.
+     - Simulator results (200 games, matchups; 80 games, levels) and the IP-thrown-away
+       table were in the chat on 27–28 November; they go into BALANCE.md when V2c is built.
+       Standard vs Standard 44 / 39 / 18, Expert vs Expert 38 / 48 / 14, passive play still
+       0%.
+     - The "beginner Entente beats the careful one" oddity was noise plus the first
+       design's Haig/Joffre +1 IP: over 600 games each the beginner Entente wins 48% and
+       the careful one 46%. A bigger stockpile on its own would lift the beginner to 71%;
+       the 1 IP attack cost cancels that, so the two parts belong together.
+     - In `tools/wfsim.py` it's behind switches that are off by default (`attack_ip=0`),
+       so every balance table still stands. `tools/waste.py` prints the IP-thrown-away
+       table; `levels.py` now takes key=value settings like `matchups.py`.
+
 ## Questions for you (milestone 12)
 5. **Approve the AI fix in decision 128? — answered: yes.** Applied. With 200 wars the
    game's engine went from Germany 57 / Entente 33 / draw 11 to **45 / 37 / 18**, inside
@@ -777,6 +847,14 @@ I'll change it.
    before changing anything.
 
 ## Check on my phone
+- [ ] **The new board (Version 11.3).** Start a New Campaign on the folded phone. The board
+      should show shaped territories with wavy ink borders, blue for the Entente and grey
+      for Germany, the North Sea at the top and FLANDERS, ARTOIS … down the left edge.
+      Tap a few small front territories (Laventie, Noyon, St-Mihiel): each should select
+      at the first tap. Unfold the phone: the board should re-fit. Tap **Map** and back.
+- [ ] **Place names.** Tap any territory and open Details: "Sector" and "Line" should show
+      no "lane" or "E1". After a German attack, the battle report should name a town
+      ("German attack on Laventie").
 - [x] **Counters.** Start a New Campaign and zoom in with **+** three times. Each front
       territory should show a small counter with a cockade, roundel or cross in the top
       left, an X-in-a-box symbol and 4 dots. Zoomed out, you should see small numbered

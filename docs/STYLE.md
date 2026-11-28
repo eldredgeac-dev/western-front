@@ -35,7 +35,7 @@ Use only these colours. Define them once as CSS variables in `css/style.css`.
 | ridge | `#8A7454` | hillshade and ridge hatching |
 | front-red | `#8E1B1B` | the front line, attack arrows, losses |
 
-**Nations** (owner tint on territories at about 30% opacity; solid on counters)
+**Nations** (owner tint on territories: 60% on the board, 30% on the campaign map; solid on counters)
 | Nation | Name | Hex |
 |---|---|---|
 | France | horizon blue | `#6F8FAF` |
@@ -98,7 +98,8 @@ The map is the most important thing in the game. Spend effort here.
    - **Open ground:** plain paper.
 5. **Territories:**
    - Borders are thin dashed ink lines.
-   - Fill each territory with the owner's tint at 30% over the terrain.
+   - Fill each territory with the owner's tint at 30% over the terrain (the board uses
+     60%, §4.12).
    - When a territory is tapped, give it a brass outline with a slow pulse.
 6. **No-man's land:**
    - Draw the strip between the two front-line rows with a crater stipple.
@@ -122,16 +123,35 @@ The map is the most important thing in the game. Spend effort here.
     - Pinch to zoom from about 1× to 6×, and pan by dragging. (Front-line territories
       are only 5–15 km wide, so they need about 6× to be big enough to tap.)
     - Labels and counters stay crisp; that's why it's SVG.
-12. **The board (the main playing view, milestone 10f):** the same territories as a
-    General Staff sector diagram on the same map paper. Each lane is a row (north at the
-    top), each depth column a square (Entente rear on the left, German rear on the
-    right), with the lane's number and name above the row and the column labels (E3 …
-    G3) along the top. A square shows its short name in IM Fell, a front-red VP ring for
-    cities, the map's own terrain textures, a star-fort for fortresses, a thin ink rule
-    round it, and its owner's colour wash. The front line, trenches, pencil arrows and
-    battle scars are drawn exactly as on the map. A square is about 64 × 62 px on a
-    phone, so the whole square is an easy tap target. The **Map** button (above the zoom
-    buttons) switches to the campaign map; the locator always shows the campaign map.
+12. **The board (the main playing view, milestone 10g):** an Axis & Allies-style map of
+    the same 72 territories, drawn by `js/ui/board.js` from the map data. It's real
+    geography **stretched so every territory is big enough to tap**, like an A&A board
+    distorting Europe:
+    - North at the top, the Entente on the left, Germany on the right. Each sector of
+      the front is a band of six territories (rear, support and front line on each side).
+    - The front keeps its real salients: Ypres bulges into the German line, the Noyon
+      salient points at Paris, St-Mihiel pushes into the French side. The front wanders
+      in a gentle S.
+    - Borders are gently wavy, hand-drawn ink lines (1.5 px, ink), shared exactly by the
+      two neighbours. The shapes are the same every time (no randomness).
+    - Each territory: its owner's colour at **60%** over the terrain textures (chosen from
+      50 / 60 / 75% previews: 75% hid the German pieces in their own grey), its name in
+      IM Fell small caps centred at the top, a front-red VP roundel for cities, and the
+      star-fort for fortresses. The piece stands in the middle.
+    - Around it: the North Sea (river-blue with the sea hatch) along the coast and the
+      Channel Ports, the Netherlands at the top right and Switzerland along the bottom
+      (paper-dark, dash-dot border, "neutral"). The Yser, Somme, Aisne and Marne are thin
+      river-blue lines with italic names.
+    - **No grid labels.** No lane strips and no E3 … G3 letters. Instead, region names in
+      large, faint, letter-spaced IM Fell small caps run down the margins like a period
+      map: FLANDERS, ARTOIS, PICARDY, CHAMPAGNE, ARGONNE, LORRAINE on the west, ALSACE on
+      the east. They stand outside the territories, so they never cover a piece or a name.
+      Everything the player reads uses place names ("the Ypres sector", "from Arras to
+      Soissons"), never "lane 2" or "E1"; those labels are only for RULES.md and the code.
+    - On a folded phone (390 px) a territory is about 59 × 68 px; a test checks every one
+      is at least 44 px each way and holds its whole piece.
+    - The **Map** button (above the zoom buttons) switches to the campaign map, which
+      stays as the zoomed-out overview; the locator always shows the campaign map.
 
 ## 5. Unit counters
 Style counters like real board-wargame pieces (think a cardboard counter or a wooden

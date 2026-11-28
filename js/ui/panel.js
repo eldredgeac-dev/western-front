@@ -430,8 +430,8 @@ export function showPanel(container, info, terrainData, actions = {}) {
     // Everything else about the territory, one tap away.
     const dl = el('dl', 'box-facts');
     row(dl, 'Near', info.town);
-    row(dl, 'Lane', `${info.laneNumber} \u00b7 ${info.laneName}`);
-    row(dl, 'Line', `${info.columnLabel} \u2013 ${info.columnName}`);
+    row(dl, 'Sector', info.laneName);
+    row(dl, 'Line', info.columnName);
     row(dl, 'Owner', info.ownerName);
     row(dl, 'Trench', `level ${info.trench} (max ${info.trenchMax} in ${info.monthLabel})`);
     row(dl, 'Victory points', info.vp > 0 ? String(info.vp) : '\u2014');

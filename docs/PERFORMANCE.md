@@ -154,3 +154,23 @@ changed (70–100 ms is run-to-run noise).
   coastlines), or split the near-zoom-only contours into a file loaded later.
 - If the playback ever feels heavy on an older phone, the capture colour cross-fade
   could become an opacity fade of a copy of the territory.
+
+## The board as a map of territories (Version 11.3, 28 November 2026)
+The board's squares became wavy, shaped territories (milestone 10g). Its borders now have
+10 segments each instead of 1, which gives the front line and trenches more points to
+draw. Measured with `node tools/perf.mjs board` (3 rounds, medians), old (main) and new
+on the same machine:
+
+| Board | Before (squares) | After (territories) | Target |
+|---|---:|---:|---|
+| **First playable board** | 1727 ms | **1856 ms** | < 2 s |
+| Pan | 60 fps | 60 fps | ≥ 30 fps throttled |
+| Pinch zoom | 56 fps | 56 fps | ≥ 30 fps throttled |
+| **Tap feedback** | 31 ms | **22 ms** | < 100 ms |
+| Commit → playback | 106 ms | 104 ms | |
+| Playback frame rate | 56 fps | 57 fps | |
+| **AI turn** | 54 ms | 58 ms | < 1 s |
+
+Every target is met. First load is about 0.13 s slower, with about 0.15 s to spare. If a
+later change pushes it over 2 s, cut each border from 10 segments to 6 (`wavyLine` in
+`js/ui/board.js`).
