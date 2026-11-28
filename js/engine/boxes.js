@@ -44,13 +44,12 @@ export function checkMap(map, terrainData) {
   return problems;
 }
 
-// The name to show for a box: its own name if it has one, or else its lane and
-// column ("Ypres E1").
+// The name to show for a box: its own name if it has one (a city), or else the town
+// it's named after on the map (its anchor town). Players see place names, never the grid
+// labels ("lane 3", "E1"), which are only for the rules and the code.
 export function boxName(map, box) {
   if (box.name) return box.name;
-  const lane = map.lanes.find((l) => l.id === box.lane);
-  const column = map.columns.find((c) => c.id === box.column);
-  return `${lane ? lane.name : box.lane} ${column ? column.label : box.column}`;
+  return box.anchor ? box.anchor.town : box.id;
 }
 
 // The deepest trench a box may have in a given month ("YYYY-MM"), from

@@ -21,6 +21,7 @@ import { willPhase, armisticeScore, suddenVictory } from '../js/engine/systems/w
 import { runEvents, chooseOption, pendingChoice, eventDue, replacedByResearch } from '../js/engine/events.js';
 import { aiMove, aiAttack, frontBoxes } from '../js/engine/ai.js';
 import { SILHOUETTES, mix, isDark } from '../js/ui/counters.js';
+import { boardLayout, boardEdge, BOARD_PIECE } from '../js/ui/board.js';
 import { queueCheck, addOrder, cancelOrder, commitOrders, attackBoard, stagingBox, ordersPhase } from '../js/engine/orders.js';
 import { recordMonth, casualties, ledger, effectsOf, scoreReason } from '../js/engine/history.js';
 import { unseenTelegrams, markSeen, openQuestion, fill } from '../js/engine/telegrams.js';
@@ -194,10 +195,68 @@ test('nations: side and nation colours are STYLE.md palette colours', () => {
   for (const n of data.nations.nations) check(inPalette(n.color), n.id + ' colour');
 });
 
-test('boxName: named box uses its name, others use lane + column', () => {
+// ---- The board (docs/STYLE.md §4.12): shaped territories, still easy to tap ----
+// Is point p inside the outline `ring` (a list of [x, y])? (ray casting)
+function insideRing(p, ring) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i]; const [xj, yj] = ring[j];
+    if ((yi > p[1]) !== (yj > p[1]) && p[0] < ((xj - xi) * (p[1] - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+test('board: every territory contains its piece position, with room for the piece', () => {
+  const L = boardLayout(data.map);
+  for (const b of data.map.boxes) {
+    const q = L.cells[b.id];
+    check(insideRing([q.cx, q.cy], q.ring), b.id + ': anchor outside its shape');
+    // the four corners of the piece (BOARD_PIECE wide) stand inside the territory too
+    const h = BOARD_PIECE / 2;
+    for (const [dx, dy] of [[-h, -h], [h, -h], [h, h], [-h, h]]) {
+      check(insideRing([q.cx + dx * 0.9, q.cy + dy * 0.9], q.ring), `${b.id}: its piece pokes out of the territory`);
+    }
+  }
+});
+
+test('board: every territory is big enough to tap on a folded phone (≥ 44 px)', () => {
+  const L = boardLayout(data.map);
+  const scale = 390 / L.width;                       // "fill the width" on a 390 px phone
+  for (const b of data.map.boxes) {
+    const xs = L.cells[b.id].ring.map((p) => p[0]); const ys = L.cells[b.id].ring.map((p) => p[1]);
+    // the narrowest width and height through the middle of the territory, roughly
+    const w = (Math.max(...xs) - Math.min(...xs)) * scale; const hgt = (Math.max(...ys) - Math.min(...ys)) * scale;
+    check(w >= 44 && hgt >= 44, `${b.id} is only ${w.toFixed(0)} × ${hgt.toFixed(0)} px`);
+  }
+});
+
+test('board: every pair of neighbours shares one border, drawn on both outlines', () => {
+  const L = boardLayout(data.map);
+  const key = (p) => p.join(',');
+  for (const b of data.map.boxes) {
+    const mine = new Set(L.cells[b.id].ring.map(key));
+    for (const n of b.neighbours) {
+      const e = boardEdge(L, L.cells[b.id], L.cells[n]);
+      check(e, `${b.id}–${n}: no border on the board`);
+      if (!e) continue;
+      const theirs = new Set(L.cells[n].ring.map(key));
+      const pts = e.d.slice(1).split('L');
+      check(pts.every((p) => mine.has(p) && theirs.has(p)), `${b.id}–${n}: the border isn't on both outlines`);
+      check(/^M[0-9.,L-]+$/.test(e.d), `${b.id}–${n}: borders must be straight-line paths (map.js reads them)`);
+    }
+  }
+});
+
+test('board: the same shapes every time (no Math.random)', () => {
+  check(JSON.stringify(boardLayout(data.map).cells) === JSON.stringify(boardLayout(data.map).cells));
+});
+
+test('boxName: named box uses its name, others the town they are named after (never "E1")', () => {
   const byId = indexBoxes(data.map);
   check(boxName(data.map, byId['l07-e3']) === 'Paris');
-  check(boxName(data.map, byId['l02-e1']) === 'Ypres E1');
+  check(boxName(data.map, byId['l02-e1']) === 'Ypres');
+  check(boxName(data.map, byId['l03-e1']) === 'Laventie');
+  for (const b of data.map.boxes) check(!/\b[EG][123]\b|lane/i.test(boxName(data.map, b)), b.id + ' name shows a grid label');
 });
 
 test('trenchMax: follows the RULES.md §9.5 table', () => {

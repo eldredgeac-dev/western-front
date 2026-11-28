@@ -164,6 +164,21 @@ Do one milestone per Claude Code session. For each one:
     battle reports show the chance as one big number and the expected/actual losses
     as crossed-out pieces on each side.
 
+- [ ] **10g. The board as a map of territories** (Version 11.3; tick after the phone checks)
+  - The square board becomes an Axis & Allies-style map: the same 72 territories with
+    real, recognisable shapes, stretched so each is big enough to tap on a folded phone.
+    Owner colour at 60%. Sea, neutral countries, rivers and region names (STYLE.md §4.12).
+  - The square board is gone; the campaign map stays as the zoomed-out overview.
+  - No grid wording anywhere the player reads: territories are called by their town
+    ("Laventie", not "Armentières / La Bassée E1"); events say "the Ypres sector" and
+    "from Arras to Soissons".
+  - No rule changes. Speed re-measured (PERFORMANCE.md): every target still met.
+  - **Next, if still needed after playing on the new board — milestone B (a rules
+    change):** fewer depth territories (2 per side instead of 3) in the three sectors
+    that hardly moved all war: the Yser/coast, the Argonne and Lorraine/Vosges/Alsace
+    (72 → 66 territories). Verdun and Ypres keep full depth. It needs the simulator
+    rebuilt to read the map data, a stacking decision and a full balance re-run.
+
 - [ ] **11. Playtest and polish**
   - You play 3–4 full games (both sides, more than one difficulty).
   - We list everything that was boring or confusing, then fix it.
@@ -203,8 +218,12 @@ Do one milestone per Claude Code session. For each one:
     stockpile, research, industrial cities) is milestone 10b.
   - **V2b (C3): Income from territory.** Every named city pays Industry each month to
     whoever holds it (extending the industrial cities of §19.3), so taking ground pays.
-  - **V2c (C4): Fewer kinds of points.** For example, an attack costs Industry instead
-    of a separate Offensive Point, so there's one less number to track.
+  - **V2c (C4): Fewer kinds of points.** An attack costs Industry instead of a separate
+    Offensive Point. *Design approved (DECISIONS.md 147): 1 IP per attack from the
+    munitions stockpile (2 for a coalition attack), stockpile max 6, at most 3 attacks a
+    nation a month, Entente max barrage +1 from January 1918; commanders' OP effects
+    become attack-limit effects. The simulator has it switched off; build it in its own
+    session after milestone 10g merges.*
 - V3: Eastern Front and Russia, so Germany fights on two fronts.
 - V4: More nations (Austria-Hungary, Italy, Ottomans), naval blockade and U-boats.
 
@@ -271,4 +290,7 @@ milestone in brackets, confirm the fix, then update RULES.md and the code togeth
 - Bought units could be Green for their first month or two, like Kitchener's men
   (V2a keeps them Regular; it would need a balance re-run).
 - A tap on a rear city tab could flash that city on the map, so you can see where it is.
+- **France arms the Americans** (from the V2c design, approved for this list): spare
+  French Industry pays for US units or US barrages. All US field artillery and the US
+  tanks were French-made (HISTORY.md). It gives the Entente's wasted IP in 1917–18 a use.
 (Claude Code: add ideas here instead of building them.)

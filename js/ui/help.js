@@ -16,11 +16,12 @@ function svgEl(tag, attrs = {}, parent = null) {
   return e;
 }
 
-// Three lanes of the front, six columns each (E3 E2 E1 | G1 G2 G3). The middle lane's
+// Three sectors of the front, six territories deep (rear, support and front line on
+// each side; E3 E2 E1 | G1 G2 G3 in the rules). The middle lane's
 // E1 holds your unit: its road moves (up to 2 steps) are outlined in brass, and the one enemy
 // territory it can attack in red. No diagonals.
 function laneDiagram() {
-  const cols = ['E3', 'E2', 'E1', 'G1', 'G2', 'G3'];
+  const cols = ['Rear', 'Support', 'Front', 'Front', 'Support', 'Rear'];
   const W = 44; const H = 30; const gap = 10; const top = 16;
   const x = (c) => c * W + (c >= 3 ? gap : 0) + 2;
   const y = (r) => top + r * H;

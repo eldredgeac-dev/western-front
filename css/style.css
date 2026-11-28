@@ -865,7 +865,8 @@ body.coaching .locator { display: none; }
 .board-neutral-note { font: italic 8px var(--font-place); fill: var(--ink-faded); }
 .board-river { fill: none; stroke: var(--river); stroke-width: 1.3; stroke-linecap: round; opacity: 0.85; pointer-events: none; }
 .board-river-name { font: italic 7.5px var(--font-place); fill: var(--river); pointer-events: none; }
-.board-scenery, .board-rivers { pointer-events: none; }
+.board-region { font: 13px var(--font-place-sc); fill: var(--ink-faded); opacity: 0.75; letter-spacing: 0.3em; }
+.board-scenery, .board-rivers, .board-regions { pointer-events: none; }
 .board-cell { fill: none; stroke: var(--ink); stroke-width: 1.5; stroke-linejoin: round; pointer-events: none; }
 .board-svg #edges { display: none; }
 .board-svg #towns { pointer-events: none; }

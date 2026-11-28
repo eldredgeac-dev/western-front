@@ -17,9 +17,9 @@ export const BOARD_PREFIX = 'b-';
 const P = BOARD_PREFIX;
 
 // Sizes in board units. At "fill the width" on a phone, 1 unit ≈ 1 screen pixel.
-const COL_W = 62;          // a territory's usual width (west to east)
+const COL_W = 61;          // a territory's usual width (west to east)
 const LANE_H = 70;         // a lane's usual height (north to south)
-const SIDE = 14;           // the margin left and right of the territories
+const SIDE = 19;           // the margin left and right (the region names stand there)
 const TOP = 54;            // the sea and the Netherlands above lane 1
 const BOTTOM = 40;         // Switzerland below the last lane
 export const BOARD_PIECE = 38;   // a piece's width (map.js pieceSize)
@@ -34,6 +34,19 @@ const BOW = { 2: 16, 3: 4, 6: -4, 7: -18, 8: -6, 9: 4, 11: -14 };
 // Lane heights (× LANE_H): wider sectors are a little taller, so the shapes vary.
 const HEIGHT = { 1: 0.92, 2: 1.02, 3: 0.96, 4: 1.0, 5: 0.94, 6: 1.08, 7: 1.1, 8: 1.0, 9: 1.02, 10: 0.92, 11: 1.08, 12: 0.96 };
 const SHIFT = [6, 4, 2, 0, -2, -6, -10, -6, 0, 6, 8, 4, 0];
+
+// Region names, lettered faintly down the margins like a period map. They stand
+// outside the territories, so they never cover a piece or a name. `lanes` is the
+// first and last lane (by number); `side` is the margin (west = French side).
+const REGIONS = [
+  { name: 'FLANDERS', lanes: [1, 3], side: 'west' },
+  { name: 'ARTOIS', lanes: [4, 5], side: 'west' },
+  { name: 'PICARDY', lanes: [6, 8], side: 'west' },
+  { name: 'CHAMPAGNE', lanes: [9, 9], side: 'west' },
+  { name: 'ARGONNE', lanes: [10, 10], side: 'west' },
+  { name: 'LORRAINE', lanes: [11, 12], side: 'west' },
+  { name: 'ALSACE', lanes: [12, 12], side: 'east' },
+];
 
 // Rivers drawn across lanes (thin blue lines, under the pieces). `at` is how far down
 // the lane (0 = top, 1 = bottom); `from`/`to` are column indexes (0 = E3 … 5 = G3).
@@ -89,7 +102,7 @@ const toPath = (pts) => 'M' + pts.map((p) => p.join(',')).join('L');
 // the borders next to it a little less, so no territory gets squeezed.
 function bowFor(laneNumber, colBorder, nCols) {
   const fromFront = Math.abs(colBorder - nCols / 2);   // 0 on the front, 3 at the edge
-  const share = [1, 0.8, 0.45, 0.2][fromFront] ?? 0.2;
+  const share = [1, 0.8, 0.6, 0.4][fromFront] ?? 0.4;
   return (BOW[laneNumber] || 0) * share;
 }
 
@@ -108,9 +121,9 @@ export function boardLayout(map) {
     corner.push([]);
     for (let j = 0; j <= nC; j++) {
       const outer = j === 0 || j === nC;               // keep the outside edge steady
-      const jx = outer ? wobble(`x${i}-${j}`) * 2 : wobble(`x${i}-${j}`) * 8;
+      const jx = outer ? wobble(`x${i}-${j}`) * 1 : wobble(`x${i}-${j}`) * 8;
       const jy = i === 0 || i === nL ? wobble(`y${i}-${j}`) * 3 : wobble(`y${i}-${j}`) * 9;
-      const shift = outer ? (SHIFT[i] || 0) * 0.4 : (SHIFT[i] || 0);
+      const shift = outer ? 0 : (SHIFT[i] || 0);       // the outside edge stays straight
       corner[i].push([r1(SIDE + j * COL_W + shift + jx), r1(laneY[i] + jy)]);
     }
   }
@@ -142,9 +155,12 @@ export function boardLayout(map) {
     const top = horiz[`${li}-${ci}`]; const east = vert[`${li}-${ci + 1}`];
     const bottom = [...horiz[`${li + 1}-${ci}`]].reverse(); const west = [...vert[`${li}-${ci}`]].reverse();
     const ring = [...top, ...east.slice(1), ...bottom.slice(1), ...west.slice(1, -1)];
-    // the anchor: the middle of the outline, a little below centre (the name is above)
-    const cx = ring.reduce((s, p) => s + p[0], 0) / ring.length;
-    const cy = ring.reduce((s, p) => s + p[1], 0) / ring.length;
+    // the anchor: halfway between the west and east borders at their middles, and
+    // halfway between the top and bottom borders (then a little lower: the name is above)
+    const wm = vert[`${li}-${ci}`][5]; const em = vert[`${li}-${ci + 1}`][5];
+    const tm = horiz[`${li}-${ci}`][5]; const bm = horiz[`${li + 1}-${ci}`][5];
+    const cx = (wm[0] + em[0]) / 2;
+    const cy = (tm[1] + bm[1]) / 2;
     const topY = (top[0][1] + top[top.length - 1][1]) / 2;
     cells[b.id] = { lane: li, col: ci, ring, cx: r1(cx), cy: r1(cy + 6), topY: r1(topY), top };
   }
@@ -223,6 +239,27 @@ function drawScenery(svg, L) {
   text(g, L.width / 2, L.height - 14, 'SWITZERLAND (neutral)', { class: 'board-neutral-name', 'text-anchor': 'middle' });
 }
 
+// The region names down the margins (see REGIONS).
+function drawRegions(svg, L, map) {
+  const g = el('g', { class: 'board-regions' }, svg);
+  const yOf = (n) => L.corner[map.lanes.findIndex((l) => l.number === n)];
+  for (const r of REGIONS) {
+    const top = yOf(r.lanes[0]); const bottom = yOf(r.lanes[1] + 1) || L.corner[L.nL];
+    if (!top) continue;
+    const y0 = top[0][1]; const y1 = bottom[0][1];
+    const mid = (y0 + y1) / 2; const room = y1 - y0 - 14;
+    const x = r.side === 'west' ? SIDE / 2 + 4.4 : L.width - SIDE / 2 - 4.4;
+    const t = text(g, r1(x), r1(mid), r.name, {
+      class: 'board-region', 'text-anchor': 'middle',
+      transform: `rotate(${r.side === 'west' ? -90 : 90} ${r1(x)} ${r1(mid)})`,
+    });
+    if (r.name.length * 11.5 > room) {              // squeeze a long name into its lanes
+      t.setAttribute('textLength', r1(room));
+      t.setAttribute('lengthAdjust', 'spacingAndGlyphs');
+    }
+  }
+}
+
 // Rivers as thin blue wavy lines across their lane.
 function drawRivers(svg, L, map) {
   const g = el('g', { class: 'board-rivers' }, svg);
@@ -267,6 +304,7 @@ export function buildBoardSvg(map, terrainData, mapSvg) {
   el('rect', { width: L.width, height: L.height, class: 'board-paper' }, svg);
   el('rect', { width: L.width, height: L.height, fill: `url(#${P}pat-paper)`, class: 'board-grain' }, svg);
   drawScenery(svg, L);
+  drawRegions(svg, L, map);
 
   // terrain textures, under the owners' colours (the same classes as on the map)
   const terrain = el('g', { id: 'terrain' }, svg);
@@ -313,15 +351,18 @@ export function buildBoardSvg(map, terrainData, mapSvg) {
   const towns = el('g', { id: 'towns' }, svg);
   for (const b of map.boxes) {
     const q = L.cells[b.id];
-    const room = COL_W - 10 - (b.vp ? 14 : 0);
-    const nx = q.cx - (b.vp ? 7 : 0); const ny = q.topY + 14;
-    const name = text(towns, nx, ny, nameOf(b), { class: 'board-name' + (b.vp ? ' city' : ''), 'data-box': b.id, 'text-anchor': 'middle' });
-    if (nameOf(b).length * 4.9 > room) {                       // squeeze a long name to fit
-      name.setAttribute('textLength', room);
+    // the name and (for a city) its VP roundel, centred together near the top
+    const room = COL_W - 12 - (b.vp ? 15 : 0);              // the most the name may take
+    const width = Math.min(room, nameOf(b).length * 5.6);   // about how wide it is
+    const total = width + (b.vp ? 15 : 0);
+    const nx = q.cx - total / 2; const ny = q.topY + 14;
+    const name = text(towns, r1(nx + width / 2), ny, nameOf(b), { class: 'board-name' + (b.vp ? ' city' : ''), 'data-box': b.id, 'text-anchor': 'middle' });
+    if (nameOf(b).length * 5.6 > room) {                    // squeeze a long name to fit
+      name.setAttribute('textLength', r1(room));
       name.setAttribute('lengthAdjust', 'spacingAndGlyphs');
     }
     if (b.vp) {
-      const vx = nx + room / 2 + 8; const vy = ny - 3.4;
+      const vx = nx + width + 8.5; const vy = ny - 3.4;
       el('circle', { cx: r1(vx), cy: r1(vy), r: 6.4, class: 'board-vp' }, towns);
       text(towns, r1(vx), r1(vy + 2.9), String(b.vp), { class: 'board-vp-text', 'text-anchor': 'middle' });
     }
