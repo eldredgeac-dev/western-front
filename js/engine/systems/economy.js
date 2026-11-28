@@ -285,7 +285,7 @@ export function applyBudget(state, data, nationId, budget) {
     unspent: ip - mun * data.economy.munitionCost - res - build };
 }
 
-// The automatic budget (§19.4, §19.7): top the stockpile up to 3, then put IP into
+// The automatic budget (§19.4, §19.7): top the stockpile up to 6 (stockCap), then put IP into
 // the cheapest tech on offer (at most `researchCap` a month — the computer uses 3,
 // Auto-allocate for a player has no cap), then the rest towards a new unit (§19.9: a
 // tank if the nation can buy one, otherwise infantry; it arrives in any rear city).

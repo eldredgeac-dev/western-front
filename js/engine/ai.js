@@ -211,7 +211,10 @@ export function aiAttack(state, data, side, record = null) {
     for (const b of frontBoxes(state, data, side)) for (const n of boxesOf(data)[b].neighbours) if (state.boxes[n].owner !== side) targets.add(n);
     for (const nation of data.nations.nations.filter((n) => n.side === side).map((n) => n.id)) {
       const res = state.resources[nation];
-      if (!res || res.op < 1) continue;
+      // V2c: an attack uses 1 of the month's attacks and 1 IP from the stockpile
+      // (the computer never attacks as a coalition), as tools/wfsim.py plays it
+      const ipCost = data.combat.attackCost.single;
+      if (!res || res.attacks < 1 || res.munitions < ipCost) continue;
       // stop at this month's Manpower + 2: the full Manpower, before any went to a
       // new unit (RULES.md §19.9), as tools/wfsim.py counts it
       if ((spent[nation] || 0) > res.rp + (res.unitMP || 0) + skill.stopLoss) continue;
@@ -222,7 +225,7 @@ export function aiAttack(state, data, side, record = null) {
       for (const target of targets) {
         const units = eligibleAttackers(state, data, target).filter((id) => state.units.find((u) => u.id === id).nation === nation);
         if (!units.length) continue;
-        const maxMun = Math.min(res.munitions, barrageMax(data, month, state, side));
+        const maxMun = Math.min(res.munitions - ipCost, barrageMax(data, month, state, side));
         for (let mun = 0; mun <= maxMun; mun++) {
           const s = scoreAttack(state, data, side, nation, target, units, mun, skill, cardShift);
           if (!s) continue;

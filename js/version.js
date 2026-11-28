@@ -2,5 +2,5 @@
 // can check your phone has the latest one. Every release: raise VERSION here AND the
 // same "?v=" number in index.html (the stylesheet, the import map and main.js), so
 // phones fetch the new files instead of keeping old copies (tests/run.mjs checks).
-export const VERSION = '11.3';
-export const VERSION_LABEL = 'Version 11.3 · the board as a map of territories · 28 November 2026';
+export const VERSION = '11.4';
+export const VERSION_LABEL = 'Version 11.4 · attacks cost Industry · 28 November 2026';

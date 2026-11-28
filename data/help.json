@@ -31,7 +31,7 @@
       "title": "Who can attack whom",
       "paragraphs": [
         "A unit can attack an enemy territory that shares a side with the territory it stands in once its moves are done. Tap the unit: the enemy territories it can attack are outlined in red. If it has to step up first, tapping the red territory orders that road move for you, then opens the attack. Each unit attacks once a month, must be in supply, and must not have come by rail.",
-        "An attack costs 1 Offensive Point (2 if units of two nations attack together).",
+        "An attack costs 1 Industry (IP) from your munitions stockpile (2 if units of two nations attack together), and its barrage 1 IP more per munition. Each nation can make at most 3 attacks a month; some commanders change that (Joffre and Haig +1, Pétain at most 1).",
         "Each enemy front-line territory touches only one of yours, straight across no-man's-land. So the way to attack is to bring up to 3 units into one front territory, then attack from it, all in the same turn. One unit against one dug-in unit almost never wins."
       ]
     },
@@ -39,7 +39,7 @@
       "title": "Odds and dice",
       "paragraphs": [
         "Odds: your steps against theirs give a column: 1:2, 1:1, 3:2, 2:1, 3:1 or 4:1. Below 1:2 you can't attack.",
-        "Shifts then move the column: −1 for each trench level, −1 or −2 for hard ground (ridges, forest, mountains, fortresses, the flooded Yser, autumn mud in Flanders), −1 in winter (December to February), +1 for each munition in a barrage (up to 2, or 3 from June 1916), and the nations' strengths.",
+        "Shifts then move the column: −1 for each trench level, −1 or −2 for hard ground (ridges, forest, mountains, fortresses, the flooded Yser, autumn mud in Flanders), −1 in winter (December to February), +1 for each munition in a barrage (up to 2, or 3 from June 1916, and the Entente 4 from 1918), and the nations' strengths.",
         "Then two dice are rolled. The result says how many steps each side loses, and on good rolls an R: the defenders retreat and you take the territory. The chance of an R is 0, 3, 17, 42, 58 or 83% from 1:2 to 4:1. That's why the odds jump in steps.",
         "Dug in: from trench level 2, an R becomes one more loss instead of a retreat. Then you only take the territory by destroying every defending step, which is why a well-held trench can show 0%: wear it down over several months, or attack somewhere weaker.",
         "A failed attack at 1:1 or worse costs your nation 3 National Will. The order slip shows the roll you need, what every roll would do, and why the odds are what they are. BEST ATTACKS shows your three best chances this turn."
@@ -63,7 +63,7 @@
       "title": "The War Office budget",
       "paragraphs": [
         "Manpower goes to replacements by itself: 1 Manpower adds a step to a damaged unit, 2 rebuild a destroyed one.",
-        "Industry buys munitions (1 each) for the stockpile, which holds at most 3 and carries over, or goes into research to bring a new weapon or tactic before its historical date. From January 1915 it can also pay for new units: Infantry (6 IP + 2 MP, arrives with 2 steps) or, once you have the tank research, Tanks (8 IP + 1 MP). IP carries over until a unit is paid for; its men then come from that month's Manpower, and it arrives the month after in the rear city you pick. Each nation can only buy a few in the whole war (Germany 4 infantry and 1 tank, France 2 and 3, Britain 3 and 3). Unspent Industry is lost. Auto-allocate starts on and does this for you. Turn it off in the menu (top left) to choose yourself: the budget page then appears in months when there's research or a unit to pick."
+        "Industry buys munitions (1 each) for the stockpile, which holds at most 6 and carries over. The stockpile pays for your attacks: 1 IP for each attack and 1 more for each munition of its barrage. Industry can also go into research to bring a new weapon or tactic before its historical date. From January 1915 it can also pay for new units: Infantry (6 IP + 2 MP, arrives with 2 steps) or, once you have the tank research, Tanks (8 IP + 1 MP). IP carries over until a unit is paid for; its men then come from that month's Manpower, and it arrives the month after in the rear city you pick. Each nation can only buy a few in the whole war (Germany 4 infantry and 1 tank, France 2 and 3, Britain 3 and 3). Unspent Industry is lost. Auto-allocate starts on and does this for you. Turn it off in the menu (top left) to choose yourself: the budget page then appears in months when there's research or a unit to pick."
       ]
     },
     {

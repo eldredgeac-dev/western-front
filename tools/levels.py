@@ -4,7 +4,7 @@ from sweep import *
 # difficulty levels below only add their own bonuses on top.
 BASE=dict()
 # Extra key=value pairs change tools/wfsim.py's DEFAULT settings (numbers only),
-# e.g. python3 tools/levels.py attack_ip=1 stock_cap=6 mun_target=6
+# e.g. python3 tools/levels.py attack_ip=0 stock_cap=3 mun_target=3 heavy_barrage_e=0 (Version 1.8)
 BASE.update({k: float(v) if '.' in v else int(v) for k, v in (a.split('=') for a in sys.argv[1:])})
 LEVELS={ # player will bonus, ai will bonus, ai resource mult, ai skill
  'Recruit':      (15, 0, 0.8,'standard'),

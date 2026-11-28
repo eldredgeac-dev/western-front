@@ -27,9 +27,9 @@ function look(tot, state) {
   const fra = state.units.filter((u) => u.nation === 'fra' && front.has(u.box));
   t.front += fra.length;
   t.frontSteps += fra.reduce((s, u) => s + u.steps, 0);
-  t.op += state.resources.fra.op;
+  t.op += state.resources.fra.attacks;          // attacks left (V2c; it was OP)
   if ((state.cannotAttack || {}).fra) return;
-  const mun = Math.min(state.resources.fra.munitions, barrageMax(data, currentMonth(state), state, 'entente'));
+  const mun = Math.max(0, Math.min(state.resources.fra.munitions - data.combat.attackCost.single, barrageMax(data, currentMonth(state), state, 'entente')));
   const targets = new Set();
   for (const b of front) for (const n of data.map.boxes.find((x) => x.id === b).neighbours) if (state.boxes[n].owner !== 'entente') targets.add(n);
   for (const target of targets) {

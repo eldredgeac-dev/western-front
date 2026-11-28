@@ -50,6 +50,11 @@ const ruleChecks = [
   ['rule: js/engine/ never hard-codes place names', () =>
     webFiles.filter((f) => f.startsWith('js/engine/') && /Verdun|Paris|France/.test(read(f)))],
 
+  // V2c: attacks cost Industry; the player never sees Offensive Points (OP) any more
+  ['rule: no Offensive Points (OP) anywhere the player sees', () =>
+    files.filter((f) => /^(data\/.*\.json|js\/ui\/.*\.js|js\/main\.js|js\/engine\/(explain|telegrams|history)\.js|index\.html)$/.test(f))
+      .filter((f) => /Offensive Point|\bOP\b/.test(read(f)))],
+
   ['rule: css/style.css only uses docs/STYLE.md palette colours', () => {
     const hexes = read('css/style.css').match(/#[0-9a-fA-F]{6}\b/g) || [];
     return [...new Set(hexes.filter((h) => !PALETTE.includes(h.toUpperCase())))];

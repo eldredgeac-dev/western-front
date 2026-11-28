@@ -60,7 +60,9 @@ instead of +1: open ground 2, forest and mountains 0).
 | `trenchShiftPerLevel` | −1 per defender trench level |
 | `winter` | `months` and `shift` (−1 in Dec, Jan, Feb) |
 | `barrage` | Most munitions per attack: `[{from, max}]` (2, then 3 from June 1916) |
-| `opCost` | `single` (1), `coalition` (2, attackers from more than one nation), `emptyBox` (1) |
+| `barrageBonus` | Heavier barrages: `[{side, from, extra, name, note}]`: that side's maximum is `extra` more from `from` (the Entente +1 from 1918-01, V2c) |
+| `attackLimit` | The most attacks each nation may make a month (3) |
+| `attackCost` | IP an attack takes from the paying nation's stockpile, on top of its barrage: `single` (1), `coalition` (2, attackers from more than one nation), `emptyBox` (1). Replaces `opCost` (V2c). |
 | `dugInTrench` | Trench level from which an R becomes "+1 D, no retreat" (2) |
 | `advanceMax` | Most attackers that move into a captured box (2) |
 | `futile` | `worstColumn` ("1:1") and the `will` it costs (3) |
@@ -86,7 +88,8 @@ instead of +1: open ground 2, forest and mountains 0).
 | `nations[].stepsPerWill` | 1 Will lost per this many steps lost (RULES.md §4, §11) |
 | `nations[].railMoves` | Rail moves per turn (RULES.md §8) |
 | `nations[].supplySources` | *(optional)* Boxes this nation must trace supply to instead of its side's rear column (GBR: Channel Ports, Hazebrouck) |
-| `nations[].resources` | `op`, `munitions`, `rp`: each a list of `{ "from": "YYYY-MM", "value" }`; the latest entry that has started applies (RULES.md §6) |
+| `nations[].resources` | `munitions` (the Industry base, §19.2), `rp`: each a list of `{ "from": "YYYY-MM", "value" }`; the latest entry that has started applies (RULES.md §6). There's no `op` any more (V2c). |
+| `nations[].attackLimit` | Optional: the most attacks the nation may make a month, instead of `attackLimit` in combat-table.json (Belgium 0) |
 | `nations[].traits` | National traits (RULES.md §4): `id`, `name`, `text` (for the Nations screen; optional `from`/`to` months say when it's on, so the screen can mark it NOW, COMING or OVER) and `kind`, which says what the engine does with it (see combat below) |
 
 Copy numbers tagged [balanced] in RULES.md exactly; change them in RULES.md first.
@@ -178,7 +181,7 @@ schedule, both in `nations.json`. This file adds the rest:
 
 | Field | What it is |
 |---|---|
-| `stockCap` | Most munitions a nation can hold in its stockpile (3) |
+| `stockCap` | Most munitions a nation can hold in its stockpile (6; it was 3 before V2c). Attacks and barrages both spend it. |
 | `munitionCost` | IP per munition (1) |
 | `aiResearchCap` | Most IP the computer puts into research each month (3) |
 | `autoAllocateDefault` | Whether Auto-allocate starts on for a player (`true`). With it off, the budget page only appears when there is research to choose or a unit to buy (RULES.md §19.4) |
@@ -239,7 +242,7 @@ with at least `munitions`), `played` (the turn has been played). `arrow` (`from`
 | `rules` | The cost of keeping the old commander (−3 Will, asked again every 3 turns), sacking (−5 Will, not in the first 3 turns) |
 | `succession` | Each nation's cards in order |
 | `cards[]` | `id`, `name`, `nickname` (a real historical nickname, like "Papa Joffre", or `null`), `title` *(optional, a real title such as "Allied Generalissimo")*, `nation` (or `"entente"` for Foch), `from`/`to` (historical dates; Pershing's `from` is `"usa-entry"`), `next` (who can follow) |
-| `cards[].strength`, `cards[].flaw` | `name`, `text` (for the card) and `effects`: a list of `{kind, nation, value, …}` that the Milestone 12 code will read (`op`, `munitions`, `rp`, `rail`, `rail-max`, `op-max`, `will-if-no-attack`, `steps-per-will`, …) |
+| `cards[].strength`, `cards[].flaw` | `name`, `text` (for the card) and `effects`: a list of `{kind, nation, value, …}` that the Milestone 12 code will read (`attacks` = extra attacks a month, `attacks-max`, `coalition-ip-cost`, `munitions`, `rp`, `rail`, `rail-max`, `will-if-no-attack`, `steps-per-will`, …) |
 | `cards[].history` | A short note from docs/HISTORY.md for the full-screen card |
 
 ## `headlines.json`: newspaper headlines (RULES.md §17)

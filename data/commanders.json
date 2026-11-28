@@ -18,8 +18,8 @@
     {
       "id": "joffre", "name": "Joffre", "nickname": "Papa Joffre", "nation": "fra",
       "from": "1914-12", "to": "1916-11", "next": ["nivelle", "petain"],
-      "strength": {"name": "Offensive drive", "text": "France gets +1 OP every March to October.",
-        "effects": [{"kind": "op", "nation": "fra", "value": 1, "months": [3, 4, 5, 6, 7, 8, 9, 10]}]},
+      "strength": {"name": "Offensive drive", "text": "France may make 1 more attack a month, March to October.",
+        "effects": [{"kind": "attacks", "nation": "fra", "value": 1, "months": [3, 4, 5, 6, 7, 8, 9, 10]}]},
       "flaw": {"name": "Attaque à outrance", "text": "In any March–October month with no French attack, France loses 2 Will.",
         "effects": [{"kind": "will-if-no-attack", "nation": "fra", "value": -2, "months": [3, 4, 5, 6, 7, 8, 9, 10]}]},
       "history": "The victor of the Marne, Joffre believed in constant offensives: Artois and Champagne in 1915. He lost the government's confidence after Verdun and was moved aside, and made a Marshal, in December 1916."
@@ -38,15 +38,15 @@
       "from": "1917-05", "to": null, "alsoAvailableFrom": "1916-12", "next": [],
       "strength": {"name": "Care for the men", "text": "France loses 1 Will per 3 steps instead of 2. Mutinies last 2 turns instead of 3, then France gets +15 Will.",
         "effects": [{"kind": "steps-per-will", "nation": "fra", "value": 3}, {"kind": "mutiny-length", "nation": "fra", "value": 2}, {"kind": "mutiny-end-will", "nation": "fra", "value": 15}]},
-      "flaw": {"name": "\"Wait for the tanks and the Americans\"", "text": "France may use at most 1 OP per turn.",
-        "effects": [{"kind": "op-max", "nation": "fra", "value": 1}]},
+      "flaw": {"name": "\"Wait for the tanks and the Americans\"", "text": "France may make at most 1 attack a month.",
+        "effects": [{"kind": "attacks-max", "nation": "fra", "value": 1}]},
       "history": "The defender of Verdun (\"Courage! On les aura!\", 10 April 1916). Pétain became chief of the General Staff on 29 April 1917, then commander-in-chief, and restored the army with leave, better food and limited attacks."
     },
     {
       "id": "foch", "name": "Foch", "nickname": null, "title": "Allied Generalissimo", "nation": "entente", "addedAlongside": true,
       "from": "1918-04", "to": null, "next": [], "cannotBeSacked": true,
-      "strength": {"name": "Unified command", "text": "Coalition attacks cost no extra OP. France and Britain get +1 rail move each.",
-        "effects": [{"kind": "coalition-op-cost", "side": "entente", "value": 1}, {"kind": "rail", "nation": "fra", "value": 1}, {"kind": "rail", "nation": "gbr", "value": 1}]},
+      "strength": {"name": "Unified command", "text": "Coalition attacks cost no extra Industry (1 IP, like any attack). France and Britain get +1 rail move each.",
+        "effects": [{"kind": "coalition-ip-cost", "side": "entente", "value": 1}, {"kind": "rail", "nation": "fra", "value": 1}, {"kind": "rail", "nation": "gbr", "value": 1}]},
       "flaw": null,
       "history": "Foch was chosen in spring 1918, at Clemenceau's urging, to coordinate all the Allied armies."
     },
@@ -62,8 +62,8 @@
     {
       "id": "haig", "name": "Haig", "nickname": null, "nation": "gbr",
       "from": "1915-12", "to": null, "next": [],
-      "strength": {"name": "The Big Push", "text": "Britain gets +1 OP from 1916.",
-        "effects": [{"kind": "op", "nation": "gbr", "value": 1, "from": "1916-01"}]},
+      "strength": {"name": "The Big Push", "text": "Britain may make 1 more attack a month from 1916.",
+        "effects": [{"kind": "attacks", "nation": "gbr", "value": 1, "from": "1916-01"}]},
       "flaw": {"name": "Lloyd George's distrust", "text": "Britain gets 1 RP less in January–April 1918 (reserves held back in Britain).",
         "effects": [{"kind": "rp", "nation": "gbr", "value": -1, "from": "1918-01", "to": "1918-04"}]},
       "history": "Haig led the Somme, Passchendaele and the Hundred Days. Lloyd George distrusted him and held reserves back in Britain over the winter of 1917–18. He issued the \"Backs to the Wall\" order on 11 April 1918."

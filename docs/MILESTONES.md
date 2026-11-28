@@ -218,12 +218,12 @@ Do one milestone per Claude Code session. For each one:
     stockpile, research, industrial cities) is milestone 10b.
   - **V2b (C3): Income from territory.** Every named city pays Industry each month to
     whoever holds it (extending the industrial cities of §19.3), so taking ground pays.
-  - **V2c (C4): Fewer kinds of points.** An attack costs Industry instead of a separate
+  - [ ] **V2c (C4): Fewer kinds of points.** An attack costs Industry instead of a separate
     Offensive Point. *Design approved (DECISIONS.md 147): 1 IP per attack from the
     munitions stockpile (2 for a coalition attack), stockpile max 6, at most 3 attacks a
     nation a month, Entente max barrage +1 from January 1918; commanders' OP effects
-    become attack-limit effects. The simulator has it switched off; build it in its own
-    session after milestone 10g merges.*
+    become attack-limit effects.* *(Built in Version 11.4, RULES.md Version 1.9 §6, §9.1,
+    §15, §19; not ticked until it's checked on the phone. Balance: BALANCE.md "V2c".)*
 - V3: Eastern Front and Russia, so Germany fights on two fronts.
 - V4: More nations (Austria-Hungary, Italy, Ottomans), naval blockade and U-boats.
 
@@ -233,12 +233,12 @@ Gaps in RULES.md found in the first session. Each has a suggested fix that match
 milestone in brackets, confirm the fix, then update RULES.md and the code together.
 
 4. **[5, 12] Commander bonuses stack.** *(Built in milestone 12, RULES.md §15.2a.)* Haig's "+1 OP from 1916" and Hindenburg &
-   Ludendorff's "+1 RP" are added on top of the §6 table (so GBR has 3 OP in 1916–17).
+   Ludendorff's "+1 RP" are added on top of the §6 table (so GBR has 3 OP in 1916–17; since V2c, 4 attacks a month).
 5. **[5] Mixed stacks and the French 75s.** The trait applies if any French unit is in
    the defending box.
 6. **[5] Futile attacks in a coalition attack.** The nation with the most steps in the
    attack pays the 3 Will.
-7. **[5] Empty enemy box.** No dice roll: it's captured automatically, still costs 1 OP,
+7. **[5] Empty enemy box.** No dice roll: it's captured automatically, still costs 1 OP (1 IP and one of the month's attacks since V2c),
    and needs an adjacent in-supply unit.
 8. **[5] Tanks alone in a box.** The box counts as empty. If it's attacked, the tanks
    retreat, or are destroyed if they can't.
@@ -293,4 +293,6 @@ milestone in brackets, confirm the fix, then update RULES.md and the code togeth
 - **France arms the Americans** (from the V2c design, approved for this list): spare
   French Industry pays for US units or US barrages. All US field artillery and the US
   tanks were French-made (HISTORY.md). It gives the Entente's wasted IP in 1917–18 a use.
+  Still wasted with V2c built: France about 54 IP in 1917 and 33 in 1918 (BALANCE.md V2c).
+  In the simulator it's `usa_ip_late` (off).
 (Claude Code: add ideas here instead of building them.)

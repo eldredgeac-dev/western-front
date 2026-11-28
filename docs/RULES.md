@@ -1,4 +1,4 @@
-# Rules — Western Front 1914–18 (Version 1.8)
+# Rules — Western Front 1914–18 (Version 1.9)
 
 These rules are the source of truth. The code must do what this file says.
 
@@ -12,7 +12,10 @@ orders phase: you order moves and attacks together and commit once (§7); moves 
 happen first, so the balance results stand. Version 1.7 puts the commander cards in the
 game (§15: the replace / keep / sack choices, a Commanders step in each month, §7) and
 raises the Kaiserschlacht penalty from −15 to −20 (§10). Version 1.8 lets Industry buy
-new units, with a war-long limit for each nation (§19.9). It has been **balance-tested**: thousands of simulated computer-vs-computer games
+new units, with a war-long limit for each nation (§19.9). Version 1.9 (V2c) does away
+with Offensive Points: an attack costs **Industry** from the munitions stockpile, which
+now holds 6, each nation makes at most 3 attacks a month, and the Entente's barrages get
+heavier from 1918 (§6, §9.1, §15, §19). It has been **balance-tested**: thousands of simulated computer-vs-computer games
 (see `docs/BALANCE.md`). Numbers marked **[balanced]** were tuned by that testing. Change
 them only if playtesting shows a problem, and then re-run `tools/wfsim.py`.
 
@@ -140,25 +143,31 @@ Each army fought differently, and the game reflects that. These traits are shown
 | Stormtroopers | 4 | GER may convert up to 4 infantry units in Jan 1918 |
 
 ## 6. Resources (per nation, per turn)
-Each month a nation gets **Offensive Points** for attacks, and two economic resources
-set out in **§19**: **Manpower** (it buys replacements) and **Industry** (it buys
-munitions for the stockpile, or research). Unused OP, Manpower and Industry are lost;
-only munitions in the stockpile carry over (max 3).
+Each month a nation gets two economic resources set out in **§19**: **Manpower** (it
+buys replacements) and **Industry** (it buys munitions for the stockpile, research or
+new units). **Attacks are paid for with munitions from the stockpile** (§9.1), and each
+nation may make **at most 3 attacks a month** [balanced] (commanders change that, §15).
+Unused attacks, Manpower and Industry are lost; only munitions in the stockpile carry
+over (max 6).
 
-| Nation | Offensive Points (OP) | Manpower (MP, §19.1) | Industry (IP, §19.2) |
+| Nation | Attacks a month | Manpower (MP, §19.1) | Industry (IP, §19.2) |
 |---|---|---|---|
-| GER | 2 (1918: 4) | 3 (1917: 2, from Aug 1918: 1) | 4 |
-| FRA | 2 | 3 (1916–17: 2, 1918: 1) | 2 / 4 / 5 / 6 (1915 / 16 / 17 / 18) |
-| GBR | 1 (1916–17: 2, 1918: 3) | 2 (from 1916: 3) | 1 (1916: 3, from 1917: 4) |
-| USA | 1 (from Aug 1918: 2) | 2 | 1 |
+| GER | 3 | 3 (1917: 2, from Aug 1918: 1) | 4 |
+| FRA | 3 | 3 (1916–17: 2, 1918: 1) | 2 / 4 / 5 / 6 (1915 / 16 / 17 / 18) |
+| GBR | 3 | 2 (from 1916: 3) | 1 (1916: 3, from 1917: 4) |
+| USA | 3 | 2 | 1 |
 | BEL | 0 | 0 | 0 |
+
+Until Version 1.9 attacks cost **Offensive Points (OP)** instead: GER 2 (1918: 4), FRA 2,
+GBR 1 (1916–17: 2, 1918: 3), USA 1 (from Aug 1918: 2). They're gone; see BALANCE.md (V2c)
+for why.
 
 Industry here is before industrial cities (§19.3) and research (§19.5).
 
 ## 7. Turn sequence (each month)
 1. **Events and reinforcements** (§10).
    - Then **commanders** (§15): cards that arrive on their dates, and any "Replace X
-     with Y?" question. The month's OP, Manpower and rail moves include the cards.
+     with Y?" question. The month's attack limit, Manpower and rail moves include the cards.
    - Then the **War Office budget** (§19.4): each nation spends its Industry.
 2. **German turn:** move (§8), then attack (§9).
 3. **Entente turn:** move, then attack.
@@ -210,10 +219,16 @@ In its own move phase, a side may split and merge its pieces. Neither uses up a 
 1. Choose an enemy **target box**.
 2. Choose attacking units in friendly boxes **adjacent** to it. Each unit attacks at most
    once per turn, and must be in supply.
-3. Pay **1 OP**, or **2 OP** if the attackers come from more than one nation.
-4. Optionally spend munitions from the stockpile (§19.4) on a barrage, +1 column each: up
-   to **2**, or up to **3** from June 1916 (creeping barrage; the Entente can research it
-   earlier, §19.5).
+3. Pay for it [balanced]: **1 IP** from the paying nation's munitions stockpile (§19.4),
+   or **2 IP** if the attackers come from more than one nation (Foch makes it 1, §15). An
+   empty enemy territory costs 1 IP too. The paying nation is the one with the most
+   steps in the attack. The attack uses up **one of its attacks this month** (at most 3).
+4. Optionally spend more munitions from the stockpile on a barrage, +1 column each, on top
+   of the attack's own IP: up to **2**, or up to **3** from June 1916 (creeping barrage;
+   the Entente can research it earlier, §19.5). **Heavier barrages:** from **January 1918**
+   the Entente's maximum is 1 more (so 4) [balanced]. By the Hundred Days the Allies had
+   the guns and shells for far heavier bombardments than in 1916; Germany's maximum stays 3.
+   So a stockpile of 4 pays for one attack with a barrage of 3, or four plain attacks.
 5. **Before the player confirms, show them** the final column, the chance of taking the
    box, the expected losses on each side, and a list of every shift that applied (terrain,
    traits, trench and so on).
@@ -418,6 +433,9 @@ The AI uses the same rules and the same order format as the player.
    - Expert also adds a quarter of the VP of any named box next to the target.
    - Make the best attacks while their score is above 0, picking randomly among scores
      within 10% of the best.
+   - The computer never attacks as a coalition. It only considers an attack while the
+     nation has an attack left this month and at least 1 IP in its stockpile; the
+     barrages it tries are what's left after that 1 IP (V2c, as tools/wfsim.py).
    - Only attack at **2:1 or better** after shifts. Stop once expected losses this turn
      exceed next turn's RP + 2. (With the war economy: this month's full Manpower,
      counting any that went to a new unit, §19.9.)
@@ -437,12 +455,12 @@ a say (§15.2). The computer always follows history.
 ### 15.1 The cards
 | Card | Nation | Historical dates | Strength | Flaw |
 |---|---|---|---|---|
-| **Joffre** "Papa Joffre" | FRA | Dec 1914 – Nov 1916 | **Offensive drive:** FRA +1 OP every Mar–Oct | **Attaque à outrance:** in any Mar–Oct month with no French attack, FRA −2 Will |
+| **Joffre** "Papa Joffre" | FRA | Dec 1914 – Nov 1916 | **Offensive drive:** FRA +1 attack a month every Mar–Oct | **Attaque à outrance:** in any Mar–Oct month with no French attack, FRA −2 Will |
 | **Nivelle** | FRA | Dec 1916 – Apr 1917 | **The Nivelle Method:** FRA +1 Industry per turn (§19.2). Once, one French attack gets +2 columns (player chooses which). | **Broken promise:** if that +2 attack fails to take its box, the **French mutinies start immediately** |
-| **Pétain** | FRA | from May 1917 | **Care for the men:** FRA loses 1 Will per **3** steps instead of 2. Mutinies last 2 turns instead of 3, then FRA +15 Will. | **"Wait for the tanks and the Americans":** FRA OP max 1 per turn |
-| **Foch** | All Entente (Allied Generalissimo) | from Apr 1918 (added alongside the national cards) | **Unified command:** coalition attacks cost no extra OP. FRA and GBR +1 rail move each. | — |
+| **Pétain** | FRA | from May 1917 | **Care for the men:** FRA loses 1 Will per **3** steps instead of 2. Mutinies last 2 turns instead of 3, then FRA +15 Will. | **"Wait for the tanks and the Americans":** FRA at most 1 attack a month |
+| **Foch** | All Entente (Allied Generalissimo) | from Apr 1918 (added alongside the national cards) | **Unified command:** coalition attacks cost no extra Industry (1 IP, not 2). FRA and GBR +1 rail move each. | — |
 | **Sir John French** | GBR | Dec 1914 – Nov 1915 | **Old Contemptibles:** the 2 starting British units are Elite | **Prickly ally:** GBR units can't join coalition attacks with France |
-| **Haig** | GBR | from Dec 1915 | **The Big Push:** GBR +1 OP from 1916 | **Lloyd George's distrust:** GBR RP −1 in Jan–Apr 1918 (reserves held back in Britain) |
+| **Haig** | GBR | from Dec 1915 | **The Big Push:** GBR +1 attack a month from 1916 | **Lloyd George's distrust:** GBR RP −1 in Jan–Apr 1918 (reserves held back in Britain) |
 | **Falkenhayn** | GER | Dec 1914 – Aug 1916 | **"Bleed France white":** French steps lost defending Verdun cost FRA an extra 1 Will per 4 steps | **Penny-packets:** GER max 2 rail moves per turn |
 | **Hindenburg & Ludendorff** | GER | from Sep 1916 | **Hindenburg Programme:** GER +1 RP per turn | **The last gamble:** in Mar–Jul 1918, any month with no German attack costs GER −3 Will |
 | **Pershing** "Black Jack" | USA | when the USA enters | **Hard training:** US units are Green for 2 turns instead of 3 | **No amalgamation:** US units can't join coalition attacks until Sep 1918 |
@@ -462,7 +480,7 @@ a say (§15.2). The computer always follows history.
   Nivelle) only from Dec 1916; the other successors at any time. So Sir John French and
   Falkenhayn can be sacked early; Joffre can't be before Dec 1916. Sacking happens on
   the Nations screen in your own turn. The new card's Will flaws and combat rules work
-  at once; its OP, Manpower, Industry and rail moves count from next month.
+  at once; its attack limit, Manpower, Industry and rail moves count from next month.
 - **Order of succession:** FRA Joffre → Nivelle → Pétain (Pétain is also available instead
   of Nivelle from Dec 1916). GBR French → Haig. GER Falkenhayn → Hindenburg & Ludendorff.
 - **Foch** and **Pershing** arrive on their dates and can't be sacked.
@@ -470,9 +488,10 @@ a say (§15.2). The computer always follows history.
   keeps or sacks. It uses the Nivelle Method in April 1917.
 
 ### 15.2a How the cards work in play
-- **"+1 OP" and "+1 RP / MP"** are added to the §6 and §19 tables (so GBR has 3 OP in
-  1916–17 under Haig). Pétain's "OP max 1" and Falkenhayn's "max 2 rail moves" are
-  applied after any bonus.
+- **"+1 attack a month" and "+1 RP / MP"** are added to the §6 and §19 tables (so GBR may
+  make 4 attacks a month from 1916 under Haig, and FRA 4 in March–October under Joffre).
+  Pétain's "at most 1 attack a month" and Falkenhayn's "max 2 rail moves" are applied
+  after any bonus. (Until Version 1.9 these were +1 OP and "OP max 1".)
 - **"No French attack"** (Joffre) and **"no German attack"** (Hindenburg & Ludendorff)
   mean no attack that month with any unit of that nation in it, coalition attacks
   included. Checked in the National Will phase.
@@ -569,7 +588,7 @@ Each month every nation receives two separate resources. You decide how to spend
 | Resource | Represents | Spent on | Can you save it? |
 |---|---|---|---|
 | **Manpower (MP)** | Fresh men from the depots | Replacements (1 MP = +1 step) and rebuilding destroyed units (2 MP) | No. Unspent MP is lost. |
-| **Industry (IP)** | Factories, shells, guns | Munitions, research, new units (§19.9) | Munitions bought go into a **stockpile** (max 3). IP put towards research or a new unit carries over. Unspent IP is otherwise lost. |
+| **Industry (IP)** | Factories, shells, guns | Munitions (which pay for attacks and barrages, §9.1), research, new units (§19.9) | Munitions bought go into a **stockpile** (max 6). IP put towards research or a new unit carries over. Unspent IP is otherwise lost. |
 
 Why two resources: France ran out of **men** long before it ran out of **factories**.
 Britain had plenty of men by 1916 but couldn't turn spare men into shells. Merging the
@@ -623,15 +642,16 @@ screen (styled per STYLE.md §6 as a ledger with brass sliders):
 - **Manpower:** goes automatically to Replacements. The player assigns steps to units
   in the Replacements phase, as before.
 - **Industry:** split with sliders between:
-  - **Munitions:** 1 IP each, added to the stockpile, max 3 in stock. This is the
-    "artillery left" number on the dashboard.
+  - **Munitions:** 1 IP each, added to the stockpile, max 6 in stock [balanced]. This is
+    the "artillery left" number on the dashboard. Every attack takes 1 IP from it (2 for
+    a coalition attack), and its barrage 1 more per munition (§9.1).
   - **Research:** IP put towards one tech at a time (§19.5). Progress carries over
     between months.
   - **New units:** IP put towards the next new unit (§19.9). Progress carries over.
     When a nation can do both, a second slider splits the rest between Research and
     New units.
 - **Auto-allocate** (default **ON** at every level; the ☰ menu and a checkbox on the
-  budget screen turn it on or off): tops the stockpile up to 3 first, puts the rest
+  budget screen turn it on or off): tops the stockpile up to 6 first, puts the rest
   into the cheapest available research, and anything still left towards a new unit
   (a tank if the nation can buy one, otherwise infantry; it arrives in any of its rear
   cities). The budget screen doesn't appear.
@@ -641,8 +661,9 @@ screen (styled per STYLE.md §6 as a ledger with brass sliders):
   munitions), so it is spent automatically as above.
 - Unspent Industry is lost. The stockpile starts the war empty.
 
-Barrages spend munitions from the stockpile. The per-attack maximum is still 2, or 3
-after the creeping barrage.
+Attacks and barrages spend munitions from the stockpile. The per-attack barrage maximum
+is still 2, or 3 after the creeping barrage, and the Entente's is 4 from January 1918
+(§9.1).
 
 ### 19.5 Research
 Every tech arrives **for free on its historical date** if you haven't researched it.
@@ -672,19 +693,22 @@ never happened historically and can only be researched.
 ### 19.6 Dashboard additions
 The War Office dashboard (UI overhaul milestone) also shows, for each nation:
 - Manpower and Industry this month, with arrows comparing them to last month.
-- The munitions stockpile (0–3) as shell icons.
+- The munitions stockpile (0–6) as shell icons, with what it pays for: 1 IP per attack,
+  +1 per munition of barrage.
 - Research in progress, as a progress bar and the month it's expected.
 - Industrial cities held and lost, with their IP effect.
 
 ### 19.7 The computer opponent's spending
 - **Manpower:** repair the most threatened units first (§14).
-- **Industry:** buy munitions up to 3 in stock, then put up to 3 IP a month into the
+- **Industry:** buy munitions up to 6 in stock, then put up to 3 IP a month into the
   cheapest available research, then put the rest towards a new unit (§19.9: a tank if
   it can buy one, otherwise infantry, in a random rear city).
 - The computer does research. On average it gets the creeping barrage, Defence in
   depth and Landships a few months early.
 
 ### 19.8 Balance results (tools/wfsim.py, 80–200 games per row)
+These tables are from **Version 1.3**, when the stockpile held 3 and attacks cost OP.
+Version 1.9's results (attacks cost IP, stockpile 6) are in `docs/BALANCE.md` (V2c).
 The tables below are from the reference simulator that designed the economy. When it was
 merged into `tools/wfsim.py`, one quirk was fixed: the reference computer aimed for 4
 munitions in a stockpile that holds 3, so it wasted 1 IP a month. The re-run with the
@@ -732,7 +756,9 @@ as in §19.2, German Will 108):
 - Recruit is a little harder than before (64–82%). If it feels hard, raise the Recruit
   Will bonus from +15 to +20.
 
-**Simulator config** (now the defaults in `tools/wfsim.py`):
+**Simulator config** (Version 1.3; Version 1.9 changes `stock_cap=6, mun_target=6` and
+adds `attack_ip=1, attack_limit=3, heavy_barrage_e=191801`, all now the defaults in
+`tools/wfsim.py`):
 ```
 economy=True, split=True, blockade_pp=0, industry=True, stock_cap=3,
 mun_target=3, res_cap=3,

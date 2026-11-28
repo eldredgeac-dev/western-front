@@ -1,6 +1,6 @@
 # waste.py — the "IP thrown away per year" table in docs/BALANCE.md, plus attacks a
 # year and the months a nation ran out of OP (or hit its attack limit).
-#   python3 tools/waste.py [games=200] ['{"attack_ip":1,"stock_cap":6,"mun_target":6}']
+#   python3 tools/waste.py [games=200] ['{"attack_ip":0,"stock_cap":3,"mun_target":3,"heavy_barrage_e":0}']  (that JSON = Version 1.8)
 # Standard vs Standard. The JSON changes tools/wfsim.py's DEFAULT settings.
 import sys, os, json; sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import wfsim

@@ -2,7 +2,8 @@
 // After Germany's December 1914 moves, it picks territories that teach the core idea:
 //   1. two units go by ROAD into one front territory (with the one already there: 3);
 //   2. a reserve goes by RAIL to fill the gap one of them left;
-//   3. the three attack the German territory straight ahead with a 2-munition barrage.
+//   3. the three attack the German territory straight ahead with a 1-munition barrage
+//      (the attack itself takes the other IP in the stockpile, RULES.md §9.1).
 // It only reads the state. Returns null if no lane works (then the tutorial is skipped).
 
 import { unitsIn, sideOfUnit } from './units.js';

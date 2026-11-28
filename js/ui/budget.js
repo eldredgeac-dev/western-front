@@ -2,7 +2,7 @@
 // with brass sliders, shown at the start of a month when a player's budget waits.
 // For each of the side's nations:
 //   Manpower — goes to Replacements by itself (just shown).
-//   Industry — a brass slider splits it between Munitions (into the stockpile, max 3)
+//   Industry — a brass slider splits it between Munitions (into the stockpile, max 6)
 //              and the rest. When a nation can both research and buy units, a second
 //              slider splits the rest between Research (the tech you pick) and New
 //              units (§19.9: the unit and the rear city you pick). What isn't spent is lost.
@@ -11,7 +11,8 @@
 
 import { manpower, industryParts, stockpile, researchOptions, researchProgress, autoBudget,
   checkBudget, techResearched, techActive, buyOptions, production, depotsFor } from '../engine/systems/economy.js';
-import { addMonths } from '../engine/state.js';
+import { addMonths, currentMonth } from '../engine/state.js';
+import { barrageMax } from '../engine/combat.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -56,6 +57,17 @@ export function progressBar(done, total, label) {
   fill.style.width = `${Math.min(100, (done / total) * 100)}%`;
   bar.appendChild(fill);
   return bar;
+}
+
+// What a stockpile of `n` IP buys this month, in plain words: each attack takes 1 IP,
+// and every munition of barrage 1 more (RULES.md §9.1). `attacks` is the month's attack
+// limit and `maxBarrage` the biggest barrage allowed, so it never promises more.
+function stockUse(n, attacks, maxBarrage) {
+  if (n <= 0 || attacks <= 0) return 'no attacks this month.';
+  const plain = Math.min(n, attacks);
+  const barrage = Math.min(n - 1, maxBarrage);
+  const many = `${plain} attack${plain === 1 ? '' : 's'} with no barrage`;
+  return barrage > 0 ? `${many}, or 1 attack with a barrage of ${barrage}.` : `${many}.`;
 }
 
 // What a plan spends: { munitions, research, tech, build, buildType, city, lost }.
@@ -103,6 +115,10 @@ function nationCard(state, data, nationId, plan, names, monthNow) {
   const ip = industryParts(state, data, nationId);
   const stock = stockpile(state, nationId);
   const cap = data.economy.stockCap;
+  // for the stockpile line: this month's attack limit and biggest barrage (RULES.md §9.1)
+  const attacks = (state.resources[nationId] || {}).attacks || 0;
+  const side = (data.nations.nations.find((n) => n.id === nationId) || {}).side;
+  const maxBarrage = barrageMax(data, currentMonth(state), state, side);
   const options = researchOptions(state, data, nationId);
   const buys = buyOptions(state, data, nationId);
   const prod = production(state, nationId);
@@ -239,8 +255,10 @@ function nationCard(state, data, nationId, plan, names, monthNow) {
     first.left.textContent = `${spend.munitions} IP`;
     first.right.textContent = `${spend.research + spend.build} IP`;
     if (second) { second.left.textContent = `${spend.research} IP`; second.right.textContent = `${spend.build} IP`; }
+    // V2c: the stockpile pays for attacks too (1 IP each, plus its barrage)
+    const total = stock + spend.munitions;
     stockLine.replaceChildren(shellIcons(stock, cap, spend.munitions),
-      document.createTextNode(` Stockpile ${stock + spend.munitions} of ${cap}${stock + spend.munitions >= cap ? ' (full)' : ''}`));
+      document.createTextNode(` Stockpile ${total} of ${cap}${total >= cap ? ' (full)' : ''}: ${stockUse(total, attacks, maxBarrage)}`));
     lostLine.textContent = spend.lost > 0 ? `${spend.lost} IP unspent: it will be lost.` : '';
     lostLine.hidden = spend.lost <= 0;
     unitLine.textContent = unitStatus(spend);
@@ -306,7 +324,7 @@ export function showBudget(container, state, data, sideId, month, names, onSign)
   page.appendChild(top);
   page.appendChild(el('h2', 'ledger-title', `Estimates for ${names.monthName(month)}`));
   page.appendChild(el('p', 'ledger-line',
-    'Men go to the depots by themselves. Divide the factories’ output between shells for the stockpile, research and new units. What you don’t spend is lost.'));
+    'Men go to the depots by themselves. Divide the factories’ output between shells for the stockpile, research and new units. Every attack takes 1 IP from the stockpile, and its barrage 1 more per munition. What you don’t spend is lost.'));
   for (const n of nationIds) page.appendChild(nationCard(state, data, n, plans[n], names, month));
 
   const autoRow = el('label', 'budget-auto');

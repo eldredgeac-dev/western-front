@@ -798,6 +798,70 @@ I'll change it.
        so every balance table still stands. `tools/waste.py` prints the IP-thrown-away
        table; `levels.py` now takes key=value settings like `matchups.py`.
 
+### V2c built: attacks cost Industry (Version 11.4, RULES.md Version 1.9)
+148. **What you asked for:** build the approved V2c design (decision 147): 1 IP per attack,
+     stockpile 6, at most 3 attacks a month, heavier barrages from 1918, commanders
+     translated (Haig +1 attack a month, Joffre's March–October +1 and Pétain's limit as
+     attack-limit changes, Foch's coalition attacks at 1 IP), "France arms the Americans"
+     in Later ideas only (it was already there; I added how much IP it would use).
+149. **The simulator is switched on.** `tools/wfsim.py`'s defaults are now `attack_ip=1,
+     attack_limit=3, stock_cap=6, mun_target=6, heavy_barrage_e=191801` (the Entente's
+     maximum barrage +1 from January 1918; Germany's unchanged). `matchups.py 200` gives
+     exactly the numbers from the design chat: Standard vs Standard **44 / 39 / 18**,
+     Expert vs Expert **38 / 48 / 14**, passive play 0%. `waste.py 200`, which plays
+     another 200 seeds, gives **42 / 44 / 14**. I couldn't find the chat's exact
+     "42 / 45 / 13" for the Hundred Days version. I took "Hundred Days" to mean the
+     Entente-only barrage from January 1918 (decision 147), not both sides. If you meant
+     a different setting (from August 1918, say), tell me and I'll re-run it. Full
+     tables in BALANCE.md "V2c".
+150. **How it works in the game.**
+     - Offensive Points are gone from the data (no `op` schedules in nations.json). Every
+       nation has 3 attacks a month (`attackLimit` in data/combat-table.json; Belgium 0).
+       An attack's IP is `attackCost` there: 1, 2 for a coalition, 1 for an empty
+       territory. The heavier barrage is `barrageBonus` (Entente, +1 from 1918-01).
+     - The nation that pays is the one with the most steps in the attack, as before. It
+       pays the IP and uses up one of its attacks; the other nation pays nothing.
+     - The barrage comes on top of the attack's IP. So in December 1914, with France
+       holding 2 IP, a French attack can have a barrage of 1 at most. **The guided first
+       turn** now asks for a barrage of 1 (it was 2), so the attack is at 2:1 (42%) instead
+       of 3:1 (58%). On seed 1 it still succeeds.
+     - Commander effects in data/commanders.json: `attacks` (Joffre, Haig),
+       `attacks-max` (Pétain) and `coalition-ip-cost` (Foch) replace `op`, `op-max` and
+       `coalition-op-cost`.
+     - The computer only attacks with an attack left and at least 1 IP in stock; its
+       barrages are what's left after that IP, as in the simulator.
+     - Saves are version 9. A game saved partway through a month gets this month's
+       attack limit (with its commander), less the attacks each nation has already made.
+151. **What the player sees.**
+     - **Order slip:** "Cost: 1 IP for the attack + 2 for the barrage, from France's
+       stockpile (5 in stock). France has 3 attacks left this month." The barrage + button
+       stops at what the stockpile can pay after the attack's own IP.
+     - **War Office budget:** the stockpile line shows 6 shells and what they buy
+       ("Stockpile 4 of 6: 3 attacks with no barrage, or 1 attack with a barrage of 3",
+       never more than the month's attack limit or the biggest barrage allowed); the note
+       at the top says every attack takes 1 IP.
+     - **War Office ledger (Nations screen):** "Munitions stockpile: 4 IP of 6: 1 IP per
+       attack, +1 per munition of barrage" and "Attacks this month: 2 left of 4". The
+       "of" now includes the commander (Haig's 4, Pétain's 1).
+     - **Guide line and strip:** "Attacks left: France 3 · Britain 3. Munitions
+       stockpile: France 5 · Britain 2 IP". The strip shows IP instead of OP.
+     - **How to Play** and the commander cards say IP and attacks. A new test fails if
+       "Offensive Point" or "OP" appears in any data file or screen file.
+152. **The game's engine leans towards the Entente.** `node tools/js-par.mjs 200`:
+     **Germany 36%, Entente 52%, draw 13%** (Version 11.3: 48 / 40 / 13). That's inside
+     every healthy range, but Germany is near the bottom of its range and the
+     simulator says 44 / 39 / 18. The gap is in 1916, when the game's computer Entente
+     attacks about 14 times and the simulator's about 8. That's the same gap as decision
+     137's table (12.7 against 9.0), a little bigger now. I haven't changed anything for
+     it. See question 8.
+153. **Tests added or changed:** attack costs (1 IP, 2 for a coalition, the barrage on top,
+     refused with too few IP or no attacks left); a coalition attack uses one attack of
+     the payer only; the Entente's barrage of 4 from 1918 (Germany stays at 3); the
+     stockpile holds 6; the computer never overspends and makes at most 3 attacks a
+     month (at most 1 for France under Pétain in a whole computer war); Joffre, Haig,
+     Pétain and Foch as attack-limit and IP effects; the version 8 → 9 save upgrade; the
+     data matches RULES.md; no OP on any screen. 211 tests pass. Version 11.4.
+
 ## Questions for you (milestone 12)
 5. **Approve the AI fix in decision 128? — answered: yes.** Applied. With 200 wars the
    game's engine went from Germany 57 / Entente 33 / draw 11 to **45 / 37 / 18**, inside
@@ -823,6 +887,18 @@ I'll change it.
      playing Germany against the computer gets easier (the computer Entente buys
      infantry and does worse).
 
+## Questions for you (V2c)
+8. **The game's engine gives the Entente 52% and Germany 36% (decision 152). What should I
+   do?**
+   - **(a) Recommended: leave it and play it.** It's inside every healthy range, and
+     playing it on the phone will tell us more than the computer playing itself. If
+     Germany feels too weak, the next step is (b).
+   - **(b) Find the 1916 gap first:** trace a 1916 Entente turn in the game against the
+     simulator (as in decision 137), then fix the computer so they match.
+   - **(c) Give Germany something back now,** e.g. its maximum barrage +1 from March 1918
+     (the Kaiserschlacht's Bruchmüller barrages; `heavy_barrage_g=191803` in the
+     simulator). That would need a simulator re-run first.
+
 ## Questions for you (answered)
 1. **Combat table — answered: RULES.md is right.**
    - The balance tests used `tools/t2.py`, which patched the simulator's 1:2 and 1:1
@@ -847,6 +923,19 @@ I'll change it.
    before changing anything.
 
 ## Check on my phone
+- [ ] **Attacks cost Industry (Version 11.4).** Hard-refresh; the title screen should say
+      Version 11.4. Start a New Campaign as the Entente (skip the guide). Tap a French
+      front territory, then the German territory opposite. The order slip's Cost line
+      should say "1 IP for the attack … from France's stockpile (2 in stock). France has 3
+      attacks left this month", and the barrage + should stop at 1. No "OP" anywhere.
+- [ ] **The guided first turn.** Start the guided first turn: step 4 should ask for a
+      barrage of 1, and the attack should take its territory.
+- [ ] **War Office.** Open the ☰ menu, turn Auto-allocate off, and play to January 1915.
+      The budget page should show 6 shell outlines and say what the stockpile buys. On
+      the Nations screen the ledger should show "Munitions stockpile … of 6" and
+      "Attacks this month". In 1916 Britain should show "of 4" (Haig).
+- [ ] **How to Play.** "Who can attack whom" should say an attack costs 1 IP, and 3
+      attacks a month.
 - [ ] **The new board (Version 11.3).** Start a New Campaign on the folded phone. The board
       should show shaped territories with wavy ink borders, blue for the Entente and grey
       for Germany, the North Sea at the top and FLANDERS, ARTOIS … down the left edge.
